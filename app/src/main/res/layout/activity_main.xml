@@ -38,13 +38,14 @@
         android:layout_height="match_parent"
         android:clipChildren="false">
 
-        <!-- Weather and clock, top end (30nama keeps just the time there). -->
+        <!-- Top end: weather, clock, then network, Android settings and Plume settings. -->
         <LinearLayout
+            android:id="@+id/topBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
-            android:layout_marginTop="26dp"
-            android:layout_marginEnd="48dp"
+            android:layout_marginTop="18dp"
+            android:layout_marginEnd="40dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -67,6 +68,36 @@
                 android:format12Hour="h:mm"
                 android:format24Hour="HH:mm"
                 android:textSize="13sp" />
+
+            <ImageView
+                android:id="@+id/wifi"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="16dp"
+                android:contentDescription="Network settings"
+                android:focusable="true"
+                android:padding="7dp"
+                android:src="@drawable/rail_wifi" />
+
+            <ImageView
+                android:id="@+id/systemSettings"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="6dp"
+                android:contentDescription="Settings"
+                android:focusable="true"
+                android:padding="7dp"
+                android:src="@drawable/rail_gear" />
+
+            <ImageView
+                android:id="@+id/launcherSettings"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="6dp"
+                android:contentDescription="Plume settings"
+                android:focusable="true"
+                android:padding="7dp"
+                android:src="@drawable/rail_tune" />
         </LinearLayout>
 
         <!-- Billboard: eyebrow, title, meta line, plot (3 lines, 820 px wide), ending just above the rows. -->
@@ -224,7 +255,16 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 android:text="All apps"
-                android:textSize="20sp" />
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <!-- Sort pills (30nama pills): Home order, A–Z, Most used, Recently used, Recently installed. -->
+            <LinearLayout
+                android:id="@+id/allAppsSort"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                android:orientation="horizontal" />
 
             <GridLayout
                 android:id="@+id/allAppsGrid"

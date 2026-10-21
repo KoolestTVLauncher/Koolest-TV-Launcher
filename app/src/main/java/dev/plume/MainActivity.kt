@@ -174,7 +174,8 @@ class Updated : BroadcastReceiver() {
 
 class MainActivity : Activity() {
 
-    private class App(val pkg: String, val label: String, val launch: Intent, val icon: Drawable)
+    /** [banner] is the app's TV banner (16:9), what Android TV apps ship for exactly this kind of tile. */
+    private class App(val pkg: String, val label: String, val launch: Intent, val icon: Drawable, val banner: Drawable? = null)
     private class Prog(val title: String, val sub: String, val progress: Int, val image: String?, val intent: String?, val pkg: String?, val plot: String = "")
 
     private val prefs by lazy { getSharedPreferences("home", MODE_PRIVATE) }
@@ -216,7 +217,9 @@ class MainActivity : Activity() {
     private val railItems by lazy { findViewById<LinearLayout>(R.id.railItems) }
     private val railLabels = ArrayList<TextView>()
     private var railOpen = false
-    private var beforeRail: View? = null // the row item focus left for the menu, to return to
+    private var lastRowItem: View? = null // where focus last was in the rows: the menu and top bar return to it
+    private var lastTop: View? = null // last focused top-end button
+    private var railKey: String? = null // the pinned apps the menu was built with
     private lateinit var allApps: View
     private lateinit var allAppsGrid: GridLayout
     private lateinit var wifi: ImageView
@@ -260,7 +263,26 @@ class MainActivity : Activity() {
         contentRows = listOf(youtube, nama, watchRow, spotify)
         // Room under the last row so it too can scroll up to the top line, like every other row.
         rowStack.post { rows.setPadding(0, 0, 0, rowStack.height) }
+        wifi = findViewById(R.id.wifi)
         buildRail()
+        // Top end: network, Android settings, Plume settings. Round, lit on focus.
+        for ((id, action) in listOf<Pair<Int, () -> Unit>>(
+            R.id.wifi to { openSettings(Settings.ACTION_WIFI_SETTINGS) },
+            R.id.systemSettings to { openSettings(Settings.ACTION_SETTINGS) },
+            R.id.launcherSettings to { unlock { openLauncherSettings() } },
+        )) findViewById<ImageView>(id).apply {
+            setColorFilter(fg)
+            val ring = GradientDrawable().apply { shape = GradientDrawable.OVAL }
+            background = ring
+            setOnFocusChangeListener { v, focused ->
+                if (focused) lastTop = v
+                ring.setColor(if (focused) focusFill else 0)
+                setColorFilter(if (focused) focusInk else fg)
+                animate().scaleX(if (focused) 1.1f else 1f).scaleY(if (focused) 1.1f else 1f)
+                    .setDuration(180).setInterpolator(EASE_OUT).start()
+            }
+            setOnClickListener { action() }
+        }
         window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { old, now -> onHomeFocus(old, now) }
 
         if (prefs.getBoolean("reopen_settings", false)) {
@@ -897,6 +919,7 @@ class MainActivity : Activity() {
                 prefs.edit().remove("lock_pin").apply()
                 renderSettings(LOCK_ROW)
             },
+            Triple("Menu apps", railApps().count { pkg -> apps.any { it.pkg == pkg } }.let { if (it == 1) "1 app" else "$it apps" }) { pickRailApps() },
         )
         showPage("Plume settings", rows, focus, back = null)
     }
@@ -928,6 +951,32 @@ class MainActivity : Activity() {
         settingsList.getChildAt(first).let { it.nextFocusUpId = it.id }
         settingsList.getChildAt(first + rows.size - 1).let { it.nextFocusDownId = it.id }
         settingsList.getChildAt(first + focus.coerceIn(0, rows.size - 1)).requestFocus()
+    }
+
+    // ---------- menu apps ----------
+    // The apps pinned to the menu, between Home and All apps: rearrange, remove, add.
+
+    private fun pickRailApps(focus: Int = 0) {
+        val pinned = railApps().filter { pkg -> apps.any { it.pkg == pkg } } // uninstalled ones drop out
+        showPage("Menu apps", pinned.mapIndexed { i, pkg ->
+            page(apps.first { it.pkg == pkg }.label, "Move or remove") { railAppPage(pinned, i) }
+        } + page("Add an app…") { addRailApp(pinned) }, focus, back = { renderSettings(MENU_APPS_ROW) })
+    }
+
+    private fun railAppPage(pinned: List<String>, i: Int) {
+        fun moved(to: Int) = pinned.toMutableList().apply { add(to, removeAt(i)) }
+        showPage(apps.first { it.pkg == pinned[i] }.label, listOfNotNull(
+            if (i == 0) null else page("Move up") { saveRailApps(moved(i - 1)); pickRailApps(i - 1) },
+            if (i == pinned.lastIndex) null else page("Move down") { saveRailApps(moved(i + 1)); pickRailApps(i + 1) },
+            page("Remove from menu") { saveRailApps(pinned - pinned[i]); pickRailApps(minOf(i, pinned.size - 2).coerceAtLeast(0)) },
+        ), back = { pickRailApps(i) })
+    }
+
+    private fun addRailApp(pinned: List<String>) {
+        val choices = apps.filter { it.pkg !in pinned && !it.pkg.startsWith(HDMI) }.sortedBy { it.label.lowercase() }
+        showPage("Add to menu", choices.map { a ->
+            page(a.label) { saveRailApps(pinned + a.pkg); pickRailApps(pinned.size) }
+        }, back = { pickRailApps(pinned.size) })
     }
 
     // ---------- layout lock ----------
@@ -1150,6 +1199,7 @@ class MainActivity : Activity() {
                     Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                         .setComponent(ComponentName(a.packageName, a.name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     a.loadIcon(pm),
+                    a.loadBanner(pm),
                 )
             } + consoleInputs()
     }
@@ -1207,14 +1257,14 @@ class MainActivity : Activity() {
         val focusedTag = currentFocus?.tag
         // Rebuilds can happen in the background (an app or HDMI device added); only take focus if a tile row had it.
         val takeFocus = currentFocus == null || currentFocus?.parent === appRow || currentFocus?.parent === consoleRow
-        val gap = dp(GRID_GAP)
-        val width = (resources.displayMetrics.widthPixels - dp(92 + 48) - gap * (ROW_TILES - 1)) / ROW_TILES
+        buildRail() // its pinned apps may have just loaded or changed
+        val gap = dp(12) // as cards: tiles are card-sized, so app rows line up with card rows
         val shown = sortedApps().filter { it.pkg !in rowHiddenSet() }
         for ((row, list) in listOf(consoleRow to shown.filter { it.pkg.startsWith(HDMI) }, appRow to shown.filterNot { it.pkg.startsWith(HDMI) })) {
             row.removeAllViews()
             list.forEachIndexed { i, a ->
-                row.addView(appTile(a, labeled = rowNames() == "always").apply { id = View.generateViewId() },
-                    LinearLayout.LayoutParams(width, WRAP_CONTENT).apply { if (i > 0) marginStart = gap })
+                row.addView(appTile(a, dp(200), labeled = rowNames() == "always").apply { id = View.generateViewId() },
+                    LinearLayout.LayoutParams(dp(200), WRAP_CONTENT).apply { if (i > 0) marginStart = gap })
             }
             rowOf(row)!!.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
         }
@@ -1232,100 +1282,112 @@ class MainActivity : Activity() {
     private fun colourIcons() = prefs.getBoolean("colour_icons", false)
 
     /** The home row shows marks only by default (see rowNames); the All apps grid always labels them. */
-    private fun appTile(a: App, labeled: Boolean = true): View {
+    private fun appTile(a: App, width: Int, labeled: Boolean = true): View {
         val logo = LOGOS[a.pkg]
         val custom = customIcon(a.pkg)
         val name = a.label.takeIf { labeled }
         // Colour mode keeps the same marks, tinted with the brand colour (or the colour the app's icon is mostly).
         val colour = colourIcons()
+        val inset = width * 2 / 9 // a wordmark fills the middle of the tile's width
         val t = when {
-            custom != null -> tile(name, custom, false, a.pkg) { launch(a) }
+            custom != null -> tile(name, custom, false, a.pkg, width) { launch(a) }
+            // Consoles: a white mark on the brand's colour (PlayStation blue, Xbox green), the way Apple TV tiles look.
             a.pkg.startsWith(HDMI) -> deviceLogo(a.label).let { d ->
-                tile(name.takeIf { !d.wordmark }, a.icon, true, a.pkg, wordmarkInset = if (d.wordmark) dp(if (labeled) 40 else 30) else null,
-                    tint = d.colour?.takeIf { colour }) { launch(a) }
+                tile(name.takeIf { !d.wordmark }, a.icon, true, a.pkg, width, wordmarkInset = if (d.wordmark) inset else null,
+                    tint = Color.WHITE.takeIf { d.colour != null }, fill = d.colour) { launch(a) }
             }
-            logo != null -> tile(name.takeIf { !logo.second }, getDrawable(logo.first)!!, true, a.pkg,
-                wordmarkInset = if (!logo.second) null else dp(if (labeled) 40 else 30),
+            a.banner != null -> tile(name, a.icon, false, a.pkg, width, banner = a.banner) { launch(a) }
+            logo != null -> tile(name.takeIf { !logo.second }, getDrawable(logo.first)!!, true, a.pkg, width,
+                wordmarkInset = if (!logo.second) null else inset,
                 tint = BRAND_COLOURS[a.pkg]?.takeIf { colour }) { launch(a) }
-            else -> cachedGlyph(a)?.let { tile(name, it, true, a.pkg, tint = if (colour) cachedAccent(a) else null) { launch(a) } }
-                ?: if (colour) tile(name, a.icon.constantState?.newDrawable(resources) ?: a.icon, false, a.pkg) { launch(a) }
+            else -> cachedGlyph(a)?.let { tile(name, it, true, a.pkg, width, tint = if (colour) cachedAccent(a) else null) { launch(a) } }
+                ?: if (colour) tile(name, a.icon.constantState?.newDrawable(resources) ?: a.icon, false, a.pkg, width) { launch(a) }
                 // A copy: greying the shared icon itself would keep it grey after switching to colour.
-                else tile(name, (a.icon.constantState?.newDrawable(resources) ?: a.icon).mutate().apply { colorFilter = GREYSCALE }, false, a.pkg) { launch(a) }
+                else tile(name, (a.icon.constantState?.newDrawable(resources) ?: a.icon).mutate().apply { colorFilter = GREYSCALE }, false, a.pkg, width) { launch(a) }
         }
         t.contentDescription = a.label
         return t
     }
-
     /**
-     * A bare app mark, no box. Focused, it pops up and glows: a blurred copy of the mark behind it and a
-     * pool of light under it, both in the mark's own colour. The name, when shown, sits underneath.
+     * An app tile the Apple TV way: a rounded 16:9 picture, card-sized. Apps show their own TV banner; without
+     * one, the mark sits centred on a plain tile, or on [fill] (a console's brand colour). A hairline rim of
+     * light (tvOS's glass edge); focus lifts it like a card. The name, when shown, sits underneath.
      */
-    private fun tile(label: String?, icon: Drawable, mono: Boolean, tag: String, wordmarkInset: Int? = null, tint: Int? = null, onClick: () -> Unit): View {
-        val colour = tint ?: fg
-        fun mark() = ImageView(this).apply {
-            setImageDrawable((icon.constantState?.newDrawable(resources) ?: icon).mutate())
-            if (mono) setColorFilter(colour)
-            // Icons share one height. Wordmarks sit in a square viewport, so fit them by width instead
-            // (crop the empty top and bottom) or they shrink to a sliver.
-            if (wordmarkInset != null) {
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                setPadding(wordmarkInset, 0, wordmarkInset, 0)
-            } else {
-                scaleType = ImageView.ScaleType.FIT_CENTER
-                setPadding(dp(24), dp(12), dp(24), dp(12))
-            }
-        }
-        val img = mark()
-        val glow = mark().apply {
-            alpha = 0f
-            // Without RenderEffect (before Android 12) a sharp copy would just thicken the mark; the pool still glows.
-            if (Build.VERSION.SDK_INT >= 31) setRenderEffect(RenderEffect.createBlurEffect(dp(10).toFloat(), dp(10).toFloat(), Shader.TileMode.DECAL))
-            else visibility = View.GONE
-        }
-        // A round light flattened into an ellipse under the mark.
-        val pool = View(this).apply {
+    private fun tile(label: String?, icon: Drawable, mono: Boolean, tag: String, width: Int, wordmarkInset: Int? = null, tint: Int? = null,
+                     banner: Drawable? = null, fill: Int? = null, onClick: () -> Unit): View {
+        val radius = dp(8).toFloat()
+        val img = ImageView(this).apply {
             background = GradientDrawable().apply {
-                gradientType = GradientDrawable.RADIAL_GRADIENT
-                gradientRadius = dp(64).toFloat()
-                colors = intArrayOf(colour and 0xFFFFFF or 0x99000000.toInt(), colour and 0xFFFFFF)
+                cornerRadius = radius
+                setColor(fill ?: if (dark) 0xFF20242F.toInt() else 0xFFE5E2DC.toInt())
             }
-            alpha = 0f
-            scaleY = 0.16f
-            // Under the mark: the tile's bottom for icons, just under the band a (short, wide) wordmark fills.
-            translationY = dp(if (wordmarkInset != null) 22 else TILE_H / 2).toFloat()
+            clipToOutline = true
+            if (banner != null) {
+                setImageDrawable(banner)
+                scaleType = ImageView.ScaleType.CENTER_CROP
+            } else {
+                setImageDrawable(icon.mutate())
+                if (mono) setColorFilter(tint ?: fg)
+                // Icons share one height. Wordmarks sit in a square viewport, so fit them by width instead
+                // (crop the empty top and bottom) or they shrink to a sliver.
+                if (wordmarkInset != null) {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setPadding(wordmarkInset, 0, wordmarkInset, 0)
+                } else {
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setPadding(0, width / 7, 0, width / 7)
+                }
+            }
+            foreground = GradientDrawable().apply {
+                cornerRadius = radius
+                setStroke(dp(1), if (dark) 0x2EFFFFFF else 0x1A000000)
+            }
         }
-        val box = FrameLayout(this).apply {
-            clipChildren = false
-            addView(pool, FrameLayout.LayoutParams(dp(128), dp(128), Gravity.CENTER))
-            addView(glow, MATCH_PARENT, MATCH_PARENT)
-            addView(img, MATCH_PARENT, MATCH_PARENT)
-        }
+        val frame = FrameLayout(this).apply { addView(img, MATCH_PARENT, MATCH_PARENT) }
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
-            addView(box, LinearLayout.LayoutParams(MATCH_PARENT, dp(TILE_H)))
+            addView(frame, LinearLayout.LayoutParams(width, width * 9 / 16))
         }
         val text = label?.let {
             label(it, 13f).apply {
                 gravity = Gravity.CENTER
-                setPadding(dp(6), dp(8), dp(6), 0)
+                alpha = 0.72f
+                setPadding(dp(4), dp(8), dp(4), 0)
                 col.addView(this, LinearLayout.LayoutParams(MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }
         }
-        // In dark the marks rest slightly dimmed and brighten with focus.
-        val rest = if (dark) 0.8f else 1f
-        img.alpha = rest
-        text?.alpha = rest
+        // The column takes focus (row code knows tiles by it); the picture lifts, the name brightens.
+        val lift = cardFocus(frame, radius, 1.1f)
         style(col, 0, card = false, lift = 1f, bare = true) { focused ->
-            box.animate().scaleX(if (focused) 1.22f else 1f).scaleY(if (focused) 1.22f else 1f)
-                .translationY(if (focused) -dp(6).toFloat() else 0f).setDuration(300).setInterpolator(EMPH).start()
-            for (v in listOf(glow, pool)) v.animate().alpha(if (focused) 1f else 0f).setDuration(300).setInterpolator(EASE_OUT).start()
-            img.animate().alpha(if (focused) 1f else rest).setDuration(200).start()
-            text?.animate()?.alpha(if (focused) 1f else rest)?.setDuration(200)?.start()
+            lift(focused)
+            text?.animate()?.alpha(if (focused) 1f else 0.72f)?.setDuration(180)?.start()
         }
         col.tag = tag
         col.setOnClickListener { onClick() }
         return col
+    }
+
+    /**
+     * The card focus look on [frame], for its own or a parent's focus: scale, a 4 px white ring 6 px outside it
+     * (drawn past its bounds, nothing up the tree clips) and a lift shadow.
+     */
+    private fun cardFocus(frame: FrameLayout, radius: Float, lift: Float = 1.08f): (Boolean) -> Unit {
+        frame.clipChildren = false
+        frame.outlineProvider = object : android.view.ViewOutlineProvider() { // for the lift shadow
+            override fun getOutline(view: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, view.width, view.height, radius)
+        }
+        val ring = GradientDrawable().apply {
+            cornerRadius = radius + dp(3)
+            setStroke(dp(2), focusFill)
+            alpha = 0
+        }
+        frame.foreground = android.graphics.drawable.InsetDrawable(ring, -dp(5))
+        return { focused ->
+            ring.alpha = if (focused) 255 else 0
+            frame.animate().scaleX(if (focused) lift else 1f).scaleY(if (focused) lift else 1f)
+                .translationZ(if (focused) dp(18).toFloat() else 0f).setDuration(220).setInterpolator(EASE_OUT).start()
+        }
     }
 
     /**
@@ -1439,22 +1501,29 @@ class MainActivity : Activity() {
     }
 
     /**
-     * The home screen is the menu rail beside a stack of rows (the 30nama layout). Left/Right step along a
-     * row; Left from its first item opens the menu, Right leaves it back to where you were. Up/Down move
-     * between rows and land where you last were in that row. Returns the view to focus (itself = stay), or
-     * null to let Android handle the key.
+     * The home screen is the menu rail beside a stack of rows (the 30nama layout), with buttons at the top end.
+     * Left/Right step along a row; Left from its first item opens the menu, Right leaves it back to where you
+     * were. Up/Down move between rows and land where you last were in that row; Up from the first row goes to
+     * the top buttons. Returns the view to focus (itself = stay), or null to let Android handle the key.
      */
     private fun homeNav(v: View, key: Int): View? {
         if ((v.parent as? View)?.parent === railItems) { // the menu
             val i = railItems.indexOfChild(v.parent as View)
             fun at(j: Int) = (railItems.getChildAt(j) as? ViewGroup)?.let { it.getChildAt(it.childCount - 1) }
             return when (key) {
-                KeyEvent.KEYCODE_DPAD_RIGHT -> beforeRail?.takeIf { it.isAttachedToWindow } ?: firstRowEntry() ?: v
+                KeyEvent.KEYCODE_DPAD_RIGHT -> lastRowItem?.takeIf { it.isAttachedToWindow } ?: firstRowEntry() ?: v
                 KeyEvent.KEYCODE_DPAD_LEFT -> v
                 KeyEvent.KEYCODE_DPAD_UP -> if (i <= 1) v else at(i - 1) // child 0 is the mark
                 KeyEvent.KEYCODE_DPAD_DOWN -> at(i + 1) ?: v
                 else -> null
             }
+        }
+        if (v.parent === wifi.parent) return when (key) { // top end buttons
+            KeyEvent.KEYCODE_DPAD_DOWN -> lastRowItem?.takeIf { it.isAttachedToWindow } ?: firstRowEntry() ?: v
+            KeyEvent.KEYCODE_DPAD_UP -> v
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (v.id == R.id.wifi) v else null
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (v.id == R.id.launcherSettings) v else null
+            else -> null
         }
         val row = rowOf(v) ?: return null
         val visible = kids(rows).filter { it.visibility == View.VISIBLE }
@@ -1464,7 +1533,7 @@ class MainActivity : Activity() {
         val at = strip.indexOfChild(item)
         fun target(x: View?) = x?.let { if (it.isFocusable) it else (it as ViewGroup).getChildAt(0) }
         return when (key) {
-            KeyEvent.KEYCODE_DPAD_UP -> if (i <= 0) v else entry(visible[i - 1])
+            KeyEvent.KEYCODE_DPAD_UP -> if (i <= 0) lastTop?.takeIf { it.isAttachedToWindow } ?: wifi else entry(visible[i - 1])
             KeyEvent.KEYCODE_DPAD_DOWN -> if (i == visible.lastIndex) v else entry(visible[i + 1])
             KeyEvent.KEYCODE_DPAD_LEFT -> if (at > 0) target(strip.getChildAt(at - 1)) else if (editing) v else findViewById(R.id.railHome)
             KeyEvent.KEYCODE_DPAD_RIGHT -> target(strip.getChildAt(at + 1)) ?: v
@@ -1687,17 +1756,13 @@ class MainActivity : Activity() {
     // ---------- all apps ----------
 
     private fun openAllApps() {
-        allAppsGrid.removeAllViews()
-        val gap = dp(GRID_GAP)
-        val width = (resources.displayMetrics.widthPixels - dp(96) - gap * (ROW_TILES - 1)) / ROW_TILES
-        for (a in sortedApps()) {
-            val t = appTile(a) // holding OK here pins it to the row (see onHold)
-            allAppsGrid.addView(t, GridLayout.LayoutParams().apply {
-                this.width = width
-                height = GridLayout.LayoutParams.WRAP_CONTENT
-                setMargins(0, 0, gap, gap)
-            })
-        }
+        val sort = findViewById<LinearLayout>(R.id.allAppsSort)
+        sort.removeAllViews()
+        for ((key, name) in ALL_SORTS) sort.addView(sortPill(key, name), LinearLayout.LayoutParams(WRAP_CONTENT, dp(28)).apply {
+            marginEnd = dp(10)
+        })
+        fillAllApps()
+        allApps.scrollTo(0, 0)
         allApps.alpha = 0f
         allApps.scaleX = 0.97f
         allApps.scaleY = 0.97f
@@ -1707,6 +1772,79 @@ class MainActivity : Activity() {
         allAppsGrid.getChildAt(0)?.requestFocus()
     }
 
+    /** The grid, five card-size tiles across with names, in the chosen order. */
+    private fun fillAllApps() {
+        allAppsGrid.removeAllViews()
+        val gap = dp(16)
+        val width = (resources.displayMetrics.widthPixels - dp(96) - gap * 4) / 5
+        for (a in allAppsSorted()) {
+            val t = appTile(a, width) // holding OK here pins it to the row (see onHold)
+            allAppsGrid.addView(t, GridLayout.LayoutParams().apply {
+                this.width = width
+                height = GridLayout.LayoutParams.WRAP_CONTENT
+                setMargins(0, 0, gap, gap)
+            })
+        }
+    }
+
+    private fun allSort() = prefs.getString("all_sort", "home")!!
+
+    private fun allAppsSorted(): List<App> = when (allSort()) {
+        "name" -> apps.sortedBy { it.label.lowercase() }
+        "used" -> apps.sortedByDescending { prefs.getInt("n_" + it.pkg, 0) }
+        "recent" -> apps.sortedByDescending { prefs.getLong("t_" + it.pkg, 0) }
+        "installed" -> apps.sortedByDescending { installedAt(it.pkg) }
+        else -> sortedApps()
+    }
+
+    /** First install time; 0 for HDMI devices, which sort last. */
+    private fun installedAt(pkg: String) = try {
+        packageManager.getPackageInfo(pkg, 0).firstInstallTime
+    } catch (e: PackageManager.NameNotFoundException) {
+        0L
+    }
+
+    /**
+     * A 30nama pill: 56 px tall, full radius, white 8 %; the current one white 16 % with a 3 px accent underline,
+     * the focused one white with dark ink. Picking one reorders the grid and keeps focus on the pill.
+     */
+    private fun sortPill(key: String, name: String): View {
+        val current = key == allSort()
+        val rest = if (dark) (if (current) 0x29FFFFFF else 0x14FFFFFF) else (if (current) 0x29000000 else 0x14000000)
+        val bg = GradientDrawable().apply {
+            cornerRadius = dp(14).toFloat()
+            setColor(rest)
+        }
+        val underline = GradientDrawable().apply {
+            cornerRadius = dp(1).toFloat()
+            setColor(if (current) ACCENT else 0)
+        }
+        return label(name, 13f).apply {
+            gravity = Gravity.CENTER
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(dp(14), 0, dp(14), 0)
+            background = LayerDrawable(arrayOf(bg, underline)).apply {
+                setLayerGravity(1, Gravity.BOTTOM or Gravity.FILL_HORIZONTAL)
+                setLayerHeight(1, dp(2))
+                setLayerInset(1, dp(14), 0, dp(14), dp(4))
+            }
+            isFocusable = true
+            isClickable = true
+            setOnFocusChangeListener { _, focused ->
+                bg.setColor(if (focused) focusFill else rest)
+                setTextColor(if (focused) focusInk else fg)
+            }
+            setOnClickListener {
+                prefs.edit().putString("all_sort", key).apply()
+                val sort = parent as LinearLayout
+                val at = sort.indexOfChild(this)
+                sort.removeAllViews()
+                for ((k, n) in ALL_SORTS) sort.addView(sortPill(k, n), LinearLayout.LayoutParams(WRAP_CONTENT, dp(28)).apply { marginEnd = dp(10) })
+                fillAllApps()
+                sort.getChildAt(at).requestFocus()
+            }
+        }
+    }
     private fun closeAllApps() {
         allApps.visibility = View.GONE // instant, like the settings panel: key handling reads "visible" as "open"
         homeFocusable(true)
@@ -2286,10 +2424,6 @@ class MainActivity : Activity() {
             clipToOutline = true
         }
         val frame = FrameLayout(this).apply {
-            clipChildren = false
-            outlineProvider = object : android.view.ViewOutlineProvider() { // for the lift shadow
-                override fun getOutline(view: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, view.width, view.height, radius)
-            }
             addView(img, MATCH_PARENT, MATCH_PARENT)
             if (p.progress > 0) addView(ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
                 max = 100
@@ -2297,14 +2431,7 @@ class MainActivity : Activity() {
                 progressDrawable = progressBarDrawable()
             }, FrameLayout.LayoutParams(MATCH_PARENT, dp(3), Gravity.BOTTOM).apply { setMargins(dp(6), 0, dp(6), dp(6)) })
         }
-        // Drawn past the card's bounds (negative inset); nothing up the tree clips, so the ring shows whole.
-        val ring = GradientDrawable().apply {
-            cornerRadius = radius + dp(3)
-            setStroke(dp(2), focusFill)
-            alpha = 0
-        }
-        frame.foreground = android.graphics.drawable.InsetDrawable(ring, -dp(5))
-        style(frame, 0, card = false, bare = true) { focused -> ring.alpha = if (focused) 255 else 0 }
+        style(frame, 0, card = false, lift = 1f, bare = true, onFocus = cardFocus(frame, radius))
         frame.contentDescription = p.title
         frame.setOnClickListener { open(p) }
         frame.setTag(R.id.watchRow, p) // holding OK hides it (see onHold)
@@ -2363,11 +2490,12 @@ class MainActivity : Activity() {
     private fun firstRowEntry() = kids(rows).firstOrNull { it.visibility == View.VISIBLE }?.let { entry(it) }
 
     /** Focus moved: open or close the menu, remember it per row, glide its row and track into place, update the billboard. */
-    private fun onHomeFocus(old: View?, v: View?) {
+    private fun onHomeFocus(@Suppress("UNUSED_PARAMETER") old: View?, v: View?) {
         val inRail = (v?.parent as? View)?.parent === railItems
-        if (inRail != railOpen) setRail(inRail, from = old)
+        if (inRail != railOpen) setRail(inRail)
         val row = rowOf(v)
         if (row != null) {
+            lastRowItem = v
             row.setTag(R.id.rows, v)
             rowStack.post { // posted: a row just shown has no position yet
                 glideRows(row)
@@ -2402,25 +2530,38 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    /** The menu items: Search, Home (here), All apps, Network, Android settings, Plume settings. */
+    /**
+     * The menu, a taskbar: Search, Home (here), the pinned apps (Plume settings → Menu apps; YouTube, Spotify and
+     * 30nama to start) and All apps last. Rebuilt only when the pinned apps change.
+     */
     private fun buildRail() {
-        railItem(R.id.railSearch, R.drawable.rail_search, "Search") { search() }
-        railItem(R.id.railHome, R.drawable.rail_home, "Home", current = true) { leaveRail() }
-        railItem(R.id.allAppsButton, R.drawable.rail_apps, "All apps") { openAllApps() }
-        wifi = railItem(R.id.wifi, R.drawable.rail_wifi, "Network") { openSettings(Settings.ACTION_WIFI_SETTINGS) }
-        railItem(R.id.systemSettings, R.drawable.rail_gear, "Settings") { openSettings(Settings.ACTION_SETTINGS) }
-        railItem(R.id.launcherSettings, R.drawable.rail_tune, "Plume settings") { unlock { openLauncherSettings() } }
+        val pinned = railApps().mapNotNull { pkg -> apps.firstOrNull { it.pkg == pkg } }
+        val key = pinned.joinToString(",") { it.pkg }
+        if (key == railKey) return
+        railKey = key
+        railItems.removeViews(1, railItems.childCount - 1) // child 0 is the mark
+        railLabels.clear()
+        railItem(R.id.railSearch, getDrawable(R.drawable.rail_search)!!, "Search") { search() }
+        railItem(R.id.railHome, getDrawable(R.drawable.rail_home)!!, "Home", current = true) { leaveRail() }
+        for (a in pinned) railItem(View.generateViewId(), a.icon, a.label, app = true) { launch(a) }
+        railItem(R.id.allAppsButton, getDrawable(R.drawable.rail_apps)!!, "All apps") { openAllApps() }
     }
 
+    private fun railApps() = prefs.getString("rail_apps", DEFAULT_RAIL)!!.split(',').filter { it.isNotEmpty() }
+
+    private fun saveRailApps(pkgs: List<String>) {
+        prefs.edit().putString("rail_apps", pkgs.joinToString(",")).apply()
+        buildRail()
+    }
     /**
      * One menu item, 72 px tall: a 40 px icon (text-3, the current one text-1 with a 4 × 28 accent bar at
      * the edge) and its label, shown once the menu opens. Focused, it's a white 300 × 64 pill.
      */
-    private fun railItem(id: Int, icon: Int, name: String, current: Boolean = false, action: () -> Unit): ImageView {
+    private fun railItem(id: Int, icon: Drawable, name: String, current: Boolean = false, app: Boolean = false, action: () -> Unit) {
         val rest = if (current) fg else fg and 0xFFFFFF or 0x75000000
         val img = ImageView(this).apply {
-            setImageResource(icon)
-            setColorFilter(rest)
+            setImageDrawable(icon)
+            if (app) alpha = 0.85f else setColorFilter(rest) // apps keep their own colours
         }
         val text = label(name, 14f).apply {
             setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -2436,12 +2577,12 @@ class MainActivity : Activity() {
             contentDescription = name
             background = pill
             setPadding(dp(10), 0, dp(10), 0)
-            addView(img, LinearLayout.LayoutParams(dp(20), dp(20)))
+            addView(img, LinearLayout.LayoutParams(dp(if (app) 22 else 20), dp(if (app) 22 else 20)))
             addView(text, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginStart = dp(12) })
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
                 pill.setColor(if (focused) focusFill else 0)
-                img.setColorFilter(if (focused) focusInk else rest)
+                if (app) img.alpha = if (focused) 1f else 0.85f else img.setColorFilter(if (focused) focusInk else rest)
                 text.setTextColor(if (focused) focusInk else fg)
             }
         }
@@ -2454,13 +2595,11 @@ class MainActivity : Activity() {
             }, FrameLayout.LayoutParams(dp(2), dp(14), Gravity.CENTER_VERTICAL))
             addView(item, FrameLayout.LayoutParams(dp(150), dp(32), Gravity.CENTER_VERTICAL).apply { marginStart = dp(10) })
         }, LinearLayout.LayoutParams(MATCH_PARENT, dp(36)))
-        return img
     }
 
     /** Focus entering the menu opens it: panel and labels fade in (labels 20 ms apart), the screen behind dims. */
-    private fun setRail(open: Boolean, from: View?) {
+    private fun setRail(open: Boolean) {
         railOpen = open
-        if (open) beforeRail = from?.takeIf { rowOf(it) != null } ?: beforeRail
         val t = if (open) 1f else 0f
         findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).start()
         findViewById<View>(R.id.railDim).animate().alpha(t * 0.7f).setDuration(240).setInterpolator(EASE_OUT).start()
@@ -2471,7 +2610,7 @@ class MainActivity : Activity() {
 
     /** Back to the row item the menu was opened from (Right, Back, or Home in the menu). */
     private fun leaveRail() {
-        (beforeRail?.takeIf { it.isAttachedToWindow } ?: firstRowEntry())?.requestFocus()
+        (lastRowItem?.takeIf { it.isAttachedToWindow } ?: firstRowEntry())?.requestFocus()
     }
 
     /** The TV's own search (Google TV's search screen), or the assistant where that's what search is. */
@@ -2677,6 +2816,12 @@ class MainActivity : Activity() {
         const val DEFAULT_HOME_ROW = 19
         const val UPDATE_ROW = 20
         const val LOCK_ROW = 21
+        const val MENU_APPS_ROW = 22
+        // The menu's apps to start with (any not installed are skipped).
+        const val DEFAULT_RAIL = "com.google.android.youtube.tv,com.spotify.tv.android,com.nama30.tv"
+        val ALL_SORTS = linkedMapOf(
+            "home" to "Home order", "name" to "A–Z", "used" to "Most used", "recent" to "Recently used", "installed" to "Recently installed",
+        )
         const val TOGGLE_ON = "\u0000on" // row values drawn as a switch instead of text
         const val TOGGLE_OFF = "\u0000off"
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
@@ -2704,9 +2849,6 @@ class MainActivity : Activity() {
         const val WRITE_EPG ="com.android.providers.tv.permission.WRITE_EPG_DATA"
         const val TV_SETTINGS = "com.android.tv.settings"
         const val HDMI = "hdmi:" // App.pkg prefix for HDMI device tiles; the rest is the TV input id
-        const val ROW_TILES = 5 // big tvOS-size tiles
-        const val TILE_H = 96 // dp; 5:3 like tvOS app icons
-        const val GRID_GAP = 16 // dp; shared by the apps row and the cards so their columns line up
         val BUNDLED_WALLPAPERS = linkedMapOf(
             "Rockies (day)" to R.drawable.wallpaper,
             "Rockies (dusk)" to R.drawable.wallpaper_dark,
@@ -2719,7 +2861,6 @@ class MainActivity : Activity() {
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
         )
         val GREYSCALE = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
-        val DECELERATE = android.view.animation.DecelerateInterpolator(1.5f)
         // 30nama motion curves: EASE_OUT for focus and small moves, EMPH for big travel (screens, panels, the shelf).
         val EASE_OUT = PathInterpolator(.2f, .8f, .2f, 1f)
         val EMPH = PathInterpolator(.16f, 1f, .3f, 1f)

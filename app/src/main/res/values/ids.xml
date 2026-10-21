@@ -6,7 +6,4 @@
     <item name="railSearch" type="id" />
     <item name="railHome" type="id" />
     <item name="allAppsButton" type="id" />
-    <item name="wifi" type="id" />
-    <item name="systemSettings" type="id" />
-    <item name="launcherSettings" type="id" />
 </resources>
