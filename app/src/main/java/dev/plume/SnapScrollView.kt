@@ -30,3 +30,11 @@ class SnapScrollView(context: Context, attrs: AttributeSet?) : HorizontalScrollV
         }
     }
 }
+
+/**
+ * The home rows' vertical scroller. Measures the rows at full height (a plain frame would squeeze them)
+ * but never scrolls by itself: MainActivity glides it so the focused row sits at the top.
+ */
+class RowStack(context: Context, attrs: AttributeSet?) : android.widget.ScrollView(context, attrs) {
+    override fun computeScrollDeltaToGetChildRectOnScreen(rect: Rect) = 0
+}

@@ -55,6 +55,7 @@ import android.view.View
 import android.view.animation.PathInterpolator
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
@@ -144,10 +145,7 @@ class MainActivity : Activity() {
     // Kept across activity rebuilds (theme switch), so the new home screen shows its apps at once.
     private var apps = APPS ?: emptyList()
     private var appsDirty = APPS == null
-    private var watchKey: String? = null
     private var lastTop: View? = null // last focused view in each home row, so Up/Down return to it
-    private var lastApp: View? = null
-    private var lastCard: View? = null
     private var editing = false
     private var grabbed: View? = null
     private var holdFired = false
@@ -159,14 +157,18 @@ class MainActivity : Activity() {
     private var focusFill = Color.WHITE // 30nama: focus is white (dark ink on it); in light mode it turns dark
     private var focusInk = Color.BLACK
 
-    private lateinit var appRow: LinearLayout
+    private lateinit var rows: LinearLayout // the home rows, top to bottom; see makeRow
+    private lateinit var rowStack: View
+    private lateinit var appRow: LinearLayout // each row is known by its strip of items
     private lateinit var watchRow: LinearLayout
-    private lateinit var watchTitle: TextView
+    private lateinit var consoleRow: LinearLayout
+    private lateinit var contentRows: List<LinearLayout> // card rows, in the order queryContent fills them
+    private val rowKeys = HashMap<View, String>() // what each card row shows, to skip unchanged rebuilds
+    private var navigated = false // the remote has moved focus since launch: stop moving it for them
     private val appsTitle by lazy { findViewById<TextView>(R.id.appsTitle) }
     private val hero by lazy { findViewById<ImageView>(R.id.hero) }
     private val shelf by lazy { findViewById<View>(R.id.shelf) }
-    private var shelfFor: Prog? = null
-    private lateinit var watchScroll: View
+    private var shelfFor: View? = null
     private lateinit var allApps: View
     private lateinit var allAppsGrid: GridLayout
     private lateinit var wifi: ImageView
@@ -195,18 +197,25 @@ class MainActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         setContentView(R.layout.activity_main)
-        appRow = findViewById(R.id.appRow)
-        watchRow = findViewById(R.id.watchRow)
-        watchTitle = findViewById(R.id.watchTitle)
-        watchScroll = findViewById(R.id.watchScroll)
         allApps = findViewById(R.id.allApps)
         allAppsGrid = findViewById(R.id.allAppsGrid)
         wifi = findViewById(R.id.wifi)
         applyTheme()
         loadWallpaper()
+        rows = findViewById(R.id.rows)
+        rowStack = findViewById(R.id.rowStack)
+        val youtube = makeRow("YouTube")
+        val nama = makeRow("30nama")
+        watchRow = makeRow("Continue watching")
+        consoleRow = makeRow("Consoles & inputs")
+        val spotify = makeRow("Spotify")
+        appRow = makeRow("Apps").apply { id = R.id.appRow }
+        contentRows = listOf(youtube, nama, watchRow, spotify)
+        // Room under the last row so it too can scroll up to the top line, like every other row.
+        rowStack.post { rows.setPadding(0, 0, 0, rowStack.height) }
         // Blurred: poster art is card-sized, so sharp it would look upscaled; soft it reads as ambient light.
         if (Build.VERSION.SDK_INT >= 31) hero.setRenderEffect(RenderEffect.createBlurEffect(dp(12).toFloat(), dp(12).toFloat(), Shader.TileMode.CLAMP))
-        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, now -> focusShelf(now?.getTag(R.id.watchRow) as? Prog) }
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, now -> onHomeFocus(now) }
 
         // Top bar: network, All apps, Android settings, launcher settings. Round, lit on focus.
         for ((id, action) in listOf<Pair<Int, () -> Unit>>(
@@ -407,8 +416,7 @@ class MainActivity : Activity() {
         if (editing) endEdit()
         if (settingsScrim.visibility == View.VISIBLE) closeLauncherSettings()
         if (allApps.visibility == View.VISIBLE) closeAllApps()
-        watchScroll.scrollTo(0, 0)
-        appRow.getChildAt(0)?.requestFocus()
+        firstRowEntry()?.requestFocus()
     }
 
     @Deprecated("Home screen: Back only closes overlays")
@@ -436,7 +444,7 @@ class MainActivity : Activity() {
         ground = if (dark) 0xFF0E1016.toInt() else 0xFFF3F5F7.toInt()
         findViewById<View>(R.id.root).setBackgroundColor(ground)
         allApps.setBackgroundColor(ground)
-        for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.watchTitle, R.id.allAppsTitle, R.id.rowLabel, R.id.weather,
+        for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.allAppsTitle, R.id.weather,
             R.id.shelfTitle, R.id.shelfMeta)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
@@ -802,7 +810,7 @@ class MainActivity : Activity() {
             },
             Triple("Restore hidden shows", if (hidden == 0) "None hidden" else "$hidden hidden") {
                 prefs.edit().remove("hidden_watch").apply()
-                watchKey = null
+                rowKeys.clear()
                 refreshWatchNext()
                 renderSettings(10)
             },
@@ -1105,15 +1113,18 @@ class MainActivity : Activity() {
      * Opening one switches the TV to that HDMI input, which also wakes the device over CEC.
      */
     private fun consoleInputs(): List<App> = try {
-        getSystemService(TvInputManager::class.java).tvInputList
-            .filter { it.type == TvInputInfo.TYPE_HDMI && it.parentId != null }
+        val hdmi = getSystemService(TvInputManager::class.java).tvInputList.filter { it.type == TvInputInfo.TYPE_HDMI }
+        val devices = hdmi.filter { it.parentId != null }
+        // A port with a named device on it shows as that device; an empty or unnamed port still gets a tile ("HDMI 2").
+        (devices + hdmi.filter { port -> port.parentId == null && devices.none { it.parentId == port.id } })
             .map { input ->
                 val label = input.loadLabel(this).toString()
                 val ps = label.contains("PlayStation", ignoreCase = true)
+                val port = input.parentId ?: input.id
                 App(
-                    HDMI + input.parentId,
+                    HDMI + port,
                     label,
-                    Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(input.parentId))
+                    Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(port))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     if (ps) getDrawable(R.drawable.logo_playstation)!! else input.loadIcon(this) ?: getDrawable(R.drawable.ic_apps)!!,
                 )
@@ -1148,33 +1159,27 @@ class MainActivity : Activity() {
      */
     private fun renderApps() {
         val focusedTag = currentFocus?.tag
-        // Rebuilds can happen in the background (an app or HDMI device added); only take focus if the row had it.
-        val takeFocus = currentFocus == null || currentFocus?.parent === appRow
+        // Rebuilds can happen in the background (an app or HDMI device added); only take focus if a tile row had it.
+        val takeFocus = currentFocus == null || currentFocus?.parent === appRow || currentFocus?.parent === consoleRow
         val gap = dp(GRID_GAP)
         val width = (resources.displayMetrics.widthPixels - dp(96) - gap * (ROW_TILES - 1)) / ROW_TILES
-        appRow.removeAllViews()
-        val hidden = rowHiddenSet()
-        val tiles = sortedApps().filter { it.pkg !in hidden }.map { appTile(it, labeled = false) }
-        if (tiles.isEmpty()) return showNames()
-        tiles.forEachIndexed { i, t ->
-            t.id = View.generateViewId()
-            appRow.addView(t, LinearLayout.LayoutParams(width, dp(TILE_H)).apply { if (i > 0) marginStart = gap })
-            val own = t.onFocusChangeListener
-            t.setOnFocusChangeListener { v, focused ->
-                own.onFocusChange(v, focused)
-                if (focused) lastApp = v
-                showRowLabel(v, focused)
+        val shown = sortedApps().filter { it.pkg !in rowHiddenSet() }
+        for ((row, list) in listOf(consoleRow to shown.filter { it.pkg.startsWith(HDMI) }, appRow to shown.filterNot { it.pkg.startsWith(HDMI) })) {
+            row.removeAllViews()
+            list.forEachIndexed { i, a ->
+                row.addView(appTile(a, labeled = rowNames() == "always").apply { id = View.generateViewId() },
+                    LinearLayout.LayoutParams(width, WRAP_CONTENT).apply { if (i > 0) marginStart = gap })
             }
+            rowOf(row)!!.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
         }
-        showNames()
-        if (takeFocus) (tiles.firstOrNull { it.tag == focusedTag } ?: tiles[0]).requestFocus()
+        if (takeFocus) (kids(consoleRow).plus(kids(appRow)).firstOrNull { it.tag == focusedTag } ?: firstRowEntry())?.requestFocus()
         if (!prefs.getBoolean("tip_move", false)) {
             prefs.edit().putBoolean("tip_move", true).apply()
             Toast.makeText(this, "Tip: hold OK on an app to rearrange the row", Toast.LENGTH_LONG).show()
         }
     }
 
-    /** Home row names: "focus" (under the focused tile only), "always" (in every tile) or "never". */
+    /** App names: "focus" (the shelf names the focused app), "always" (under every tile too) or "never". */
     private fun rowNames() = prefs.getString("names", "focus")!!
 
     /** Each app's own shipped icon instead of the mono mark, in the row and All apps. */
@@ -1203,82 +1208,71 @@ class MainActivity : Activity() {
         return t
     }
 
-    /** "App names: Always": a name under every tile, same width and gap as the tiles, so they line up. */
-    private fun showNames() {
-        val row = findViewById<LinearLayout>(R.id.nameRow)
-        val always = rowNames() == "always"
-        row.visibility = if (always) View.VISIBLE else View.GONE
-        findViewById<View>(R.id.rowLabel).visibility = if (always) View.GONE else View.VISIBLE
-        row.removeAllViews()
-        if (!always) return
-        for (i in 0 until appRow.childCount) {
-            val t = appRow.getChildAt(i)
-            row.addView(label(t.contentDescription.toString(), 13f).apply {
-                gravity = Gravity.CENTER
-                alpha = if (dark) 0.85f else 1f
-            }, LinearLayout.LayoutParams(t.layoutParams as LinearLayout.LayoutParams).apply { height = MATCH_PARENT })
-        }
-    }
-
-    /** Slides the shared name label under the focused row tile; fades it out once focus leaves the row. */
-    private fun showRowLabel(v: View, focused: Boolean) {
-        val label = findViewById<TextView>(R.id.rowLabel)
-        if (focused && !editing && rowNames() == "focus") {
-            label.text = v.contentDescription
-            // Posted: on first render focus lands before layout, when every width is still 0.
-            v.post { label.translationX = v.left + v.width / 2f - label.width / 2f }
-            label.animate().alpha(if (dark) 0.85f else 1f).setDuration(160).start()
-        } else {
-            ui.post { if (currentFocus?.parent !== appRow || editing) label.animate().alpha(0f).setDuration(120).start() }
-        }
-    }
-
-    /** White card: logo on top, name underneath. With no label the mark sits alone, centred, at one size. */
+    /**
+     * A bare app mark, no box. Focused, it pops up and glows: a blurred copy of the mark behind it and a
+     * pool of light under it, both in the mark's own colour. The name, when shown, sits underneath.
+     */
     private fun tile(label: String?, icon: Drawable, mono: Boolean, tag: String, wordmarkInset: Int? = null, tint: Int? = null, onClick: () -> Unit): View {
+        val colour = tint ?: fg
+        fun mark() = ImageView(this).apply {
+            setImageDrawable((icon.constantState?.newDrawable(resources) ?: icon).mutate())
+            if (mono) setColorFilter(colour)
+            // Icons share one height. Wordmarks sit in a square viewport, so fit them by width instead
+            // (crop the empty top and bottom) or they shrink to a sliver.
+            if (wordmarkInset != null) {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setPadding(wordmarkInset, 0, wordmarkInset, 0)
+            } else {
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setPadding(dp(24), dp(12), dp(24), dp(12))
+            }
+        }
+        val img = mark()
+        val glow = mark().apply {
+            alpha = 0f
+            // Without RenderEffect (before Android 12) a sharp copy would just thicken the mark; the pool still glows.
+            if (Build.VERSION.SDK_INT >= 31) setRenderEffect(RenderEffect.createBlurEffect(dp(10).toFloat(), dp(10).toFloat(), Shader.TileMode.DECAL))
+            else visibility = View.GONE
+        }
+        // A round light flattened into an ellipse under the mark.
+        val pool = View(this).apply {
+            background = GradientDrawable().apply {
+                gradientType = GradientDrawable.RADIAL_GRADIENT
+                gradientRadius = dp(64).toFloat()
+                colors = intArrayOf(colour and 0xFFFFFF or 0x99000000.toInt(), colour and 0xFFFFFF)
+            }
+            alpha = 0f
+            scaleY = 0.16f
+            translationY = dp(TILE_H / 2).toFloat()
+        }
+        val box = FrameLayout(this).apply {
+            clipChildren = false
+            addView(pool, FrameLayout.LayoutParams(dp(128), dp(128), Gravity.CENTER))
+            addView(glow, MATCH_PARENT, MATCH_PARENT)
+            addView(img, MATCH_PARENT, MATCH_PARENT)
+        }
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-        }
-        val img = ImageView(this).apply {
-            setImageDrawable(icon.mutate())
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            if (mono) setColorFilter(tint ?: fg)
+            clipChildren = false
+            addView(box, LinearLayout.LayoutParams(MATCH_PARENT, dp(TILE_H)))
         }
         val text = label?.let {
             label(it, 13f).apply {
                 gravity = Gravity.CENTER
-                setPadding(dp(6), dp(7), dp(6), 0)
+                setPadding(dp(6), dp(8), dp(6), 0)
+                col.addView(this, LinearLayout.LayoutParams(MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }
         }
-        // Same card as light mode; in dark the marks rest slightly dimmed and brighten with focus.
-        val restLogo = if (dark) 0.8f else 1f
-        val restText = if (dark) 0.65f else 1f
-        img.alpha = restLogo
-        text?.alpha = restText
-        // Focus fills the tile (see style), so plain marks and names switch to the ink that reads on it.
-        style(col, dp(10), card = true, lift = 1.12f) { focused ->
-            // The mark grows a little more than its tile, so focus reads as depth (tvOS layered icons).
-            img.animate().scaleX(if (focused) 1.1f else 1f).scaleY(if (focused) 1.1f else 1f)
-                .setDuration(260).setInterpolator(EASE_OUT).start()
-            if (mono && tint == null) img.setColorFilter(if (focused) focusInk else fg)
-            text?.setTextColor(if (focused) focusInk else fg)
-            if (!dark) return@style
-            img.animate().alpha(if (focused) 1f else restLogo).setDuration(160).start()
-            text?.animate()?.alpha(if (focused) 1f else restText)?.setDuration(160)?.start()
-        }
-        if (text == null) {
-            // Icons share one height. Wordmarks sit in a square viewport, so fit them by width instead
-            // (crop the empty top and bottom) or they shrink to a sliver.
-            if (wordmarkInset != null) {
-                img.scaleType = ImageView.ScaleType.CENTER_CROP
-                img.setPadding(wordmarkInset, 0, wordmarkInset, 0)
-            } else {
-                img.setPadding(dp(16), dp(22), dp(16), dp(22))
-            }
-            col.addView(img, LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-        } else {
-            col.addView(img, LinearLayout.LayoutParams(MATCH_PARENT, dp(40)))
-            col.addView(text, LinearLayout.LayoutParams(MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // In dark the marks rest slightly dimmed and brighten with focus.
+        val rest = if (dark) 0.8f else 1f
+        img.alpha = rest
+        text?.alpha = rest
+        style(col, 0, card = false, lift = 1f, bare = true) { focused ->
+            box.animate().scaleX(if (focused) 1.22f else 1f).scaleY(if (focused) 1.22f else 1f)
+                .translationY(if (focused) -dp(6).toFloat() else 0f).setDuration(300).setInterpolator(EMPH).start()
+            for (v in listOf(glow, pool)) v.animate().alpha(if (focused) 1f else 0f).setDuration(300).setInterpolator(EASE_OUT).start()
+            img.animate().alpha(if (focused) 1f else rest).setDuration(200).start()
+            text?.animate()?.alpha(if (focused) 1f else rest)?.setDuration(200)?.start()
         }
         col.tag = tag
         col.setOnClickListener { onClick() }
@@ -1389,48 +1383,36 @@ class MainActivity : Activity() {
         ) return true
         if (editing && editKey(e, confirm)) return true
         if (e.action == KeyEvent.ACTION_DOWN && settingsScrim.visibility != View.VISIBLE && allApps.visibility != View.VISIBLE) {
+            if (e.keyCode in EDIT_KEYS) navigated = true
             currentFocus?.let { homeNav(it, e.keyCode) }?.let { it.requestFocus(); return true }
         }
         return super.dispatchKeyEvent(e)
     }
 
     /**
-     * The home screen is three rows: top bar, apps, Continue Watching. Left/Right stay inside a row and
-     * stop at its ends; Up/Down move between rows and land where you last were in that row, not on
-     * whatever happens to sit nearest on screen. Returns the view to focus (itself = stay), or null to
-     * let Android handle the key.
+     * The home screen is the top bar over a stack of rows. Left/Right stay inside a row and stop at its
+     * ends; Up/Down move between rows and land where you last were in that row, not on whatever happens
+     * to sit nearest on screen. Returns the view to focus (itself = stay), or null to let Android handle the key.
      */
     private fun homeNav(v: View, key: Int): View? {
-        fun alive(x: View?) = x?.takeIf { it.isAttachedToWindow }
-        val apps = alive(lastApp)?.takeIf { it.parent === appRow } ?: appRow.getChildAt(0)
-        val cards = if (watchScroll.visibility != View.VISIBLE) null
-            else alive(lastCard) ?: (watchRow.getChildAt(0) as? ViewGroup)?.getChildAt(0)
-        val top = alive(lastTop) ?: findViewById(R.id.launcherSettings)
-        return when {
-            v.parent === wifi.parent -> when (key) { // top bar
-                KeyEvent.KEYCODE_DPAD_DOWN -> apps ?: cards ?: v // the apps row can be empty (all hidden)
-                KeyEvent.KEYCODE_DPAD_UP -> v
-                KeyEvent.KEYCODE_DPAD_LEFT -> if (v.id == R.id.wifi) v else null
-                KeyEvent.KEYCODE_DPAD_RIGHT -> if (v.id == R.id.launcherSettings) v else null
-                else -> null
-            }
-            v.parent === appRow -> when (key) {
-                KeyEvent.KEYCODE_DPAD_UP -> top
-                KeyEvent.KEYCODE_DPAD_DOWN -> cards ?: v
-                KeyEvent.KEYCODE_DPAD_LEFT -> if (appRow.indexOfChild(v) == 0) v else null
-                KeyEvent.KEYCODE_DPAD_RIGHT -> if (appRow.indexOfChild(v) == appRow.childCount - 1) v else null
-                else -> null
-            }
-            v.getTag(R.id.watchRow) is Prog -> {
-                val i = watchRow.indexOfChild(v.parent as View)
-                when (key) {
-                    KeyEvent.KEYCODE_DPAD_UP -> apps ?: top
-                    KeyEvent.KEYCODE_DPAD_DOWN -> v
-                    KeyEvent.KEYCODE_DPAD_LEFT -> if (i == 0) v else null
-                    KeyEvent.KEYCODE_DPAD_RIGHT -> if (i == watchRow.childCount - 1) v else null
-                    else -> null
-                }
-            }
+        val visible = kids(rows).filter { it.visibility == View.VISIBLE }
+        if (v.parent === wifi.parent) return when (key) { // top bar
+            KeyEvent.KEYCODE_DPAD_DOWN -> visible.firstOrNull()?.let { entry(it) } ?: v
+            KeyEvent.KEYCODE_DPAD_UP -> v
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (v.id == R.id.wifi) v else null
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (v.id == R.id.launcherSettings) v else null
+            else -> null
+        }
+        val row = rowOf(v) ?: return null
+        val i = visible.indexOf(row)
+        var item = v // the row's direct item: a tile itself, or a card's column around its focusable poster
+        while ((item.parent as View).parent !is SnapScrollView) item = item.parent as View
+        val strip = item.parent as ViewGroup
+        return when (key) {
+            KeyEvent.KEYCODE_DPAD_UP -> if (i <= 0) lastTop?.takeIf { it.isAttachedToWindow } ?: findViewById(R.id.launcherSettings) else entry(visible[i - 1])
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (i == visible.lastIndex) v else entry(visible[i + 1])
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (strip.indexOfChild(item) == 0) v else null
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (strip.indexOfChild(item) == strip.childCount - 1) v else null
             else -> null
         }
     }
@@ -1458,7 +1440,7 @@ class MainActivity : Activity() {
                 closeAllApps()
                 appRow.getChildAt(0)?.requestFocus() // show the app just pinned
             }
-            v.parent === appRow -> appMenu(v)
+            v.parent === appRow || v.parent === consoleRow -> appMenu(v)
             v.getTag(R.id.watchRow) is Prog -> watchMenu(v, v.getTag(R.id.watchRow) as Prog)
         }
     }
@@ -1471,12 +1453,13 @@ class MainActivity : Activity() {
             UNLOCK_TO_EDIT to { unlock { v.requestFocus(); appMenu(v) } },
         ))
         holdMenu(v, listOfNotNull(
-            "Move" to { startEdit(grab = v, once = true) },
+            if (v.parent !== appRow) null else "Move" to { startEdit(grab = v, once = true) }, // consoles keep their own order
             "Remove from row" to {
-                val i = appRow.indexOfChild(v)
+                val row = v.parent as ViewGroup
+                val i = row.indexOfChild(v)
                 prefs.edit().putStringSet("row_hidden", rowHiddenSet() + pkg).apply()
                 renderApps()
-                appRow.getChildAt(minOf(i, appRow.childCount - 1))?.requestFocus()
+                (row.getChildAt(minOf(i, row.childCount - 1)) ?: firstRowEntry())?.requestFocus()
                 Toast.makeText(this, "Removed from the row. It's still in All apps.", Toast.LENGTH_SHORT).show()
             },
             if (pkg.startsWith(HDMI)) null else "App info" to {
@@ -1488,7 +1471,7 @@ class MainActivity : Activity() {
     /** Hold OK on a Continue Watching card: hide the show, or open its app rather than the episode. */
     private fun watchMenu(v: View, p: Prog) {
         holdMenu(v, listOfNotNull(
-            if (locked()) null else "Remove from Continue watching" to { hideWatch(p) },
+            if (locked()) null else "Hide from home" to { hideWatch(p) },
             if (!locked()) null else UNLOCK_TO_EDIT to { unlock { v.requestFocus(); watchMenu(v, p) } },
             p.pkg?.let { pkg ->
                 "Open app" to {
@@ -1550,7 +1533,8 @@ class MainActivity : Activity() {
         appsTitle.visibility = View.GONE
         val row = (0 until appTileCount()).map { appRow.getChildAt(it).tag as String }
         saveOrder(row + sortedApps().map { it.pkg }.filter { it !in row })
-        currentFocus?.takeIf { it.parent === appRow }?.let { showRowLabel(it, true) } // the name was hidden while editing
+        shelfFor = null
+        onHomeFocus(currentFocus) // the shelf was hidden while editing
     }
 
     /** While editing, keys only rearrange the row; nothing launches and focus can't leave it. */
@@ -1581,7 +1565,6 @@ class MainActivity : Activity() {
                     other.layoutParams = lp
                     appRow.removeViewAt(i)
                     appRow.addView(v, j)
-                    showNames()
                     v.requestFocus()
                     return true
                 }
@@ -1649,7 +1632,7 @@ class MainActivity : Activity() {
             val t = appTile(a) // holding OK here pins it to the row (see onHold)
             allAppsGrid.addView(t, GridLayout.LayoutParams().apply {
                 this.width = width
-                height = dp(TILE_H)
+                height = GridLayout.LayoutParams.WRAP_CONTENT
                 setMargins(0, 0, gap, gap)
             })
         }
@@ -2043,18 +2026,19 @@ class MainActivity : Activity() {
 
     // ---------- continue watching (Android TV Watch Next) ----------
 
+    /** Fills every card row (YouTube, 30nama, Continue watching, Spotify) from the TV's listings. */
     private fun refreshWatchNext() {
         if (checkSelfPermission(TV_LISTINGS) != PackageManager.PERMISSION_GRANTED) {
-            showWatchNext(emptyList())
+            contentRows.forEach { showCards(it, emptyList()) }
             return
         }
         io.execute {
-            val list = try {
-                queryWatchNext()
+            val lists = try {
+                queryContent()
             } catch (e: Exception) {
-                emptyList()
+                List(contentRows.size) { emptyList() }
             }
-            ui.post { showWatchNext(list) }
+            ui.post { contentRows.zip(lists).forEach { (row, list) -> showCards(row, list) } }
         }
     }
 
@@ -2066,19 +2050,34 @@ class MainActivity : Activity() {
      *    on the TV is all it takes. Channel rows carry no timestamps, so they use the time the app was
      *    last opened from Plume, keeping the app's own order among themselves.
      * Newest first across apps, at most [PER_APP] each, so one app with ten shows can't bury the others.
+     * 30nama's items get their own row (all of them, newest first), and YouTube and Spotify rows show
+     * whatever those apps publish to the home screen. Lists come back in [contentRows] order.
      */
-    private fun queryWatchNext(): List<Prog> {
+    private fun queryContent(): List<List<Prog>> {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
         val watchNext = readPrograms(TvContract.WatchNextPrograms.CONTENT_URI, hidden)
-        val channels = continueChannels().flatMap { id ->
+        val channels = channelIds { name, pkg -> name.equals("Continue Watching", ignoreCase = true) && pkg != packageName }.flatMap { id ->
             readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden).map { (_, p) -> prefs.getLong("t_${p.pkg}", 0) to p }
         }
         val all = watchNext + channels
         publishingPkgs = all.mapNotNull { it.second.pkg }.toSet()
         val off = prefs.getStringSet("cw_off", emptySet())!!
-        return newestPerApp(all.filter { it.second.pkg !in off }.distinctBy { it.second.intent ?: it.second.title }, PER_APP) { it.pkg }
-            .take(20)
+        val (nama, rest) = all.filter { it.second.pkg !in off }.distinctBy { it.second.intent ?: it.second.title }
+            .partition { it.second.pkg in NAMA }
+        return listOf(
+            appChannels(YOUTUBE, hidden),
+            nama.sortedByDescending { it.first }.map { it.second }.take(20),
+            newestPerApp(rest, PER_APP) { it.pkg }.take(20),
+            appChannels(SPOTIFY, hidden),
+        )
     }
+
+    /** Everything [pkgs] publish to the home screen (their own channels, not Continue Watching). */
+    private fun appChannels(pkgs: Set<String>, hidden: Set<String>): List<Prog> =
+        channelIds { name, pkg -> pkg in pkgs && !name.equals("Continue Watching", ignoreCase = true) }
+            .flatMap { id -> readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden).map { it.second } }
+            .distinctBy { it.intent ?: it.title }
+            .take(20)
 
     /** Apps last seen publishing, so the settings list includes them even without the permission check. */
     @Volatile private var publishingPkgs = emptySet<String>()
@@ -2103,22 +2102,20 @@ class MainActivity : Activity() {
             return
         }
         toggles("Continue watching apps", sources.map { it.label to it.pkg }, "cw_off", "On", "Off") {
-            watchKey = null
+            rowKeys.clear()
             refreshWatchNext()
             renderSettings(11)
         }
     }
 
-    private fun continueChannels(): List<Long> {
+    private fun channelIds(want: (name: String, pkg: String) -> Boolean): List<Long> {
         val ids = ArrayList<Long>()
         contentResolver.query(TvContract.Channels.CONTENT_URI, null, null, null, null)?.use { c ->
             val name = c.getColumnIndex("display_name")
             val pkg = c.getColumnIndex("package_name")
             val id = c.getColumnIndex("_id")
             while (c.moveToNext()) {
-                if (c.getString(name).equals("Continue Watching", ignoreCase = true) && c.getString(pkg) != packageName) {
-                    ids += c.getLong(id)
-                }
+                if (want(c.getString(name).orEmpty(), c.getString(pkg).orEmpty())) ids += c.getLong(id)
             }
         }
         return ids
@@ -2142,7 +2139,7 @@ class MainActivity : Activity() {
                     if (season != null && episode != null) "S$season E$episode" else null,
                     // Under a second in means "not really started": no "time left", no bar.
                     if (duration > 0 && position in 1000 until duration) timeLeft(duration - position) else null,
-                ).joinToString(" - ")
+                ).joinToString(" - ").ifEmpty { str("short_description").orEmpty() } // e.g. a video's channel
                 val progress = if (duration > 0 && position >= 1000) (position * 100 / duration).toInt().coerceIn(0, 100) else 0
                 val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), str("package_name"))
                 out += num("last_engagement_time_utc_millis") to prog
@@ -2157,7 +2154,7 @@ class MainActivity : Activity() {
     private fun hideWatch(p: Prog) {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!! + hideKey(p.pkg, p.title)
         prefs.edit().putStringSet("hidden_watch", hidden).apply()
-        Toast.makeText(this, "Hidden from Continue Watching", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Hidden from the home screen", Toast.LENGTH_SHORT).show()
         refreshWatchNext()
     }
 
@@ -2177,31 +2174,29 @@ class MainActivity : Activity() {
         return if (min >= 60) "${min / 60} hr ${min % 60} min left" else "$min min left"
     }
 
-    private fun showWatchNext(list: List<Prog>) {
+    private fun showCards(row: LinearLayout, list: List<Prog>) {
         val key = list.joinToString("|") { "${it.title}/${it.sub}/${it.progress}/${it.image}" }
-        if (key == watchKey) { // unchanged: keep views (and focus) as they are, just fill in missing posters
+        if (key == rowKeys[row]) { // unchanged: keep views (and focus) as they are, just fill in missing posters
             retryPosters()
             return
         }
-        watchKey = key
-        val focusedAt = watchRow.indexOfChild(currentFocus?.parent as? View)
-        watchRow.removeAllViews()
-        val visible = if (list.isEmpty()) View.GONE else View.VISIBLE
-        watchTitle.visibility = visible
-        watchScroll.visibility = visible
+        rowKeys[row] = key
+        val focusedAt = row.indexOfChild(currentFocus?.parent as? View)
+        row.removeAllViews()
+        rowOf(row)!!.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
         // ~16 ms per card here and only four show at once: build them four per frame, not all 20 in one.
         fun addCards(from: Int) {
-            if (watchKey != key) return // a newer list replaced this one
-            list.subList(from, minOf(from + 4, list.size)).forEach { watchRow.addView(watchCard(it, watchRow.childCount > 0)) }
+            if (rowKeys[row] != key) return // a newer list replaced this one
+            list.subList(from, minOf(from + 4, list.size)).forEach { row.addView(watchCard(it, row.childCount > 0)) }
             if (from + 4 < list.size) ui.post { addCards(from + 4) }
         }
         addCards(0)
         if (focusedAt >= 0) {
-            ((watchRow.getChildAt(focusedAt.coerceAtMost(watchRow.childCount - 1)) as? LinearLayout)?.getChildAt(0)
-                ?: appRow.getChildAt(0))?.requestFocus()
+            ((row.getChildAt(focusedAt.coerceAtMost(row.childCount - 1)) as? LinearLayout)?.getChildAt(0) ?: firstRowEntry())?.requestFocus()
+        } else if (!navigated && list.isNotEmpty()) {
+            firstRowEntry()?.requestFocus() // still on the opening screen: start at the top row
         }
     }
-
     /**
      * Four posters across, each two apps-row columns wide. Progress sits on the artwork's bottom edge;
      * title and details (source, episode, time left) go underneath.
@@ -2230,7 +2225,6 @@ class MainActivity : Activity() {
         val frame = FrameLayout(this)
         style(frame, dp(6), card = true) { focused ->
             title.isSelected = focused
-            if (focused) lastCard = frame
         }
         frame.contentDescription = p.title
         frame.addView(img, MATCH_PARENT, MATCH_PARENT)
@@ -2262,42 +2256,106 @@ class MainActivity : Activity() {
         return col
     }
 
-    // ---------- top shelf ----------
-    // tvOS-style: once focus rests on a Continue watching card, its art fades in behind everything and its
-    // title rises in above the rows. Anything else focused clears it back to the wallpaper.
+    // ---------- rows and top shelf ----------
+    // The rows stack scrolls so the focused row sits at the top of its area, and the rows above fade out
+    // (30nama, Google TV). Above them the shelf (tvOS) names what's focused; a card's art, once focus
+    // rests on it, fades in blurred behind everything.
 
-    private val shelfTick = Runnable { showShelf(shelfFor) }
-
-    private fun focusShelf(p: Prog?) {
-        if (p === shelfFor) return
-        shelfFor = p
-        ui.removeCallbacks(shelfTick)
-        // Wait for focus to settle, so scrolling along the row doesn't flash every poster.
-        if (p == null) showShelf(null) else ui.postDelayed(shelfTick, 280)
+    /** One home row: its name over a sideways strip of tiles or cards. Hidden until it has something; returns the strip. */
+    private fun makeRow(title: String): LinearLayout {
+        val strip = LinearLayout(this).apply { clipChildren = false }
+        rows.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            clipChildren = false
+            visibility = View.GONE
+            addView(label(title, 16f).apply {
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                alpha = 0.72f
+            })
+            // The strip reaches one grid gap past the content edges and clips there: room for the focus
+            // lift, while the next item, a gap away, stays hidden. SnapScrollView scrolls by whole items.
+            addView(SnapScrollView(context, null).apply {
+                isHorizontalScrollBarEnabled = false
+                clipToPadding = false
+                setPadding(dp(16), dp(18), dp(16), dp(22))
+                addView(strip)
+            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
+                marginStart = -dp(16)
+                marginEnd = -dp(16)
+                topMargin = -dp(10)
+            })
+        })
+        return strip
     }
 
-    private fun showShelf(p: Prog?) {
-        val appScroll = findViewById<View>(R.id.appScroll)
-        if (p == null) {
-            shelf.animate().alpha(0f).setDuration(160).setInterpolator(EASE_OUT).start()
-            hero.animate().alpha(0f).setDuration(420).setInterpolator(EASE_OUT).start()
-            appScroll.animate().alpha(1f).setDuration(240).setInterpolator(EASE_OUT).start()
-            return
+    private fun kids(g: ViewGroup) = (0 until g.childCount).map { g.getChildAt(it) }
+
+    /** The row (child of [rows]) that [v] sits in, or null outside the rows. */
+    private fun rowOf(v: View?): View? {
+        var x = v
+        while (x != null && x.parent !== rows) x = x.parent as? View
+        return x
+    }
+
+    /** Where focus lands entering [row]: where it last was, else its first tile or card. */
+    private fun entry(row: View): View? {
+        (row.getTag(R.id.rows) as? View)?.takeIf { it.isAttachedToWindow && rowOf(it) === row }?.let { return it }
+        val first = (((row as ViewGroup).getChildAt(1) as ViewGroup).getChildAt(0) as ViewGroup).getChildAt(0) ?: return null
+        return if (first.isFocusable) first else (first as ViewGroup).getChildAt(0)
+    }
+
+    private fun firstRowEntry() = kids(rows).firstOrNull { it.visibility == View.VISIBLE }?.let { entry(it) }
+
+    private var glide: ObjectAnimator? = null
+
+    /** Focus moved: remember it per row, bring its row to the top (the top bar brings the first), name it in the shelf. */
+    private fun onHomeFocus(v: View?) {
+        val row = rowOf(v)
+        row?.setTag(R.id.rows, v)
+        if (row != null || v?.parent === wifi.parent) rowStack.post { // posted: a row just shown has no position yet
+            glide?.cancel()
+            glide = ObjectAnimator.ofInt(rowStack, "scrollY", row?.top ?: 0).apply {
+                duration = 420
+                interpolator = EMPH
+                start()
+            }
+            for (r in kids(rows)) r.animate().alpha(if (row != null && r.top < row.top) 0f else 1f).setDuration(240).start()
         }
-        // The apps row above steps aside (fades out) and the shelf takes its space, sitting just above the
-        // Continue watching header, like 30nama and Google TV fade the rows above the focused one.
-        appScroll.animate().alpha(0f).setDuration(240).setInterpolator(EASE_OUT).start()
-        findViewById<TextView>(R.id.shelfEyebrow).text =
-            listOfNotNull("Continue watching", apps.firstOrNull { it.pkg == p.pkg }?.label).joinToString(" · ")
-        findViewById<TextView>(R.id.shelfTitle).text = p.title
-        findViewById<TextView>(R.id.shelfMeta).text = p.sub
-        shelf.measure(View.MeasureSpec.makeMeasureSpec(shelf.layoutParams.width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
-        val into = (watchTitle.top - shelf.measuredHeight - dp(14)).toFloat()
-        shelf.alpha = 0f
-        shelf.translationY = into + dp(14)
-        shelf.animate().alpha(1f).translationY(into).setDuration(380).setInterpolator(EMPH).start()
-        val art = p.image?.let { posters.get(it) }
-            ?: return run { hero.animate().alpha(0f).setDuration(240).start() }
+        focusShelf(v.takeIf { row != null })
+    }
+
+    private val shelfTick = Runnable { showArt(artOf(shelfFor)) }
+
+    /**
+     * The focused card's own poster. Not from the poster cache: with every card row loaded it holds far
+     * fewer posters than are on screen, so the focused one has often been evicted already.
+     */
+    private fun artOf(v: View?) = ((v as? ViewGroup)?.getChildAt(0) as? ImageView)?.drawable.let { it as? android.graphics.drawable.BitmapDrawable }?.bitmap
+
+    private fun focusShelf(v: View?) {
+        if (v === shelfFor) return
+        shelfFor = v
+        ui.removeCallbacks(shelfTick)
+        val p = v?.getTag(R.id.watchRow) as? Prog
+        val title = p?.title ?: v?.contentDescription?.toString()?.takeIf { rowNames() != "never" }
+        if (title == null || editing) {
+            shelf.animate().alpha(0f).setDuration(160).setInterpolator(EASE_OUT).start()
+        } else {
+            val header = ((rowOf(v) as ViewGroup).getChildAt(0) as TextView).text.toString()
+            val source = p?.pkg?.let { pkg -> apps.firstOrNull { it.pkg == pkg }?.label }?.takeIf { it != header }
+            findViewById<TextView>(R.id.shelfEyebrow).text = listOfNotNull(header, source).joinToString(" · ")
+            findViewById<TextView>(R.id.shelfTitle).text = title
+            findViewById<TextView>(R.id.shelfMeta).text = p?.sub.orEmpty()
+            shelf.alpha = 0f
+            shelf.translationY = dp(10).toFloat()
+            shelf.animate().alpha(1f).translationY(0f).setDuration(320).setInterpolator(EMPH).start()
+        }
+        // The art waits for focus to settle, so moving along a row doesn't flash every poster.
+        if (artOf(v) != null) ui.postDelayed(shelfTick, 280) else showArt(null) // a late poster calls showArt itself
+    }
+
+    private fun showArt(art: Bitmap?) {
+        if (art == null) return run { hero.animate().alpha(0f).setDuration(420).setInterpolator(EASE_OUT).start() }
         // Dip out first only if another card's art is showing, then fade the new art in.
         hero.animate().alpha(0f).setDuration(if (hero.alpha > 0f) 140L else 0L).setInterpolator(EASE_OUT).withEndAction {
             hero.setImageBitmap(art)
@@ -2340,14 +2398,18 @@ class MainActivity : Activity() {
                 loading.remove(uri)
             } ?: return@execute
             posters.put(uri, bmp)
-            ui.post { if (v.tag == uri) v.setImageBitmap(bmp) }
+            ui.post {
+                if (v.tag != uri) return@post
+                v.setImageBitmap(bmp)
+                if (v.parent === shelfFor) showArt(bmp) // the focused card's poster just arrived
+            }
         }
     }
 
     /** Cards whose poster never arrived (offline, server timeout) try again; loaded ones are left alone. */
     private fun retryPosters() {
-        for (i in 0 until watchRow.childCount) {
-            val img = ((watchRow.getChildAt(i) as? ViewGroup)?.getChildAt(0) as? ViewGroup)?.getChildAt(0) as? ImageView ?: continue
+        for (card in contentRows.flatMap { kids(it) }) {
+            val img = ((card as? ViewGroup)?.getChildAt(0) as? ViewGroup)?.getChildAt(0) as? ImageView ?: continue
             if (img.drawable == null) loadPoster(img, img.tag as? String)
         }
     }
@@ -2383,7 +2445,7 @@ class MainActivity : Activity() {
      * ring instead), scales up and lifts. No resting shadow; depth appears only on focus.
      * Only transform/alpha/colour change, so it stays on the GPU and costs no re-layout.
      */
-    private fun style(v: View, radius: Int, card: Boolean, lift: Float = 1.08f, onFocus: ((Boolean) -> Unit)? = null) {
+    private fun style(v: View, radius: Int, card: Boolean, lift: Float = 1.08f, bare: Boolean = false, onFocus: ((Boolean) -> Unit)? = null) {
         // shortcut: the ring is drawn inside the edge (the card clips to its outline), not 6 px outside as in 30nama.
         val ring = GradientDrawable().apply {
             cornerRadius = radius.toFloat()
@@ -2393,9 +2455,12 @@ class MainActivity : Activity() {
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (card) cardRest else intArrayOf(0, 0)).apply {
             cornerRadius = radius.toFloat()
         }
-        v.background = bg
-        v.foreground = ring
-        v.clipToOutline = true
+        // Bare (app marks): no card, ring or clip; the caller draws its own focus, which may spill past the bounds.
+        if (!bare) {
+            v.background = bg
+            v.foreground = ring
+            v.clipToOutline = true
+        }
         v.outlineSpotShadowColor = Color.BLACK
         v.outlineAmbientShadowColor = Color.BLACK
         v.elevation = 0f
@@ -2440,6 +2505,10 @@ class MainActivity : Activity() {
         const val UNLOCK_TO_EDIT = "Unlock to edit…"
         const val MEDIA_REQUEST = 3
         const val PER_APP = 3 // Continue Watching items per app
+        // Apps with their own home rows (what they publish to the TV home screen).
+        val YOUTUBE = setOf("com.google.android.youtube.tv", "io.gh.reisxd.tizentube.cobalt")
+        val NAMA = setOf("com.nama30.tv", "com.tv30namarn")
+        val SPOTIFY = setOf("com.spotify.tv.android")
         val READ_PHOTOS = if (Build.VERSION.SDK_INT >= 33) "android.permission.READ_MEDIA_IMAGES" else "android.permission.READ_EXTERNAL_STORAGE"
         /** Minutes between folder photos. */
         val PHOTO_EVERY = linkedMapOf(

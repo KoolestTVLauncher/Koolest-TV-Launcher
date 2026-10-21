@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The apps and Continue watching rows are built in code; these ids name them (and tag cards). -->
+    <item name="appRow" type="id" />
+    <item name="watchRow" type="id" />
+</resources>
