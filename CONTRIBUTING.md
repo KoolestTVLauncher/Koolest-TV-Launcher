@@ -1,15 +1,15 @@
-# Contributing to Plume
+# Contributing to Koolest
 
-Thanks for wanting to help. Plume is a small project with one maintainer, so this page explains what fits, what doesn't, and how to send a change that can be merged quickly.
+Thanks for wanting to help. Koolest is a small project with one maintainer, so this page explains what fits, what doesn't, and how to send a change that can be merged quickly.
 
-## What Plume is
+## What Koolest is
 
-Plume is a minimal home screen for Android TV and Google TV. Every change is weighed against these principles:
+Koolest is a minimal home screen for Android TV and Google TV. Every change is weighed against these principles:
 
 - **Small and light.** A 0.4 MB APK, about 50–70 MB of RAM, no third-party libraries, no extra background services.
 - **Simple home screen.** One apps row and one Continue Watching row. Nothing else competes for attention.
 - **Yours, not ours.** No ads, no sponsored or recommended content, no analytics, no account.
-- **Quiet on the network.** Plume only goes online for the things listed under [Privacy](README.md#privacy). Anything new that connects to the internet must be optional and off until the user turns it on.
+- **Quiet on the network.** Koolest only goes online for the things listed under [Privacy](README.md#privacy). Anything new that connects to the internet must be optional and off until the user turns it on.
 
 ## What's out of scope
 
@@ -18,7 +18,7 @@ These will be declined, however well they're built:
 - Recommendation, trending or "discover" rows, and anything else that fills the home screen with content the user didn't ask for
 - Ads, analytics, crash reporting services, or accounts
 - New third-party libraries or SDKs (AndroidX included)
-- Services, workers or alarms that run while Plume isn't on screen
+- Services, workers or alarms that run while Koolest isn't on screen
 - Online metadata services that need an API key, such as TMDB
 - Extra home screen rows, widgets or sections beyond the apps row and the card row
 
@@ -49,11 +49,11 @@ Translations are welcome. Shipping every language costs very little: each langua
 - Keep text short. TV screens are read from across the room, and long labels get cut off.
 - If you add a language, please say whether you're happy to be asked about new strings later. Languages that fall far behind may be removed.
 
-Some of Plume's text still lives in the Kotlin code instead of `strings.xml`. Please don't move strings into `strings.xml` inside a translation pull request; open an issue instead, so the move happens once for every language.
+Some of Koolest's text still lives in the Kotlin code instead of `strings.xml`. Please don't move strings into `strings.xml` inside a translation pull request; open an issue instead, so the move happens once for every language.
 
 ## Reporting bugs
 
-Use the [bug report form](../../issues/new/choose). The TV model, Android version and Plume version matter most, because many problems only happen on one manufacturer's TVs. A photo or video of the screen helps a lot.
+Use the [bug report form](../../issues/new/choose). The TV model, Android version and Koolest version matter most, because many problems only happen on one manufacturer's TVs. A photo or video of the screen helps a lot.
 
 ## Building
 

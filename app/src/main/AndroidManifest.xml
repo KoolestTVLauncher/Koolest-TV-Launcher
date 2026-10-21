@@ -29,7 +29,7 @@
     </queries>
 
     <application
-        android:label="Plume"
+        android:label="Koolest TV Launcher"
         android:banner="@drawable/banner"
         android:icon="@drawable/banner"
         android:usesCleartextTraffic="true"
@@ -77,7 +77,7 @@
         <service
             android:name=".HomeOverride"
             android:exported="false"
-            android:label="Plume: Home button"
+            android:label="Koolest: Home button"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

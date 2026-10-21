@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Plume's mark for the menu: a feather in the accent red, drawn like the menu icons. -->
+<!-- Koolest's mark for the menu: a feather in the accent red, drawn like the menu icons. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
     <path android:pathData="M20.24,12.24a6,6 0,0 0,-8.49 -8.49L5,10.5V19h8.5z" android:fillColor="#33F0454A" android:strokeColor="#FFF0454A" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
     <path android:pathData="M16,8L2,22M17.5,15H9" android:strokeColor="#FFF0454A" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />

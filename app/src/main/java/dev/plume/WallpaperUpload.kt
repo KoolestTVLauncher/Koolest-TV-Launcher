@@ -112,7 +112,7 @@ internal class UploadServer(val code: String, private val temp: File, private va
         val PAGE = """
             <!doctype html>
             <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-            <title>Plume wallpaper</title>
+            <title>Koolest wallpaper</title>
             <style>
               body{font:17px system-ui,sans-serif;margin:0;padding:32px 20px;background:#f7f8fa;color:#111214}
               @media (prefers-color-scheme:dark){body{background:#09090b;color:#f5f5f7}}

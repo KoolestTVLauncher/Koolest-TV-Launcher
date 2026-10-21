@@ -1,11 +1,11 @@
 name: Bug report
-description: Something in Plume doesn't work as expected
+description: Something in Koolest doesn't work as expected
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Please check [Troubleshooting](https://github.com/aradhyas8/Plume_Launcher#troubleshooting) first. Many Home button problems are solved there.
+        Please check [Troubleshooting](https://github.com/benymaxparsa/Koolest-TV-Launcher#troubleshooting) first. Many Home button problems are solved there.
   - type: input
     id: device
     attributes:
@@ -23,19 +23,19 @@ body:
   - type: input
     id: version
     attributes:
-      label: Plume version
-      description: Shown in Plume's settings, on the Updates row.
+      label: Koolest version
+      description: Shown in Koolest's settings, on the Updates row.
     validations:
       required: true
   - type: dropdown
     id: install
     attributes:
-      label: How did you install Plume?
+      label: How did you install Koolest?
       options:
         - Downloader app
         - USB drive / file manager
         - adb
-        - Updated from inside Plume
+        - Updated from inside Koolest
         - Other
     validations:
       required: true
@@ -51,7 +51,7 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. Open Plume settings
+        1. Open Koolest settings
         2. Select ...
         3. ...
     validations:

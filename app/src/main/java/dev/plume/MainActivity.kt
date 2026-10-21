@@ -269,7 +269,7 @@ class MainActivity : Activity() {
         rowStack.post { rows.setPadding(0, 0, 0, rowStack.height) }
         wifi = findViewById(R.id.wifi)
         buildRail()
-        // Top end: network, Android settings, Plume settings. Round, lit on focus.
+        // Top end: network, Android settings, Koolest settings. Round, lit on focus.
         for ((id, action) in listOf<Pair<Int, () -> Unit>>(
             R.id.wifi to { openSettings(Settings.ACTION_WIFI_SETTINGS) },
             R.id.systemSettings to { openSettings(Settings.ACTION_SETTINGS) },
@@ -345,7 +345,7 @@ class MainActivity : Activity() {
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, results: IntArray) {
         if (code != MEDIA_REQUEST) return refreshWatchNext()
         if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED) afterPhotoAccess?.invoke()
-        else Toast.makeText(this, "Plume needs access to photos to show your folders", Toast.LENGTH_LONG).show()
+        else Toast.makeText(this, "Koolest needs access to photos to show your folders", Toast.LENGTH_LONG).show()
     }
 
     @Deprecated("Only used for the default-home role request")
@@ -404,7 +404,7 @@ class MainActivity : Activity() {
 
     private fun toggleHomeButton() = if (homeServiceOn()) turnOffHomeButton() else turnOnHomeButton()
 
-    /** Off hands Home back to the TV's own launcher, and Plume leaves it off until switched on again. */
+    /** Off hands Home back to the TV's own launcher, and Koolest leaves it off until switched on again. */
     private fun turnOffHomeButton() {
         prefs.edit().putBoolean("home_off", true).apply()
         HomeOverride.running?.disableSelf()
@@ -415,7 +415,7 @@ class MainActivity : Activity() {
                 on.split(':').filter { ComponentName.unflattenFromString(it) != me }.joinToString(":"))
         }
         if (homeServiceOn()) {
-            Toast.makeText(this, "Turn off \"Plume: Home button\" in Settings → System → Accessibility", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Turn off \"Koolest: Home button\" in Settings → System → Accessibility", Toast.LENGTH_LONG).show()
             openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         }
         renderSettings(HOME_BUTTON_ROW)
@@ -428,7 +428,7 @@ class MainActivity : Activity() {
         if (homeServiceOn()) return renderSettings(HOME_BUTTON_ROW)
         // The written path is the safety net: some Google TVs (a Xiaomi stick) answer the Accessibility link
         // with "You don't have an app that can do this", which we can't detect from here.
-        Toast.makeText(this, "Turn on \"Plume: Home button\" in Settings → System → Accessibility", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "Turn on \"Koolest: Home button\" in Settings → System → Accessibility", Toast.LENGTH_LONG).show()
         val service = ComponentName(this, HomeOverride::class.java).flattenToString()
         val tries = listOf(
             // Straight to our own toggle (Android 12+, where the TV supports it), then the list, then Settings.
@@ -911,8 +911,8 @@ class MainActivity : Activity() {
             }) { pickScreensaver() },
             Triple("Preview screensaver", "") { testScreensaver() },
             Triple("When it starts", "") { openScreensaverSettings() },
-            Triple("Home button opens Plume", toggle(homeServiceOn())) { toggleHomeButton() },
-            Triple("Make Plume the home screen", if (isDefaultHome()) "It is: press to change" else "Press to set") { makeDefaultHome() },
+            Triple("Home button opens Koolest", toggle(homeServiceOn())) { toggleHomeButton() },
+            Triple("Make Koolest the home screen", if (isDefaultHome()) "It is: press to change" else "Press to set") { makeDefaultHome() },
             Triple("Updates", when {
                 updating -> "Updating…"
                 checking -> "Checking…"
@@ -931,12 +931,12 @@ class MainActivity : Activity() {
     }
 
     /** The first settings page: a few groups, each a short list. */
-    private fun settingsHome(focus: Int = 0) = showPage("Plume settings", SETTINGS_GROUPS.map { (name, hint, picks) ->
+    private fun settingsHome(focus: Int = 0) = showPage("Koolest settings", SETTINGS_GROUPS.map { (name, hint, picks) ->
         page(name, hint) { renderSettings(picks.first()) }
     }, focus, back = null)
 
     // Pages inside the settings panel (wallpaper list, app toggles…) instead of system dialogs, so they
-    // match Plume's look. Back goes up one page; from the main list it closes the panel.
+    // match Koolest's look. Back goes up one page; from the main list it closes the panel.
 
     private var pageBack: (() -> Unit)? = null
     private var pageExit: (() -> Unit)? = null // cleanup when the page goes away (stops the upload server)
@@ -991,7 +991,7 @@ class MainActivity : Activity() {
     }
 
     // ---------- layout lock ----------
-    // A PIN in front of Plume settings and everything that changes the home screen; apps still open as usual.
+    // A PIN in front of Koolest settings and everything that changes the home screen; apps still open as usual.
     // It keeps the layout safe from small hands, it doesn't keep apps from kids: voice search and Android
     // settings get past it, so it's called a layout lock, not parental controls.
 
@@ -999,7 +999,7 @@ class MainActivity : Activity() {
 
     private var unlockedUntil = 0L // one PIN covers a few minutes of changes, until the home screen is left
     private var pinFails = 0
-    private var pinWaitUntil = 0L // ponytail: in memory, so restarting Plume resets the wait; fine for kids at a remote
+    private var pinWaitUntil = 0L // ponytail: in memory, so restarting Koolest resets the wait; fine for kids at a remote
     private var pinBox: View? = null
 
     private fun locked() = lockOn() && SystemClock.elapsedRealtime() > unlockedUntil
@@ -1035,7 +1035,7 @@ class MainActivity : Activity() {
             prefs.edit().putString("lock_pin", hashPin(first)).apply()
             unlockedUntil = SystemClock.elapsedRealtime() + UNLOCKED_MS // no PIN straight away for the one who set it
             renderSettings(LOCK_ROW)
-            Toast.makeText(this, "Layout locked. Plume settings and home screen changes now need the PIN.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Layout locked. Koolest settings and home screen changes now need the PIN.", Toast.LENGTH_LONG).show()
             null
         }
         null
@@ -1110,7 +1110,7 @@ class MainActivity : Activity() {
                 alpha = 0.6f
                 setPadding(0, dp(8), 0, 0)
             })
-            if (lockOn()) addView(label("Forgot it? Android Settings → Apps → Plume → Clear data removes the lock, along with your layout and settings.", 12f).apply {
+            if (lockOn()) addView(label("Forgot it? Android Settings → Apps → Koolest TV Launcher → Clear data removes the lock, along with your layout and settings.", 12f).apply {
                 gravity = Gravity.CENTER
                 alpha = 0.6f
                 maxLines = 3
@@ -1626,7 +1626,7 @@ class MainActivity : Activity() {
         ))
     }
 
-    /** A small Plume-styled menu just above [anchor]; Back closes it. */
+    /** A small Koolest-styled menu just above [anchor]; Back closes it. */
     private fun holdMenu(anchor: View, items: List<Pair<String, () -> Unit>>) {
         val list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1916,7 +1916,7 @@ class MainActivity : Activity() {
         if (folder != null) paintingsDir(this).deleteRecursively() // not needed for photos: give the space back
         if (galleryOn()) return
         if (checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED) {
-            // Without the adb permission Plume can't switch it itself; Android's own list has "Gallery".
+            // Without the adb permission Koolest can't switch it itself; Android's own list has "Gallery".
             Toast.makeText(this, "Choose \"Gallery\" as the screensaver here", Toast.LENGTH_LONG).show()
             return openScreensaverSettings()
         }
@@ -2012,9 +2012,9 @@ class MainActivity : Activity() {
                 val ver = availableUpdate()
                 if (ver != null && (force || prefs.getString("upd_told", null) != ver)) {
                     prefs.edit().putString("upd_told", ver).apply()
-                    if (!force) Toast.makeText(this, "Plume $ver is available. Update it in Plume settings.", Toast.LENGTH_LONG).show()
+                    if (!force) Toast.makeText(this, "Koolest $ver is available. Update it in Koolest settings.", Toast.LENGTH_LONG).show()
                 } else if (force) {
-                    Toast.makeText(this, if (latest == null) "Couldn't check for updates. Check the connection." else "Plume is up to date", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, if (latest == null) "Couldn't check for updates. Check the connection." else "Koolest is up to date", Toast.LENGTH_SHORT).show()
                 }
                 if (settingsScrim.visibility == View.VISIBLE) renderSettings(UPDATE_ROW)
             }
@@ -2024,7 +2024,7 @@ class MainActivity : Activity() {
     private fun installUpdate(ver: String) {
         if (updating) return
         if (!packageManager.canRequestPackageInstalls()) {
-            Toast.makeText(this, "Turn on Plume in the next list, then press Updates again", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Turn on Koolest in the next list, then press Updates again", Toast.LENGTH_LONG).show()
             return openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
         }
         updating = true
@@ -2039,8 +2039,8 @@ class MainActivity : Activity() {
                 val id = installer.createSession(params)
                 installer.openSession(id).use { session ->
                     try {
-                        openStream("https://github.com/$REPO/releases/download/v$ver/Plume.apk").use { input ->
-                            session.openWrite("Plume.apk", 0, -1).use { out ->
+                        openStream("https://github.com/$REPO/releases/download/v$ver/Koolest.apk").use { input ->
+                            session.openWrite("Koolest.apk", 0, -1).use { out ->
                                 input.copyTo(out)
                                 session.fsync(out)
                             }
@@ -2261,7 +2261,7 @@ class MainActivity : Activity() {
      * 2. Any app's own home-screen channel named "Continue Watching". Stremio publishes one (with
      *    progress and an autoPlay resume link) instead of using Watch Next, so signing in to Stremio
      *    on the TV is all it takes. Channel rows carry no timestamps, so they use the time the app was
-     *    last opened from Plume, keeping the app's own order among themselves.
+     *    last opened from Koolest, keeping the app's own order among themselves.
      * Newest first across apps, at most [PER_APP] each, so one app with ten shows can't bury the others.
      * 30nama's items get their own row (all of them, newest first), and YouTube and Spotify rows show
      * whatever those apps publish to the home screen. Lists come back in [contentRows] order.
@@ -2544,7 +2544,7 @@ class MainActivity : Activity() {
     }
 
     /**
-     * The menu, a taskbar: Search, Home (here), the pinned apps (Plume settings → Menu apps; YouTube, Spotify and
+     * The menu, a taskbar: Search, Home (here), the pinned apps (Koolest settings → Menu apps; YouTube, Spotify and
      * 30nama to start) and All apps last. Rebuilt only when the pinned apps change.
      */
     private fun buildRail() {
@@ -2857,7 +2857,7 @@ class MainActivity : Activity() {
             Triple("Continue watching", "Which shows appear", listOf(11, 10)),
             Triple("Weather", "Show, units, place", listOf(12, 13, 14)),
             Triple("Screensaver", "Gallery and timing", listOf(15, 16, 17)),
-            Triple("Plume and this TV", "Home button, updates, PIN", listOf(18, 19, 21, 20)),
+            Triple("Koolest and this TV", "Home button, updates, PIN", listOf(18, 19, 21, 20)),
         )
         const val SCREENSAVER_ROW = 15
         const val HOME_BUTTON_ROW = 18
@@ -2891,7 +2891,7 @@ class MainActivity : Activity() {
         const val CHOOSE_FROM_TV = "Choose a folder on this TV…"
         const val CHOSEN = "✓"
         const val REMOVE_PHOTO = "Remove a photo…"
-        const val REPO = "benymaxparsa/Plume_Launcher" // this fork's releases (upstream ones are signed with another key)
+        const val REPO = "benymaxparsa/Koolest-TV-Launcher" // this repo's releases, which the in-app updater installs
         const val ACCENT = 0xFFF0454A.toInt() // 30nama red: progress, switches on, the current PIN box
         const val UPDATE_STATUS = "dev.plume.UPDATE_STATUS"
         const val WRITE_EPG ="com.android.providers.tv.permission.WRITE_EPG_DATA"

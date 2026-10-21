@@ -38,7 +38,7 @@
         android:layout_height="match_parent"
         android:clipChildren="false">
 
-        <!-- Top end: weather, clock, then network, Android settings and Plume settings. -->
+        <!-- Top end: weather, clock, then network, Android settings and Koolest settings. -->
         <LinearLayout
             android:id="@+id/topBar"
             android:layout_width="wrap_content"
@@ -94,7 +94,7 @@
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_marginStart="6dp"
-                android:contentDescription="Plume settings"
+                android:contentDescription="Koolest settings"
                 android:focusable="true"
                 android:padding="7dp"
                 android:src="@drawable/rail_tune" />
@@ -301,7 +301,7 @@
                 android:layout_height="wrap_content"
                 android:textStyle="bold"
                 android:paddingStart="14dp"
-                android:text="Plume settings"
+                android:text="Koolest settings"
                 android:textSize="20sp" />
 
             <!-- Scrolls once the rows outgrow the screen; focus moving down scrolls it along. -->

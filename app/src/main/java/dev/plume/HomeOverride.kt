@@ -16,7 +16,7 @@ class HomeOverride : AccessibilityService() {
         running = this
     }
 
-    /** Turned off, from Plume's switch or Android's Accessibility settings: the app mustn't turn it back on. */
+    /** Turned off, from Koolest's switch or Android's Accessibility settings: the app mustn't turn it back on. */
     override fun onUnbind(intent: Intent?): Boolean {
         running = null
         getSharedPreferences("home", MODE_PRIVATE).edit().putBoolean("home_off", true).apply()
@@ -43,7 +43,7 @@ class HomeOverride : AccessibilityService() {
     override fun onInterrupt() {}
 
     companion object {
-        /** The bound service, so Plume's switch can turn it off without any permission. */
+        /** The bound service, so Koolest's switch can turn it off without any permission. */
         var running: HomeOverride? = null
             private set
         private const val GOOGLE_TV = "com.google.android.apps.tv.launcherx"
