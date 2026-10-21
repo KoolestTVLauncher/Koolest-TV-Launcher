@@ -9,7 +9,7 @@
 
 ## Checklist
 
-- [ ] This pull request makes one change (a translation, a fix or a feature, not several).
+- [ ] This pull request makes one change (a fix or a feature, not several).
 - [ ] It adds no third-party libraries, background services or new permissions.
 - [ ] Anything new that goes online is optional and off by default.
 - [ ] I matched the style of the surrounding code and didn't reformat unrelated code.

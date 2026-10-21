@@ -4,23 +4,22 @@ Thanks for wanting to help. Koolest is a small project with one maintainer, so t
 
 ## What Koolest is
 
-Koolest is a minimal home screen for Android TV and Google TV. Every change is weighed against these principles:
+Koolest is a fast, ad-free home screen for Android TV and Google TV in the 30nama TV look. Every change is weighed against these principles:
 
-- **Small and light.** A 0.4 MB APK, about 50–70 MB of RAM, no third-party libraries, no extra background services.
-- **Simple home screen.** One apps row and one Continue Watching row. Nothing else competes for attention.
-- **Yours, not ours.** No ads, no sponsored or recommended content, no analytics, no account.
+- **Small and light.** A 0.7 MB APK, no third-party libraries (AndroidX included), no extra background services.
+- **What you use, not what we push.** Rows show your apps, your consoles and what apps report as partway watched. Nothing is sponsored or recommended.
+- **Yours, not ours.** No ads, no analytics, no account.
 - **Quiet on the network.** Koolest only goes online for the things listed under [Privacy](README.md#privacy). Anything new that connects to the internet must be optional and off until the user turns it on.
 
 ## What's out of scope
 
 These will be declined, however well they're built:
 
-- Recommendation, trending or "discover" rows, and anything else that fills the home screen with content the user didn't ask for
+- Recommendation, trending or "discover" content, and anything else that fills the home screen with things the user didn't ask for
 - Ads, analytics, crash reporting services, or accounts
-- New third-party libraries or SDKs (AndroidX included)
-- Services, workers or alarms that run while Koolest isn't on screen
+- New third-party libraries or SDKs
+- Services, workers or alarms that run while Koolest isn't on screen, beyond the Home button revival already described in the README
 - Online metadata services that need an API key, such as TMDB
-- Extra home screen rows, widgets or sections beyond the apps row and the card row
 
 Not sure if an idea fits? Open a feature request first and ask. That's much cheaper than finding out after the code is written.
 
@@ -28,28 +27,20 @@ Not sure if an idea fits? Open a feature request first and ask. That's much chea
 
 - **Bug fixes:** go ahead and open a pull request. Link the issue if there is one.
 - **Features:** open a [feature request](../../issues/new/choose) first and wait for a reply. Pull requests for features that weren't discussed may be closed.
-- **Translations:** see [Translations](#translations) below.
 
 ## Pull requests
 
-- **One change per pull request.** A translation, a bug fix and a new menu are three pull requests. Mixed pull requests are hard to review and will be asked to split.
+- **One change per pull request.** A bug fix and a new setting are two pull requests.
 - **Keep the diff small.** Match the style of the code around your change. Don't reformat or reorganise code you aren't changing.
-- **Test on a real TV** (or an Android TV emulator if you have no TV) and say which device and Android version you used.
-- **Mention size and memory changes.** If your change adds resources or keeps things in memory, give the APK size before and after.
+- **Test on a real TV** (or an Android TV emulator if you have no TV) and say which device and Android version you used. Run `./gradlew testDebugUnitTest`.
+- **Mention size changes.** If your change adds resources or code, give the APK size before and after.
 - **No new permissions** without discussing them in an issue first.
 
 By sending a pull request you agree that your contribution is licensed under the project's [GPL-3.0 licence](LICENSE).
 
 ## Translations
 
-Translations are welcome. Shipping every language costs very little: each language adds a few KB to the APK and no memory, because Android only loads the strings for the language the TV is set to.
-
-- A translation pull request adds or edits **only** `app/src/main/res/values-<code>/strings.xml`, for example `values-it/strings.xml`. No code changes, no new features.
-- Translate every string in `app/src/main/res/values/strings.xml`. Keep placeholders such as `%1$s` and `%d` exactly as they are.
-- Keep text short. TV screens are read from across the room, and long labels get cut off.
-- If you add a language, please say whether you're happy to be asked about new strings later. Languages that fall far behind may be removed.
-
-Some of Koolest's text still lives in the Kotlin code instead of `strings.xml`. Please don't move strings into `strings.xml` inside a translation pull request; open an issue instead, so the move happens once for every language.
+Not open yet. Almost all of Koolest's text lives in the Kotlin code, and `strings.xml` holds a single string, so there is nothing to translate by file. If you'd like to help move the text out first, open an issue.
 
 ## Reporting bugs
 

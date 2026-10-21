@@ -27,7 +27,7 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **A taskbar menu.** Search, Home, your pinned apps and consoles, then All apps, in three groups. Add, remove and reorder the pins in settings.
 - **All apps, sorted your way.** Home order, A–Z, most used, recently used or recently installed, picked from an iOS-style segmented control.
 - **Motion.** Focused cards grow and lift, rows glide into place and the background crossfades to the focused item's art. A row starts over from its first item each time you come back to it.
-- **Simple settings.** Six groups: Look, Home screen, Continue watching, Weather, Screensaver, and Koolest and this TV.
+- **Simple settings.** Six groups: Look, Home screen, Continue watching, Weather, Screensaver and This TV.
 - **Home button support on Google TV.** The Home button opens Koolest even where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 - **Clock and weather** in the top corner: the time and date, and (if you turn it on) the weather with its icon, "feels like" and your city.
 - **Smooth on TV hardware.** Pictures load just ahead of where you're browsing, the billboard art cross-fades at full screen size, and the home screen draws as few full-screen layers as it can.
@@ -62,6 +62,8 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
    - **USB drive:** copy the APK over and open it with a file manager.
    - **adb:** `adb install Koolest.apk`
 3. Open **Koolest TV Launcher** from your apps. Its settings open automatically on first launch.
+
+Koolest checks GitHub for a new version once a day (**Settings → This TV → Updates**) and installs it when you choose. Releases from 2.0.0 are signed with a release key. If you have an older build that was signed with a debug key, or one you built yourself, uninstall it once first: Android won't update across different signing keys.
 
 ### First-run setup
 
@@ -104,6 +106,15 @@ Android only starts the Home button service when its setting changes. After a re
 | Back on the home screen | From deep in a row, back to its first item; again, to the menu; again, back to the rows |
 | Open the Google TV dashboard | Hold the **Home** button |
 
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Home opens Google TV after a reboot, an update or a console session | Run the two `adb` lines under [Recommended](#recommended-keep-the-home-button-working-adb), then switch **Home button** off and on in **Settings → This TV**. |
+| Home button setting won't turn on (Android 13+) | **Settings → Apps → Koolest TV Launcher → ⋮ → Allow restricted settings**, then try again. |
+| Rows or Continue watching are empty | Allow the **TV listings** permission. Then see the notes below: an app only shows up if it reports to the TV. |
+| Screensaver won't switch | Grant `WRITE_SECURE_SETTINGS` over `adb` (above); Android doesn't let apps set the screensaver otherwise. |
+
 ### Why some apps aren't in Continue watching
 
 Koolest can only show what apps report to Android TV. Google TV's own Continue watching row also uses your Google account's history, which other apps can't read. If an app's shows don't appear here, that app doesn't report them to the TV.
@@ -143,8 +154,7 @@ cd Koolest-TV-Launcher
 ./gradlew testDebugUnitTest assembleRelease
 ```
 
-The APK is written to `app/build/outputs/apk/release/`. Without a `keystore.properties` file, release builds are signed with your local debug key, which is fine for installing your own build.
-
+The APK is written to `app/build/outputs/apk/release/`. Without a `keystore.properties` file (git-ignored; it holds `storeFile`, `storePassword`, `keyAlias` and `keyPassword`), release builds are signed with your local debug key, which is fine for installing your own build. Unit tests live in `app/src/test`.
 
 ## Credits
 
