@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Menu icon: 24 grid, 1.5 stroke, round caps and joins (the 30nama style guide set). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M4,11l8,-7 8,7v8.5a1,1 0,0 1,-1 1h-4v-6h-6v6H5a1,1 0,0 1,-1 -1z" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

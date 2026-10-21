@@ -22,128 +22,83 @@
         android:importantForAccessibility="no"
         android:scaleType="centerCrop" />
 
-    <LinearLayout
+    <!-- 30nama's static scrims over the stage (start edge and bottom), painted in code from the ground colour. -->
+    <View
+        android:id="@+id/stageScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no" />
+
+    <!-- The home screen, laid out like the 30nama TV app: everything in 1080p design px / 2 = dp.
+         Menu rail on the start edge (120 px), content from x 184, billboard ending above the focused
+         row, whose title always sits at y 640. -->
+    <FrameLayout
         android:id="@+id/content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:orientation="vertical"
-        android:paddingStart="48dp"
-        android:paddingTop="27dp"
-        android:paddingEnd="48dp"
-        android:paddingBottom="32dp">
-        <!-- Bottom is a little more than the top: the last text line's box includes space under the letters,
-             so this makes the visible gap below Continue Watching match the gap above the clock. -->
+        android:clipChildren="false">
 
+        <!-- Weather and clock, top end (30nama keeps just the time there). -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="26dp"
+            android:layout_marginEnd="48dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <LinearLayout
-                android:layout_width="0dp"
+            <!-- "14° Cloudy · Paris". Off unless turned on in launcher settings. -->
+            <TextView
+                android:id="@+id/weather"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:layout_marginEnd="16dp"
+                android:alpha="0.72"
+                android:maxLines="1"
+                android:textSize="13sp"
+                android:visibility="gone" />
 
-                <TextClock
-                    android:id="@+id/clock"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:format12Hour="h:mm"
-                    android:format24Hour="HH:mm"
-                    android:includeFontPadding="false"
-                    android:textSize="30sp" />
-
-                <TextClock
-                    android:id="@+id/date"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:format12Hour="EEE d MMM"
-                    android:format24Hour="EEE d MMM"
-                    android:textSize="15sp" />
-
-                <!-- "14° Cloudy · Paris". Off unless turned on in launcher settings. -->
-                <TextView
-                    android:id="@+id/weather"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:alpha="0.72"
-                    android:maxLines="1"
-                    android:textSize="15sp"
-                    android:visibility="gone" />
-            </LinearLayout>
-
-            <ImageView
-                android:id="@+id/wifi"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:contentDescription="Network settings"
-                android:focusable="true"
-                android:padding="8dp"
-                android:src="@drawable/ic_wifi" />
-
-            <ImageView
-                android:id="@+id/allAppsButton"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="8dp"
-                android:contentDescription="All apps"
-                android:focusable="true"
-                android:padding="9dp"
-                android:src="@drawable/ic_apps" />
-
-            <ImageView
-                android:id="@+id/systemSettings"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="8dp"
-                android:contentDescription="Settings"
-                android:focusable="true"
-                android:padding="8dp"
-                android:src="@drawable/ic_settings" />
-
-            <ImageView
-                android:id="@+id/launcherSettings"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="8dp"
-                android:contentDescription="Plume settings"
-                android:focusable="true"
-                android:padding="8dp"
-                android:src="@drawable/ic_tune" />
+            <TextClock
+                android:id="@+id/clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.72"
+                android:format12Hour="h:mm"
+                android:format24Hour="HH:mm"
+                android:textSize="13sp" />
         </LinearLayout>
 
-        <!-- Top shelf (tvOS style): what the focused item is. Fixed height so the rows below never jump. -->
+        <!-- Billboard: eyebrow, title, meta line, plot (3 lines, 820 px wide), ending just above the rows. -->
         <LinearLayout
             android:id="@+id/shelf"
-            android:layout_width="560dp"
-            android:layout_height="108dp"
+            android:layout_width="430dp"
+            android:layout_height="300dp"
+            android:layout_marginStart="92dp"
             android:alpha="0"
             android:gravity="bottom"
             android:orientation="vertical"
-            android:paddingBottom="10dp">
+            android:paddingBottom="14dp">
 
             <TextView
                 android:id="@+id/shelfEyebrow"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:letterSpacing="0.04"
                 android:maxLines="1"
                 android:textColor="#F0454A"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/shelfTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
-                android:maxLines="1"
-                android:textSize="28sp"
+                android:lineSpacingMultiplier="0.92"
+                android:maxLines="2"
+                android:textSize="36sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -153,29 +108,42 @@
                 android:layout_marginTop="6dp"
                 android:alpha="0.72"
                 android:maxLines="1"
-                android:textSize="14sp" />
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/shelfPlot"
+                android:layout_width="410dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:alpha="0.72"
+                android:ellipsize="end"
+                android:lineSpacingMultiplier="1.3"
+                android:maxLines="3"
+                android:textSize="14sp"
+                android:visibility="gone" />
         </LinearLayout>
 
-        <!-- Only shown while editing the apps row (it carries the instructions). -->
+        <!-- Only shown while editing the apps row (it carries the instructions), where the billboard was. -->
         <TextView
             android:id="@+id/appsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:textStyle="bold"
+            android:layout_marginStart="92dp"
+            android:layout_marginTop="270dp"
             android:textSize="15sp"
+            android:textStyle="bold"
             android:visibility="gone" />
 
-        <!-- The rows (built in code). The stack scrolls so the focused row sits at the top of this area;
-             rows above it fade out, so nothing needs clipping and focus lifts are never cut. -->
+        <!-- The rows (built in code). The stack scrolls so the focused row's title sits at y 320dp (640 px);
+             rows above it fade out. Full width: tracks start at x 92dp and earlier cards slide under the menu. -->
         <dev.plume.RowStack
             android:id="@+id/rowStack"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="match_parent"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:overScrollMode="never"
+            android:paddingTop="320dp"
             android:scrollbars="none">
 
             <LinearLayout
@@ -186,7 +154,48 @@
                 android:clipToPadding="false"
                 android:orientation="vertical" />
         </dev.plume.RowStack>
-    </LinearLayout>
+
+        <!-- Dims the screen while the menu is open. -->
+        <View
+            android:id="@+id/railDim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0" />
+
+        <!-- Menu rail: icons at rest; focus opens it with labels on a panel and a white pill on the focused item. -->
+        <FrameLayout
+            android:id="@+id/rail"
+            android:layout_width="320dp"
+            android:layout_height="match_parent">
+
+            <View
+                android:id="@+id/railRest"
+                android:layout_width="60dp"
+                android:layout_height="match_parent" />
+
+            <View
+                android:id="@+id/railPanel"
+                android:layout_width="320dp"
+                android:layout_height="match_parent"
+                android:alpha="0" />
+
+            <LinearLayout
+                android:id="@+id/railItems"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:paddingTop="30dp">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginBottom="80dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/plume_mark" />
+            </LinearLayout>
+        </FrameLayout>
+    </FrameLayout>
 
     <!-- All apps: hidden until the Apps tile is pressed; Back closes it. -->
     <ScrollView

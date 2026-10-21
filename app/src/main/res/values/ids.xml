@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The apps and Continue watching rows are built in code; these ids name them (and tag cards). -->
+    <!-- Rows and menu items are built in code; these ids name them (and tag cards). -->
     <item name="appRow" type="id" />
     <item name="watchRow" type="id" />
+    <item name="railSearch" type="id" />
+    <item name="railHome" type="id" />
+    <item name="allAppsButton" type="id" />
+    <item name="wifi" type="id" />
+    <item name="systemSettings" type="id" />
+    <item name="launcherSettings" type="id" />
 </resources>

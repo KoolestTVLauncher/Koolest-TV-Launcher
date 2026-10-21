@@ -130,7 +130,7 @@ class Updated : BroadcastReceiver() {
 class MainActivity : Activity() {
 
     private class App(val pkg: String, val label: String, val launch: Intent, val icon: Drawable)
-    private class Prog(val title: String, val sub: String, val progress: Int, val image: String?, val intent: String?, val pkg: String?)
+    private class Prog(val title: String, val sub: String, val progress: Int, val image: String?, val intent: String?, val pkg: String?, val plot: String = "")
 
     private val prefs by lazy { getSharedPreferences("home", MODE_PRIVATE) }
     private val io = Executors.newSingleThreadExecutor()
@@ -145,7 +145,6 @@ class MainActivity : Activity() {
     // Kept across activity rebuilds (theme switch), so the new home screen shows its apps at once.
     private var apps = APPS ?: emptyList()
     private var appsDirty = APPS == null
-    private var lastTop: View? = null // last focused view in each home row, so Up/Down return to it
     private var editing = false
     private var grabbed: View? = null
     private var holdFired = false
@@ -169,6 +168,10 @@ class MainActivity : Activity() {
     private val hero by lazy { findViewById<ImageView>(R.id.hero) }
     private val shelf by lazy { findViewById<View>(R.id.shelf) }
     private var shelfFor: View? = null
+    private val railItems by lazy { findViewById<LinearLayout>(R.id.railItems) }
+    private val railLabels = ArrayList<TextView>()
+    private var railOpen = false
+    private var beforeRail: View? = null // the row item focus left for the menu, to return to
     private lateinit var allApps: View
     private lateinit var allAppsGrid: GridLayout
     private lateinit var wifi: ImageView
@@ -199,7 +202,6 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
         allApps = findViewById(R.id.allApps)
         allAppsGrid = findViewById(R.id.allAppsGrid)
-        wifi = findViewById(R.id.wifi)
         applyTheme()
         loadWallpaper()
         rows = findViewById(R.id.rows)
@@ -213,29 +215,9 @@ class MainActivity : Activity() {
         contentRows = listOf(youtube, nama, watchRow, spotify)
         // Room under the last row so it too can scroll up to the top line, like every other row.
         rowStack.post { rows.setPadding(0, 0, 0, rowStack.height) }
-        // Blurred: poster art is card-sized, so sharp it would look upscaled; soft it reads as ambient light.
-        if (Build.VERSION.SDK_INT >= 31) hero.setRenderEffect(RenderEffect.createBlurEffect(dp(12).toFloat(), dp(12).toFloat(), Shader.TileMode.CLAMP))
-        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, now -> onHomeFocus(now) }
+        buildRail()
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { old, now -> onHomeFocus(old, now) }
 
-        // Top bar: network, All apps, Android settings, launcher settings. Round, lit on focus.
-        for ((id, action) in listOf<Pair<Int, () -> Unit>>(
-            R.id.wifi to { openSettings(Settings.ACTION_WIFI_SETTINGS) },
-            R.id.allAppsButton to { openAllApps() },
-            R.id.systemSettings to { openSettings(Settings.ACTION_SETTINGS) },
-            R.id.launcherSettings to { unlock { openLauncherSettings() } },
-        )) findViewById<ImageView>(id).apply {
-            setColorFilter(fg)
-            val ring = GradientDrawable().apply { shape = GradientDrawable.OVAL }
-            background = ring
-            setOnFocusChangeListener { v, focused ->
-                if (focused) lastTop = v
-                ring.setColor(if (focused) focusFill else 0)
-                setColorFilter(if (focused) focusInk else fg)
-                animate().scaleX(if (focused) 1.15f else 1f).scaleY(if (focused) 1.15f else 1f)
-                    .setDuration(160).setInterpolator(DECELERATE).start()
-            }
-            setOnClickListener { action() }
-        }
         if (prefs.getBoolean("reopen_settings", false)) {
             prefs.edit().remove("reopen_settings").apply()
             ui.post { openLauncherSettings(focus = 1) }
@@ -424,6 +406,7 @@ class MainActivity : Activity() {
         when {
             settingsScrim.visibility == View.VISIBLE -> pageBack?.invoke() ?: closeLauncherSettings()
             allApps.visibility == View.VISIBLE -> closeAllApps()
+            railOpen -> leaveRail()
         }
     }
 
@@ -444,17 +427,35 @@ class MainActivity : Activity() {
         ground = if (dark) 0xFF0E1016.toInt() else 0xFFF3F5F7.toInt()
         findViewById<View>(R.id.root).setBackgroundColor(ground)
         allApps.setBackgroundColor(ground)
-        for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.allAppsTitle, R.id.weather,
-            R.id.shelfTitle, R.id.shelfMeta)) {
+        for (id in intArrayOf(R.id.clock, R.id.appsTitle, R.id.allAppsTitle, R.id.weather,
+            R.id.shelfTitle, R.id.shelfMeta, R.id.shelfPlot)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
-        // Shelf scrims over the art: the start side for the title, top for the clock, bottom for the rows.
+        findViewById<View>(R.id.stageScrim).background = stageScrims(ground)
+        // The menu: a faint shade behind the icons at rest; open, a solid panel fading out and the screen dimmed.
         val g = ground and 0xFFFFFF
-        hero.foreground = LayerDrawable(arrayOf(
-            GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(g or 0xF2000000.toInt(), g or 0xA6000000.toInt(), g or 0x26000000)),
-            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(g or 0x8C000000.toInt(), g or 0x14000000, g or 0xF2000000.toInt())),
+        findViewById<View>(R.id.railRest).background =
+            GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(g or 0xCC000000.toInt(), g))
+        findViewById<View>(R.id.railPanel).background =
+            GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(ground, g or 0xF5000000.toInt(), g))
+        findViewById<View>(R.id.railDim).setBackgroundColor(ground)
+    }
+
+    /**
+     * 30nama's stage scrims, of the ground colour: from the start edge 96 % → 78 % (30 %) → 0 (68 %), up from the
+     * bottom 100 % → 85 % (32 %) → 0 (62 %), and 50 % → 0 over the top 200 px for the clock. Exact stops need
+     * Android 10; before it they're spread evenly.
+     */
+    private fun stageScrims(ground: Int): Drawable {
+        fun a(alpha: Float) = (ground and 0xFFFFFF) or ((alpha * 255).toInt() shl 24)
+        fun scrim(o: GradientDrawable.Orientation, stops: FloatArray, alphas: FloatArray) = GradientDrawable(o, alphas.map { a(it) }.toIntArray()).apply {
+            if (Build.VERSION.SDK_INT >= 29) setColors(alphas.map { a(it) }.toIntArray(), stops)
+        }
+        return LayerDrawable(arrayOf(
+            scrim(GradientDrawable.Orientation.LEFT_RIGHT, floatArrayOf(0f, .30f, .68f, 1f), floatArrayOf(.96f, .78f, 0f, 0f)),
+            scrim(GradientDrawable.Orientation.BOTTOM_TOP, floatArrayOf(0f, .32f, .62f, 1f), floatArrayOf(1f, .85f, 0f, 0f)),
+            scrim(GradientDrawable.Orientation.TOP_BOTTOM, floatArrayOf(0f, .185f, .5f, 1f), floatArrayOf(.5f, 0f, 0f, 0f)),
         ))
-        wifi.setColorFilter(fg)
     }
 
     // ---------- wallpapers ----------
@@ -1059,8 +1060,8 @@ class MainActivity : Activity() {
 
     private fun showNet(caps: NetworkCapabilities?) {
         val ethernet = caps?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true
-        wifi.setImageResource(if (ethernet) R.drawable.ic_ethernet else R.drawable.ic_wifi)
-        // Dim only the icon: the focus ring is the background and should stay full strength.
+        wifi.setImageResource(if (ethernet) R.drawable.ic_ethernet else R.drawable.rail_wifi)
+        // Dim only the icon: the focus pill is the background and should stay full strength.
         wifi.imageAlpha = if (caps == null) 90 else 255
     }
 
@@ -1162,7 +1163,7 @@ class MainActivity : Activity() {
         // Rebuilds can happen in the background (an app or HDMI device added); only take focus if a tile row had it.
         val takeFocus = currentFocus == null || currentFocus?.parent === appRow || currentFocus?.parent === consoleRow
         val gap = dp(GRID_GAP)
-        val width = (resources.displayMetrics.widthPixels - dp(96) - gap * (ROW_TILES - 1)) / ROW_TILES
+        val width = (resources.displayMetrics.widthPixels - dp(92 + 48) - gap * (ROW_TILES - 1)) / ROW_TILES
         val shown = sortedApps().filter { it.pkg !in rowHiddenSet() }
         for ((row, list) in listOf(consoleRow to shown.filter { it.pkg.startsWith(HDMI) }, appRow to shown.filterNot { it.pkg.startsWith(HDMI) })) {
             row.removeAllViews()
@@ -1390,33 +1391,45 @@ class MainActivity : Activity() {
     }
 
     /**
-     * The home screen is the top bar over a stack of rows. Left/Right stay inside a row and stop at its
-     * ends; Up/Down move between rows and land where you last were in that row, not on whatever happens
-     * to sit nearest on screen. Returns the view to focus (itself = stay), or null to let Android handle the key.
+     * The home screen is the menu rail beside a stack of rows (the 30nama layout). Left/Right step along a
+     * row; Left from its first item opens the menu, Right leaves it back to where you were. Up/Down move
+     * between rows and land where you last were in that row. Returns the view to focus (itself = stay), or
+     * null to let Android handle the key.
      */
     private fun homeNav(v: View, key: Int): View? {
-        val visible = kids(rows).filter { it.visibility == View.VISIBLE }
-        if (v.parent === wifi.parent) return when (key) { // top bar
-            KeyEvent.KEYCODE_DPAD_DOWN -> visible.firstOrNull()?.let { entry(it) } ?: v
-            KeyEvent.KEYCODE_DPAD_UP -> v
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (v.id == R.id.wifi) v else null
-            KeyEvent.KEYCODE_DPAD_RIGHT -> if (v.id == R.id.launcherSettings) v else null
-            else -> null
+        if ((v.parent as? View)?.parent === railItems) { // the menu
+            val i = railItems.indexOfChild(v.parent as View)
+            fun at(j: Int) = (railItems.getChildAt(j) as? ViewGroup)?.let { it.getChildAt(it.childCount - 1) }
+            return when (key) {
+                KeyEvent.KEYCODE_DPAD_RIGHT -> beforeRail?.takeIf { it.isAttachedToWindow } ?: firstRowEntry() ?: v
+                KeyEvent.KEYCODE_DPAD_LEFT -> v
+                KeyEvent.KEYCODE_DPAD_UP -> if (i <= 1) v else at(i - 1) // child 0 is the mark
+                KeyEvent.KEYCODE_DPAD_DOWN -> at(i + 1) ?: v
+                else -> null
+            }
         }
         val row = rowOf(v) ?: return null
+        val visible = kids(rows).filter { it.visibility == View.VISIBLE }
         val i = visible.indexOf(row)
-        var item = v // the row's direct item: a tile itself, or a card's column around its focusable poster
-        while ((item.parent as View).parent !is SnapScrollView) item = item.parent as View
+        val item = itemOf(v)
         val strip = item.parent as ViewGroup
+        val at = strip.indexOfChild(item)
+        fun target(x: View?) = x?.let { if (it.isFocusable) it else (it as ViewGroup).getChildAt(0) }
         return when (key) {
-            KeyEvent.KEYCODE_DPAD_UP -> if (i <= 0) lastTop?.takeIf { it.isAttachedToWindow } ?: findViewById(R.id.launcherSettings) else entry(visible[i - 1])
+            KeyEvent.KEYCODE_DPAD_UP -> if (i <= 0) v else entry(visible[i - 1])
             KeyEvent.KEYCODE_DPAD_DOWN -> if (i == visible.lastIndex) v else entry(visible[i + 1])
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (strip.indexOfChild(item) == 0) v else null
-            KeyEvent.KEYCODE_DPAD_RIGHT -> if (strip.indexOfChild(item) == strip.childCount - 1) v else null
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (at > 0) target(strip.getChildAt(at - 1)) else if (editing) v else findViewById(R.id.railHome)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> target(strip.getChildAt(at + 1)) ?: v
             else -> null
         }
     }
 
+    /** The row's direct item [v] belongs to: a tile itself, or a card's column around its focusable picture. */
+    private fun itemOf(v: View): View {
+        var item = v
+        while ((item.parent as View).parent !is SnapScrollView) item = item.parent as View
+        return item
+    }
     /** Overlays (All apps, launcher settings) sit on top of the home rows; keep focus from slipping behind them. */
     private fun homeFocusable(on: Boolean) {
         findViewById<ViewGroup>(R.id.content).descendantFocusability =
@@ -1534,7 +1547,7 @@ class MainActivity : Activity() {
         val row = (0 until appTileCount()).map { appRow.getChildAt(it).tag as String }
         saveOrder(row + sortedApps().map { it.pkg }.filter { it !in row })
         shelfFor = null
-        onHomeFocus(currentFocus) // the shelf was hidden while editing
+        focusShelf(currentFocus) // the billboard was hidden while editing
     }
 
     /** While editing, keys only rearrange the row; nothing launches and focus can't leave it. */
@@ -1566,6 +1579,7 @@ class MainActivity : Activity() {
                     appRow.removeViewAt(i)
                     appRow.addView(v, j)
                     v.requestFocus()
+                    v.post { glideStrip(v) } // focus didn't change, so nothing else moves the track
                     return true
                 }
                 return false // not holding anything: normal focus movement within the row
@@ -2135,13 +2149,16 @@ class MainActivity : Activity() {
                 val episode = str("episode_display_number")
                 val duration = num("duration_millis")
                 val position = num("last_playback_position_millis")
-                val sub = listOfNotNull(
-                    if (season != null && episode != null) "S$season E$episode" else null,
+                val details = listOfNotNull(
+                    if (season != null && episode != null) "S$season · E$episode" else null,
                     // Under a second in means "not really started": no "time left", no bar.
                     if (duration > 0 && position in 1000 until duration) timeLeft(duration - position) else null,
-                ).joinToString(" - ").ifEmpty { str("short_description").orEmpty() } // e.g. a video's channel
+                ).joinToString(" · ")
+                val short = str("short_description").orEmpty()
+                val sub = details.ifEmpty { short } // e.g. a video's channel and age
+                val plot = str("long_description") ?: short.takeIf { details.isNotEmpty() }.orEmpty()
                 val progress = if (duration > 0 && position >= 1000) (position * 100 / duration).toInt().coerceIn(0, 100) else 0
-                val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), str("package_name"))
+                val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), str("package_name"), plot)
                 out += num("last_engagement_time_utc_millis") to prog
             }
         }
@@ -2198,68 +2215,63 @@ class MainActivity : Activity() {
         }
     }
     /**
-     * Four posters across, each two apps-row columns wide. Progress sits on the artwork's bottom edge;
-     * title and details (source, episode, time left) go underneath.
+     * 30nama's landscape card, 400 × 225 at 1080p: the art with a 6 px progress bar inset 12 inside it, and the
+     * details under it ("S1 · E5 · 23 min left"). The title is on the billboard. Focus: scale 1.08, a 4 px white
+     * ring 6 px outside the card, and a lift shadow.
      */
     private fun watchCard(p: Prog, gapBefore: Boolean): View {
-        val gap = dp(GRID_GAP)
-        val w = (resources.displayMetrics.widthPixels - dp(96) - gap * 3) / 4
+        val w = dp(200)
+        val radius = dp(6).toFloat()
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
             layoutParams = LinearLayout.LayoutParams(w, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                if (gapBefore) marginStart = gap
+                if (gapBefore) marginStart = dp(12)
             }
         }
         val img = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
-            setBackgroundColor(if (dark) 0xFF20242F.toInt() else 0xFFDDE1E5.toInt())
+            background = GradientDrawable().apply {
+                cornerRadius = radius
+                setColor(if (dark) 0xFF20242F.toInt() else 0xFFDDE1E5.toInt())
+            }
+            clipToOutline = true
         }
-        // Long titles scroll while their poster is focused instead of staying cut off.
-        val title = label(p.title, 14f).apply {
-            setPadding(0, dp(6), 0, 0)
-            isSingleLine = true
-            ellipsize = TextUtils.TruncateAt.MARQUEE
-            marqueeRepeatLimit = -1
+        val frame = FrameLayout(this).apply {
+            clipChildren = false
+            outlineProvider = object : android.view.ViewOutlineProvider() { // for the lift shadow
+                override fun getOutline(view: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, view.width, view.height, radius)
+            }
+            addView(img, MATCH_PARENT, MATCH_PARENT)
+            if (p.progress > 0) addView(ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                max = 100
+                progress = p.progress
+                progressDrawable = progressBarDrawable()
+            }, FrameLayout.LayoutParams(MATCH_PARENT, dp(3), Gravity.BOTTOM).apply { setMargins(dp(6), 0, dp(6), dp(6)) })
         }
-        val frame = FrameLayout(this)
-        style(frame, dp(6), card = true) { focused ->
-            title.isSelected = focused
+        // Drawn past the card's bounds (negative inset); nothing up the tree clips, so the ring shows whole.
+        val ring = GradientDrawable().apply {
+            cornerRadius = radius + dp(3)
+            setStroke(dp(2), focusFill)
+            alpha = 0
         }
+        frame.foreground = android.graphics.drawable.InsetDrawable(ring, -dp(5))
+        style(frame, 0, card = false, bare = true) { focused -> ring.alpha = if (focused) 255 else 0 }
         frame.contentDescription = p.title
-        frame.addView(img, MATCH_PARENT, MATCH_PARENT)
         frame.setOnClickListener { open(p) }
         frame.setTag(R.id.watchRow, p) // holding OK hides it (see onHold)
-        // 2:1 keeps logos and badges that providers bake into 16:9 art.
-        col.addView(frame, LinearLayout.LayoutParams(w, w / 2))
-        // Thin bar under the poster, card width. Kept (invisible) when there's no progress so titles line up.
-        col.addView(ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 100
-            progress = p.progress
-            progressDrawable = progressBarDrawable()
-            visibility = if (p.progress > 0) View.VISIBLE else View.INVISIBLE
-        }, LinearLayout.LayoutParams(w, dp(3)).apply { topMargin = dp(8) })
-        col.addView(title)
-        val icon = sourceIcon(p.pkg)
-        if (p.sub.isNotEmpty() || icon != null) {
-            col.addView(label(p.sub, 12f).apply {
-                alpha = 0.8f
-                setPadding(0, dp(2), 0, 0)
-                icon?.let {
-                    it.setBounds(0, 0, dp(12), dp(12))
-                    setCompoundDrawablesRelative(it, null, null, null)
-                    compoundDrawablePadding = dp(6)
-                }
-            })
-        }
+        col.addView(frame, LinearLayout.LayoutParams(w, w * 9 / 16))
+        col.addView(label(p.sub.ifEmpty { p.title }, 13f).apply {
+            alpha = 0.72f
+            setPadding(0, dp(8), 0, 0)
+        })
         loadPoster(img, p.image)
         return col
     }
-
-    // ---------- rows and top shelf ----------
-    // The rows stack scrolls so the focused row sits at the top of its area, and the rows above fade out
-    // (30nama, Google TV). Above them the shelf (tvOS) names what's focused; a card's art, once focus
-    // rests on it, fades in blurred behind everything.
+    // ---------- rows, menu and billboard (the 30nama home layout) ----------
+    // The rows stack scrolls so the focused row's title sits at y 640 px, the rows above fading out, and
+    // each track glides so its focused item sits at the content edge. Above them the billboard names
+    // what's focused; a card's picture, once focus rests on it, fades in behind everything.
 
     /** One home row: its name over a sideways strip of tiles or cards. Hidden until it has something; returns the strip. */
     private fun makeRow(title: String): LinearLayout {
@@ -2268,26 +2280,22 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
             visibility = View.GONE
+            // 32 px bold, text-2 at rest and text-1 on the focused row (see glideRows).
             addView(label(title, 16f).apply {
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
                 alpha = 0.72f
-            })
-            // The strip reaches one grid gap past the content edges and clips there: room for the focus
-            // lift, while the next item, a gap away, stays hidden. SnapScrollView scrolls by whole items.
+            }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginStart = dp(92) })
+            // The track starts at the content edge (x 184 px) and glides so the focused item sits there,
+            // the ones before it sliding on under the menu; it runs to the screen's end edge.
             addView(SnapScrollView(context, null).apply {
                 isHorizontalScrollBarEnabled = false
                 clipToPadding = false
-                setPadding(dp(16), dp(18), dp(16), dp(22))
+                setPadding(dp(92), dp(10), dp(48), dp(14))
                 addView(strip)
-            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
-                marginStart = -dp(16)
-                marginEnd = -dp(16)
-                topMargin = -dp(10)
-            })
+            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         })
         return strip
     }
-
     private fun kids(g: ViewGroup) = (0 until g.childCount).map { g.getChildAt(it) }
 
     /** The row (child of [rows]) that [v] sits in, or null outside the rows. */
@@ -2306,25 +2314,144 @@ class MainActivity : Activity() {
 
     private fun firstRowEntry() = kids(rows).firstOrNull { it.visibility == View.VISIBLE }?.let { entry(it) }
 
-    private var glide: ObjectAnimator? = null
-
-    /** Focus moved: remember it per row, bring its row to the top (the top bar brings the first), name it in the shelf. */
-    private fun onHomeFocus(v: View?) {
+    /** Focus moved: open or close the menu, remember it per row, glide its row and track into place, update the billboard. */
+    private fun onHomeFocus(old: View?, v: View?) {
+        val inRail = (v?.parent as? View)?.parent === railItems
+        if (inRail != railOpen) setRail(inRail, from = old)
         val row = rowOf(v)
-        row?.setTag(R.id.rows, v)
-        if (row != null || v?.parent === wifi.parent) rowStack.post { // posted: a row just shown has no position yet
-            glide?.cancel()
-            glide = ObjectAnimator.ofInt(rowStack, "scrollY", row?.top ?: 0).apply {
-                duration = 420
-                interpolator = EMPH
-                start()
+        if (row != null) {
+            row.setTag(R.id.rows, v)
+            rowStack.post { // posted: a row just shown has no position yet
+                glideRows(row)
+                glideStrip(v!!)
             }
-            for (r in kids(rows)) r.animate().alpha(if (row != null && r.top < row.top) 0f else 1f).setDuration(240).start()
         }
-        focusShelf(v.takeIf { row != null })
+        if (!inRail) focusShelf(v.takeIf { row != null }) // the billboard stays up behind the open menu
     }
 
-    private val shelfTick = Runnable { showArt(artOf(shelfFor)) }
+    private fun glideRows(row: View) {
+        ObjectAnimator.ofInt(rowStack, "scrollY", row.top).apply {
+            setAutoCancel(true)
+            duration = 420
+            interpolator = EMPH
+        }.start()
+        for (r in kids(rows)) {
+            r.animate().alpha(if (r.top < row.top) 0f else 1f).setDuration(240).start()
+            (r as ViewGroup).getChildAt(0).alpha = if (r === row) 1f else 0.72f
+        }
+    }
+
+    /** Slides [v]'s track so its item sits at the content edge (clamped at the track's end). */
+    private fun glideStrip(v: View) {
+        val item = itemOf(v)
+        val strip = item.parent as View
+        val track = strip.parent as View
+        val end = (strip.width - (track.width - track.paddingLeft - track.paddingRight)).coerceAtLeast(0)
+        ObjectAnimator.ofInt(track, "scrollX", item.left.coerceIn(0, end)).apply {
+            setAutoCancel(true)
+            duration = 320
+            interpolator = EMPH
+        }.start()
+    }
+
+    /** The menu items: Search, Home (here), All apps, Network, Android settings, Plume settings. */
+    private fun buildRail() {
+        railItem(R.id.railSearch, R.drawable.rail_search, "Search") { search() }
+        railItem(R.id.railHome, R.drawable.rail_home, "Home", current = true) { leaveRail() }
+        railItem(R.id.allAppsButton, R.drawable.rail_apps, "All apps") { openAllApps() }
+        wifi = railItem(R.id.wifi, R.drawable.rail_wifi, "Network") { openSettings(Settings.ACTION_WIFI_SETTINGS) }
+        railItem(R.id.systemSettings, R.drawable.rail_gear, "Settings") { openSettings(Settings.ACTION_SETTINGS) }
+        railItem(R.id.launcherSettings, R.drawable.rail_tune, "Plume settings") { unlock { openLauncherSettings() } }
+    }
+
+    /**
+     * One menu item, 72 px tall: a 40 px icon (text-3, the current one text-1 with a 4 × 28 accent bar at
+     * the edge) and its label, shown once the menu opens. Focused, it's a white 300 × 64 pill.
+     */
+    private fun railItem(id: Int, icon: Int, name: String, current: Boolean = false, action: () -> Unit): ImageView {
+        val rest = if (current) fg else fg and 0xFFFFFF or 0x75000000
+        val img = ImageView(this).apply {
+            setImageResource(icon)
+            setColorFilter(rest)
+        }
+        val text = label(name, 14f).apply {
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            alpha = 0f
+            railLabels += this
+        }
+        val pill = GradientDrawable().apply { cornerRadius = dp(16).toFloat() }
+        val item = LinearLayout(this).apply {
+            this.id = id
+            gravity = Gravity.CENTER_VERTICAL
+            isFocusable = true
+            isClickable = true
+            contentDescription = name
+            background = pill
+            setPadding(dp(10), 0, dp(10), 0)
+            addView(img, LinearLayout.LayoutParams(dp(20), dp(20)))
+            addView(text, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginStart = dp(12) })
+            setOnClickListener { action() }
+            setOnFocusChangeListener { _, focused ->
+                pill.setColor(if (focused) focusFill else 0)
+                img.setColorFilter(if (focused) focusInk else rest)
+                text.setTextColor(if (focused) focusInk else fg)
+            }
+        }
+        railItems.addView(FrameLayout(this).apply {
+            if (current) addView(View(context).apply {
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(1).toFloat()
+                    setColor(ACCENT)
+                }
+            }, FrameLayout.LayoutParams(dp(2), dp(14), Gravity.CENTER_VERTICAL))
+            addView(item, FrameLayout.LayoutParams(dp(150), dp(32), Gravity.CENTER_VERTICAL).apply { marginStart = dp(10) })
+        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(36)))
+        return img
+    }
+
+    /** Focus entering the menu opens it: panel and labels fade in (labels 20 ms apart), the screen behind dims. */
+    private fun setRail(open: Boolean, from: View?) {
+        railOpen = open
+        if (open) beforeRail = from?.takeIf { rowOf(it) != null } ?: beforeRail
+        val t = if (open) 1f else 0f
+        findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).start()
+        findViewById<View>(R.id.railDim).animate().alpha(t * 0.7f).setDuration(240).setInterpolator(EASE_OUT).start()
+        railLabels.forEachIndexed { i, l ->
+            l.animate().alpha(t).setStartDelay(if (open) i * 20L else 0L).setDuration(240).setInterpolator(EASE_OUT).start()
+        }
+    }
+
+    /** Back to the row item the menu was opened from (Right, Back, or Home in the menu). */
+    private fun leaveRail() {
+        (beforeRail?.takeIf { it.isAttachedToWindow } ?: firstRowEntry())?.requestFocus()
+    }
+
+    /** The TV's own search (Google TV's search screen), or the assistant where that's what search is. */
+    private fun search() {
+        for (action in listOf("android.search.action.GLOBAL_SEARCH", Intent.ACTION_ASSIST)) {
+            try {
+                return startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (e: Exception) {
+                // try the next
+            }
+        }
+        Toast.makeText(this, "Search isn't available on this TV", Toast.LENGTH_SHORT).show()
+    }
+    private val shelfTick = Runnable {
+        val v = shelfFor
+        showArt(artOf(v))
+        // Then a screen-size copy of the same picture (cards keep a small one), swapped in place once decoded.
+        // shortcut: a decode that beats showArt's 140 ms dip is overwritten by the small copy; rare, upgrade if seen.
+        val uri = (v?.getTag(R.id.watchRow) as? Prog)?.image ?: return@Runnable
+        posterIo.execute {
+            val big = try {
+                decode(uri, dp(640))
+            } catch (e: Exception) {
+                null
+            } ?: return@execute
+            ui.post { if (shelfFor === v) hero.setImageBitmap(big) }
+        }
+    }
 
     /**
      * The focused card's own poster. Not from the poster cache: with every card row loaded it holds far
@@ -2346,6 +2473,10 @@ class MainActivity : Activity() {
             findViewById<TextView>(R.id.shelfEyebrow).text = listOfNotNull(header, source).joinToString(" · ")
             findViewById<TextView>(R.id.shelfTitle).text = title
             findViewById<TextView>(R.id.shelfMeta).text = p?.sub.orEmpty()
+            findViewById<TextView>(R.id.shelfPlot).apply {
+                text = p?.plot.orEmpty()
+                visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+            }
             shelf.alpha = 0f
             shelf.translationY = dp(10).toFloat()
             shelf.animate().alpha(1f).translationY(0f).setDuration(320).setInterpolator(EMPH).start()
@@ -2366,7 +2497,7 @@ class MainActivity : Activity() {
     private fun progressBarDrawable(): Drawable {
         fun bar(color: Int) = GradientDrawable().apply { cornerRadius = dp(2).toFloat(); setColor(color) }
         return LayerDrawable(arrayOf(
-            bar(if (dark) 0x38FFFFFF else 0x26000000),
+            bar(0x38FFFFFF), // white 22 %: the bar sits on the art, in either theme
             ClipDrawable(bar(ACCENT), Gravity.START, ClipDrawable.HORIZONTAL),
         )).apply {
             setId(0, android.R.id.background)
@@ -2415,12 +2546,12 @@ class MainActivity : Activity() {
     }
 
     /** Downsample to card size in RGB_565 so a dozen posters stay around 1-2 MB. */
-    private fun decode(uri: String): Bitmap? {
+    private fun decode(uri: String, minWidth: Int = dp(220)): Bitmap? {
         val bytes = openStream(uri).use { it.readBytes() }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= dp(220)) sample *= 2
+        while (bounds.outWidth / (sample * 2) >= minWidth) sample *= 2
         val opts = BitmapFactory.Options().apply {
             inSampleSize = sample
             inPreferredConfig = Bitmap.Config.RGB_565
