@@ -6,15 +6,15 @@ plugins {
 
 // No dependencies on purpose: framework Views only, to keep RAM and APK size minimal.
 android {
-    namespace = "dev.plume"
+    namespace = "dev.koolest"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.plume"
+        applicationId = "dev.koolest"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.3"
+        versionCode = 6
+        versionName = "1.4"
     }
 
     // Release key lives outside the repo; keystore.properties (git-ignored) points at it. Without that file

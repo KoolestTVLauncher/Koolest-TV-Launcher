@@ -1,4 +1,4 @@
-package dev.plume
+package dev.koolest
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -45,7 +45,7 @@ internal class UploadServer(val code: String, private val temp: File, private va
             try {
                 s.use { handle(it) }
             } catch (e: Exception) {
-                android.util.Log.w("Plume", "upload request failed ($e)")
+                android.util.Log.w("Koolest", "upload request failed ($e)")
             }
         }
     }

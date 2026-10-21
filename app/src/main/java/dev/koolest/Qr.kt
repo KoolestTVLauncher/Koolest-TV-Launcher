@@ -1,4 +1,4 @@
-package dev.plume
+package dev.koolest
 
 import kotlin.math.abs
 

@@ -20,14 +20,17 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 ## Highlights
 
 - **30nama TV layout.** A menu on the left edge, a large billboard for whatever is focused, and rows of landscape cards below it, set in Vazirmatn with a white focus ring.
-- **Content rows.** YouTube, 30nama and Spotify each get a row of their own recommendations, plus Continue watching from Android TV's Watch Next list.
+- **Rows, top to bottom:** Continue watching, Apps, Consoles & inputs, 30nama, YouTube and Spotify, then a row for every other app that publishes to the TV's home screen (Netflix, Prime Video, Tubi, Apple TV, Twitch…). Rows with nothing in them don't show, and any row can be turned off.
+- **Continue watching that works.** Everything apps report as partway watched, from Android TV's Watch Next list and apps' own "Continue watching" channels. The apps you use most come first, and browsers' open tabs stay out.
 - **Consoles and inputs.** Devices that name themselves over HDMI-CEC get a tile with their own mark: PlayStation 3/4/5, Xbox, Switch, Steam Deck, Apple TV, Shield, Chromecast and more. Selecting one switches the TV to that input.
 - **A taskbar menu.** Search, Home, your pinned apps and consoles, then All apps. Add, remove and reorder the pins in settings.
 - **All apps, sorted your way.** Home order, A–Z, most used, recently used or recently installed.
 - **Motion.** Focused cards grow and lift, rows glide into place and the background crossfades to the focused item's art.
 - **Simple settings.** Six groups: Look, Home screen, Continue watching, Weather, Screensaver, and Koolest and this TV.
 - **Home button support on Google TV.** The Home button opens Koolest even where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
-- **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code), a Gallery screensaver, optional weather and a PIN lock for the layout.
+- **Clock and weather** in the top corner: the time and date, and (if you turn it on) the weather with its icon, "feels like" and your city.
+- **Smooth on TV hardware.** Pictures load just ahead of where you're browsing, the billboard art cross-fades at full screen size, and the home screen draws as few full-screen layers as it can.
+- **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code), a Gallery screensaver and a PIN lock for the layout.
 
 ## Requirements
 
@@ -44,12 +47,12 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 
 ### First-run setup
 
-In **Koolest settings → Koolest and this TV**:
+In **Koolest settings → This TV**:
 
 | Setting | What to do |
 |---|---|
-| **Home button opens Koolest** | Press OK. In the Accessibility screen that opens, select **Koolest: Home button** and turn it on. |
-| **Make Koolest the home screen** | Press OK and choose **Koolest TV Launcher** in the dialog. |
+| **Home button** | Press OK. In the Accessibility screen that opens, select **Koolest: Home button** and turn it on. |
+| **Default home** | Press OK and choose **Koolest TV Launcher** in the dialog. (Google TV keeps its own launcher as the default, which is what the Home button setting works around.) |
 
 Allow the **TV listings** permission when asked; the content rows and Continue watching need it.
 
@@ -59,26 +62,33 @@ Allow the **TV listings** permission when asked; the content rows and Continue w
 > [!TIP]
 > **Android 13 and newer:** Android blocks sideloaded apps from Accessibility at first. Open **Settings → Apps → Koolest TV Launcher**, choose **Allow restricted settings** from the menu, then turn the service on.
 
-### Optional: one extra permission over adb
+### Recommended: keep the Home button working (adb)
 
 ```sh
-adb shell pm grant dev.plume android.permission.WRITE_SECURE_SETTINGS
+adb shell pm grant dev.koolest android.permission.WRITE_SECURE_SETTINGS
+adb shell appops set dev.koolest APP_AUTO_START allow   # TCL TVs
 ```
 
-This lets Koolest set the Gallery screensaver itself and turn its Home button service back on if the app is ever force-stopped. Everything else works without it.
+Android only starts the Home button service when its setting changes. After a reboot, an update, or the TV closing Koolest in the background (TCL TVs do this while a console is on), Home would land on Google TV again. With the first permission, Koolest switches its service back on by itself: at boot, after an update, every 15 minutes and whenever it opens. It also lets Koolest set the Gallery screensaver. The second line is for TCL TVs, whose own "auto start" guard otherwise stops Android from starting the service and from telling Koolest the TV has booted.
 
 ## Using Koolest
 
 | Action | How |
 |---|---|
-| Pin, remove or reorder apps in the menu | **Settings → Home screen → Apps in the menu** |
+| Turn home rows on or off | **Settings → Home screen → Rows** |
+| Pin, remove or reorder apps in the menu | **Settings → Home screen → Menu apps** |
 | Rearrange the Apps row | Hold **OK** on an app, or **Settings → Home screen → Rearrange apps** |
 | Hide a Continue watching item | Hold **OK** on its card |
-| Choose which apps feed Continue watching | **Settings → Continue watching → Which apps appear** |
+| Choose which apps feed Continue watching | **Settings → Continue watching → Apps** |
 | Sort All apps | Open **All apps** and pick a sort at the top |
 | Change theme or wallpaper | **Settings → Look** |
-| Lock the layout with a PIN | **Settings → Koolest and this TV → Lock layout with a PIN** |
+| Lock the layout with a PIN | **Settings → This TV → PIN lock** |
+| Back on the home screen | From deep in a row, back to its first item; again, to the menu; again, back to the rows |
 | Open the Google TV dashboard | Hold the **Home** button |
+
+### Why some apps aren't in Continue watching
+
+Koolest can only show what apps report to Android TV. Google TV's own Continue watching row also uses your Google account's history, which other apps can't read. If an app's shows don't appear here, that app doesn't report them to the TV.
 
 ### Why only one YouTube account?
 
@@ -89,7 +99,7 @@ YouTube publishes its home-screen rows (Recommended, Subscriptions, Trending and
 In **Settings → Look**, open a theme's wallpaper and choose **Add from phone…**. Scan the QR code with your phone (on the same Wi-Fi as the TV) and upload a photo. You can also copy `.jpg`, `.png` or `.webp` files into the app's folder:
 
 ```sh
-adb push my-wallpaper.jpg /sdcard/Android/data/dev.plume/files/wallpapers/
+adb push my-wallpaper.jpg /sdcard/Android/data/dev.koolest/files/wallpapers/
 ```
 
 ## Privacy
@@ -112,7 +122,6 @@ cd Koolest-TV-Launcher
 
 The APK is written to `app/build/outputs/apk/release/`. Without a `keystore.properties` file, release builds are signed with your local debug key, which is fine for installing your own build.
 
-The package name is still `dev.plume`, so an existing install keeps its settings when it updates.
 
 ## Credits
 

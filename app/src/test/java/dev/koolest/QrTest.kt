@@ -1,4 +1,4 @@
-package dev.plume
+package dev.koolest
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Test

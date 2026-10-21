@@ -1,4 +1,4 @@
-package dev.plume
+package dev.koolest
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -18,6 +18,13 @@ class DeviceLogoTest {
         assertEquals(R.drawable.logo_dev_nintendoswitch, res("NintendoSwitch"))
         assertEquals(R.drawable.logo_dev_steamdeck, res("Steam Deck"))
         assertEquals(R.drawable.logo_dev_xbox, res("Xbox Series X")) // not a set-top "box"
+    }
+
+    @Test fun discPlayersAndBrandsWithoutAColourOfTheirOwn() {
+        assertEquals(R.drawable.logo_dev_disc, res("BD Player"))
+        assertEquals(R.drawable.logo_dev_disc, res("Blu-ray"))
+        assertEquals(0xFF000000.toInt(), deviceLogo("Apple TV").colour)
+        assertEquals(0xFF009AC7.toInt(), deviceLogo("Wii U").colour)
     }
 
     @Test fun unknownDevicesAndBarePortsGetTheHdmiMark() {

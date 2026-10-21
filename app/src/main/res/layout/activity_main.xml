@@ -3,9 +3,9 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#F3F5F7">
+    android:layout_height="match_parent">
 
+    <!-- No background here: the window's is the ground colour (see applyTheme), one full-screen layer instead of two. -->
     <ImageView
         android:id="@+id/wallpaper"
         android:layout_width="match_parent"
@@ -38,66 +38,146 @@
         android:layout_height="match_parent"
         android:clipChildren="false">
 
-        <!-- Top end: weather, clock, then network, Android settings and Koolest settings. -->
+        <!-- Top end, on one centre line: a pill with the weather and the time (two matching two-line columns, so they
+             line up), then a pill with network, Android settings and Koolest settings. The pills (tinted in code) keep
+             it readable over any picture. -->
         <LinearLayout
             android:id="@+id/topBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="20dp"
             android:layout_marginEnd="40dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- "14° Cloudy · Paris". Off unless turned on in launcher settings. -->
-            <TextView
-                android:id="@+id/weather"
+            <LinearLayout
+                android:id="@+id/infoPill"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
-                android:alpha="0.72"
-                android:maxLines="1"
-                android:textSize="13sp"
-                android:visibility="gone" />
+                android:layout_height="52dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="18dp"
+                android:paddingEnd="20dp">
 
-            <TextClock
-                android:id="@+id/clock"
+                <!-- Weather: icon, then "3° Clear" over "Feels -1° · Montreal". Off unless turned on in settings. -->
+                <LinearLayout
+                    android:id="@+id/weather"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:id="@+id/wxIcon"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:importantForAccessibility="no" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/wxTemp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/wxDesc"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:alpha="0.8"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/infoDivider"
+                        android:layout_width="1dp"
+                        android:layout_height="26dp"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginEnd="18dp"
+                        android:alpha="0.25" />
+                </LinearLayout>
+
+                <!-- The time over the day and date, the same two lines as the weather. -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextClock
+                        android:id="@+id/clock"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:format12Hour="h:mm a"
+                        android:format24Hour="HH:mm"
+                        android:includeFontPadding="false"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+
+                    <TextClock
+                        android:id="@+id/date"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:alpha="0.8"
+                        android:format12Hour="EEEE, MMM d"
+                        android:format24Hour="EEEE, d MMM"
+                        android:includeFontPadding="false"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/buttonPill"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:alpha="0.72"
-                android:format12Hour="h:mm"
-                android:format24Hour="HH:mm"
-                android:textSize="13sp" />
+                android:layout_height="52dp"
+                android:layout_marginStart="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp">
 
-            <ImageView
-                android:id="@+id/wifi"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="16dp"
-                android:contentDescription="Network settings"
-                android:focusable="true"
-                android:padding="7dp"
-                android:src="@drawable/rail_wifi" />
+                <ImageView
+                    android:id="@+id/wifi"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:contentDescription="Network settings"
+                    android:focusable="true"
+                    android:padding="10dp"
+                    android:src="@drawable/rail_wifi" />
 
-            <ImageView
-                android:id="@+id/systemSettings"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="6dp"
-                android:contentDescription="Settings"
-                android:focusable="true"
-                android:padding="7dp"
-                android:src="@drawable/rail_gear" />
+                <ImageView
+                    android:id="@+id/systemSettings"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="2dp"
+                    android:contentDescription="Settings"
+                    android:focusable="true"
+                    android:padding="10dp"
+                    android:src="@drawable/rail_gear" />
 
-            <ImageView
-                android:id="@+id/launcherSettings"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="6dp"
-                android:contentDescription="Koolest settings"
-                android:focusable="true"
-                android:padding="7dp"
-                android:src="@drawable/rail_tune" />
+                <ImageView
+                    android:id="@+id/launcherSettings"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="2dp"
+                    android:contentDescription="Koolest settings"
+                    android:focusable="true"
+                    android:padding="10dp"
+                    android:src="@drawable/rail_tune" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Billboard: eyebrow, title, meta line, plot (3 lines, 820 px wide), ending just above the rows. -->
@@ -166,12 +246,12 @@
             android:visibility="gone" />
 
         <!-- The rows (built in code). The stack scrolls so the focused row's title sits at y 320dp (640 px);
-             rows above it fade out. Full width: tracks start at x 92dp and earlier cards slide under the menu. -->
-        <dev.plume.RowStack
+             rows above it fade out. Full width: tracks start at x 92dp and earlier cards slide under the menu.
+             Rows clip (focus has room inside each track's padding), so rows off screen aren't drawn. -->
+        <dev.koolest.RowStack
             android:id="@+id/rowStack"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:clipChildren="false"
             android:clipToPadding="false"
             android:overScrollMode="never"
             android:paddingTop="320dp"
@@ -181,10 +261,9 @@
                 android:id="@+id/rows"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:clipChildren="false"
                 android:clipToPadding="false"
                 android:orientation="vertical" />
-        </dev.plume.RowStack>
+        </dev.koolest.RowStack>
 
         <!-- Dims the screen while the menu is open. -->
         <View
@@ -210,21 +289,13 @@
                 android:layout_height="match_parent"
                 android:alpha="0" />
 
+            <!-- Centred down the edge, like Google TV's: no mark on top, so the menu has the full height. -->
             <LinearLayout
                 android:id="@+id/railItems"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:paddingTop="30dp">
-
-                <ImageView
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginBottom="44dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/plume_mark" />
-            </LinearLayout>
+                android:gravity="center_vertical"
+                android:orientation="vertical" />
         </FrameLayout>
     </FrameLayout>
 
