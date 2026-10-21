@@ -23,14 +23,15 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **Rows, top to bottom:** Continue watching, Apps, Consoles & inputs, 30nama, YouTube and Spotify, then a row for every other app that publishes to the TV's home screen (Netflix, Prime Video, Tubi, Apple TV, Twitch…). Rows with nothing in them don't show, and any row can be turned off.
 - **Continue watching that works.** Everything apps report as partway watched, from Android TV's Watch Next list and apps' own "Continue watching" channels. The apps you use most come first, and browsers' open tabs stay out.
 - **Consoles and inputs.** Devices that name themselves over HDMI-CEC get a tile with their own mark: PlayStation 3/4/5, Xbox, Switch, Steam Deck, Apple TV, Shield, Chromecast and more. Selecting one switches the TV to that input.
-- **A taskbar menu.** Search, Home, your pinned apps and consoles, then All apps. Add, remove and reorder the pins in settings.
-- **All apps, sorted your way.** Home order, A–Z, most used, recently used or recently installed.
-- **Motion.** Focused cards grow and lift, rows glide into place and the background crossfades to the focused item's art.
+- **Glass design, iOS style.** The menu floats in a frosted glass capsule and opens into a glass card; the clock, weather and buttons share one capsule on a single line.
+- **A taskbar menu.** Search, Home, your pinned apps and consoles, then All apps, in three groups. Add, remove and reorder the pins in settings.
+- **All apps, sorted your way.** Home order, A–Z, most used, recently used or recently installed, picked from an iOS-style segmented control.
+- **Motion.** Focused cards grow and lift, rows glide into place and the background crossfades to the focused item's art. A row starts over from its first item each time you come back to it.
 - **Simple settings.** Six groups: Look, Home screen, Continue watching, Weather, Screensaver, and Koolest and this TV.
 - **Home button support on Google TV.** The Home button opens Koolest even where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 - **Clock and weather** in the top corner: the time and date, and (if you turn it on) the weather with its icon, "feels like" and your city.
 - **Smooth on TV hardware.** Pictures load just ahead of where you're browsing, the billboard art cross-fades at full screen size, and the home screen draws as few full-screen layers as it can.
-- **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code), a Gallery screensaver and a PIN lock for the layout.
+- **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code) or changing Unsplash photos, a Gallery screensaver and a PIN lock for the layout.
 
 ## Requirements
 
@@ -102,12 +103,17 @@ In **Settings → Look**, open a theme's wallpaper and choose **Add from phone�
 adb push my-wallpaper.jpg /sdcard/Android/data/dev.koolest/files/wallpapers/
 ```
 
+### Changing photos from Unsplash
+
+Choose **Unsplash photos** as a theme's wallpaper and a new photo arrives on the schedule set in **Settings → Look → Photo changes** (every minute to once a day). Photos come at your TV's resolution from [Lorem Picsum](https://picsum.photos), which serves random photos from [Unsplash](https://unsplash.com). Offline, the last photo stays up.
+
 ## Privacy
 
 Koolest has no analytics, no ads and no account. It only connects to the internet to:
 - load artwork for the cards on the home screen
 - check this repository's GitHub releases for a new version, once a day, and download it when you choose to update
 - download the Gallery paintings from this repository, **only if you choose that screensaver**
+- download a wallpaper photo from [Lorem Picsum](https://picsum.photos), **only if you choose Unsplash photos**
 - fetch the weather, **only if you turn it on**, via [ipwho.is](https://ipwho.is) (approximate location from your IP) and [Open-Meteo](https://open-meteo.com)
 
 **Add from phone…** runs a small upload page on the TV itself, reachable only on your home network and only while that screen is open.
@@ -131,6 +137,7 @@ The APK is written to `app/build/outputs/apk/release/`. Without a `keystore.prop
 - **Logos:** [Simple Icons](https://simpleicons.org) (CC0) and [Material Symbols](https://fonts.google.com/icons) (Apache 2.0). All trademarks belong to their respective owners.
 - **Screensaver paintings** (public domain, via Wikimedia Commons; files in [`screensaver/`](screensaver)): Frederic Edwin Church, Ivan Shishkin, Jasper Francis Cropsey and Martin Johnson Heade.
 - **Wallpaper:** "Canada" by Thomas Curryer, via [Unsplash](https://unsplash.com/@tawc20).
+- **Changing wallpapers:** photos by Unsplash photographers, served by [Lorem Picsum](https://picsum.photos).
 
 ## License
 
