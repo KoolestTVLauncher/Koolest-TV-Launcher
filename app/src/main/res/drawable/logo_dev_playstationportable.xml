@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PlayStation Portable mark from Simple Icons (CC0). Tinted in code, like the app marks. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FF000000" android:pathData="M 0 9.93 v .296 h 7.182 v 1.626 H .001 v 2.217 h .295 v -1.921 h 7.182 V 9.93 z m 11.29 0 v 3.844 H 7.478 v .296 h 4.124 v -3.844 h 3.813 V 9.93 z m 5.233 0 v .296 h 7.182 v 1.626 h -7.182 v 2.217 h .296 v -1.921 H 24 V 9.93 z" />
+</vector>

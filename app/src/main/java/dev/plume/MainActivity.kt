@@ -86,6 +86,51 @@ internal fun prefersDark(prefs: SharedPreferences) = when (prefs.getString("them
     else -> false
 }
 
+/** An HDMI device's mark: the drawable, its brand colour for colour mode, and whether it's a wordmark (fit by width). */
+internal class DeviceLogo(val res: Int, val colour: Int? = null, val wordmark: Boolean = false)
+
+/**
+ * The mark for an HDMI device, from the name it gives over CEC ("PlayStation 5", "NintendoSwitch", "SHIELD";
+ * CEC names are at most 14 characters, so spaces are ignored). Most specific names first, so "Wii U" isn't a
+ * Wii, "Xbox" isn't a set-top box and "Steam Deck" isn't Steam. A port with no named device ("HDMI 2") or a
+ * device we don't know gets the HDMI mark. Logos: Simple Icons (CC0); generic marks: Material icons.
+ */
+internal fun deviceLogo(name: String): DeviceLogo {
+    val n = name.lowercase().replace(" ", "")
+    fun has(vararg keys: String) = keys.any { it in n }
+    val ps = 0xFF0070D1.toInt() // PlayStation's brighter blue: the brand hex is too dark on dark cards
+    val nintendo = 0xFFE60012.toInt()
+    return when {
+        has("playstation5", "ps5") -> DeviceLogo(R.drawable.logo_dev_playstation5, ps, wordmark = true)
+        has("playstation4", "ps4") -> DeviceLogo(R.drawable.logo_dev_playstation4, ps, wordmark = true)
+        has("playstation3", "ps3") -> DeviceLogo(R.drawable.logo_dev_playstation3, ps, wordmark = true)
+        has("vita") -> DeviceLogo(R.drawable.logo_dev_playstationvita, ps, wordmark = true)
+        has("psp") -> DeviceLogo(R.drawable.logo_dev_playstationportable, ps, wordmark = true)
+        has("playstation") -> DeviceLogo(R.drawable.logo_playstation, ps)
+        has("xbox") -> DeviceLogo(R.drawable.logo_dev_xbox, 0xFF107C10.toInt())
+        has("switch") -> DeviceLogo(R.drawable.logo_dev_nintendoswitch, nintendo)
+        has("wiiu") -> DeviceLogo(R.drawable.logo_dev_wiiu, wordmark = true)
+        has("wii") -> DeviceLogo(R.drawable.logo_dev_wii, wordmark = true)
+        has("gamecube") -> DeviceLogo(R.drawable.logo_dev_nintendogamecube, 0xFF6A5FBB.toInt())
+        has("3ds") -> DeviceLogo(R.drawable.logo_dev_nintendo3ds, nintendo)
+        has("nintendo") -> DeviceLogo(R.drawable.logo_dev_nintendo, nintendo, wordmark = true)
+        has("steamdeck") -> DeviceLogo(R.drawable.logo_dev_steamdeck)
+        has("steam") -> DeviceLogo(R.drawable.logo_dev_steam)
+        has("sega", "dreamcast", "genesis", "megadrive") -> DeviceLogo(R.drawable.logo_dev_sega, 0xFF0089CF.toInt())
+        has("appletv") -> DeviceLogo(R.drawable.logo_dev_appletv)
+        has("roku") -> DeviceLogo(R.drawable.logo_dev_roku, 0xFF8A3FD1.toInt(), wordmark = true)
+        has("firetv", "amazon") -> DeviceLogo(R.drawable.logo_dev_amazonfiretv, 0xFFFF9900.toInt(), wordmark = true)
+        has("chromecast", "googletv") -> DeviceLogo(R.drawable.logo_dev_chromecast)
+        has("shield", "nvidia") -> DeviceLogo(R.drawable.logo_dev_nvidia, 0xFF76B900.toInt())
+        has("sonos") -> DeviceLogo(R.drawable.logo_dev_sonos, wordmark = true)
+        has("soundbar", "speaker", "audio", "receiver", "avr", "bose", "denon", "yamaha", "onkyo", "marantz") ->
+            DeviceLogo(R.drawable.logo_dev_speaker)
+        has("cable", "settop", "stb", "tivo", "satellite", "dish", "directv", "xfinity", "box") -> DeviceLogo(R.drawable.logo_dev_settopbox)
+        has("pc", "computer", "windows", "mac", "laptop") -> DeviceLogo(R.drawable.logo_dev_computer)
+        else -> DeviceLogo(R.drawable.logo_dev_hdmi)
+    }
+}
+
 /** "1.10" > "1.9" > "1.2.1" > "1.2": compared number by number, missing parts count as 0. */
 internal fun newerVersion(a: String, b: String): Boolean {
     val x = a.split('.').map { it.toIntOrNull() ?: 0 }
@@ -1120,18 +1165,18 @@ class MainActivity : Activity() {
         (devices + hdmi.filter { port -> port.parentId == null && devices.none { it.parentId == port.id } })
             .map { input ->
                 val label = input.loadLabel(this).toString()
-                val ps = label.contains("PlayStation", ignoreCase = true)
                 val port = input.parentId ?: input.id
                 App(
                     HDMI + port,
                     label,
                     Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(port))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    if (ps) getDrawable(R.drawable.logo_playstation)!! else input.loadIcon(this) ?: getDrawable(R.drawable.ic_apps)!!,
+                    getDrawable(deviceLogo(label).res)!!,
                 )
             }
             .distinctBy { it.pkg }
     } catch (e: Exception) {
+        android.util.Log.w("TvHome", "HDMI inputs failed", e) // a bad mark once hid every console
         emptyList()
     }
 
@@ -1195,8 +1240,10 @@ class MainActivity : Activity() {
         val colour = colourIcons()
         val t = when {
             custom != null -> tile(name, custom, false, a.pkg) { launch(a) }
-            a.pkg.startsWith(HDMI) -> tile(name, a.icon, true, a.pkg,
-                tint = BRAND_COLOURS["playstation"]?.takeIf { colour && a.label.contains("PlayStation", ignoreCase = true) }) { launch(a) }
+            a.pkg.startsWith(HDMI) -> deviceLogo(a.label).let { d ->
+                tile(name.takeIf { !d.wordmark }, a.icon, true, a.pkg, wordmarkInset = if (d.wordmark) dp(if (labeled) 40 else 30) else null,
+                    tint = d.colour?.takeIf { colour }) { launch(a) }
+            }
             logo != null -> tile(name.takeIf { !logo.second }, getDrawable(logo.first)!!, true, a.pkg,
                 wordmarkInset = if (!logo.second) null else dp(if (labeled) 40 else 30),
                 tint = BRAND_COLOURS[a.pkg]?.takeIf { colour }) { launch(a) }
@@ -1244,7 +1291,8 @@ class MainActivity : Activity() {
             }
             alpha = 0f
             scaleY = 0.16f
-            translationY = dp(TILE_H / 2).toFloat()
+            // Under the mark: the tile's bottom for icons, just under the band a (short, wide) wordmark fills.
+            translationY = dp(if (wordmarkInset != null) 22 else TILE_H / 2).toFloat()
         }
         val box = FrameLayout(this).apply {
             clipChildren = false
@@ -2683,10 +2731,10 @@ class MainActivity : Activity() {
 
         /**
          * Colour mode tints for the bundled marks: Simple Icons' brand hex, except where that's too dark to
-         * read on dark cards (PlayStation, Prime Video) or grey (Google Play), where the brand's brighter blue/green is used.
+         * read on dark cards (Prime Video) or grey (Google Play), where the brand's brighter blue/green is used.
+         * HDMI devices carry their own (see deviceLogo).
          */
         val BRAND_COLOURS = mapOf(
-            "playstation" to 0xFF0070D1.toInt(),
             "com.netflix.ninja" to 0xFFE50914.toInt(),
             "com.stremio.one" to 0xFF8D3DAF.toInt(),
             "io.gh.reisxd.tizentube.cobalt" to 0xFFFF0000.toInt(),
