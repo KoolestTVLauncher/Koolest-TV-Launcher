@@ -2,6 +2,7 @@ package dev.plume
 
 import android.animation.ObjectAnimator
 import android.app.Activity
+import android.app.ActivityOptions
 import android.app.PendingIntent
 import android.app.role.RoleManager
 import android.content.BroadcastReceiver
@@ -20,6 +21,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -50,6 +52,7 @@ import android.util.LruCache
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
+import android.view.animation.PathInterpolator
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.inputmethod.EditorInfo
@@ -160,6 +163,9 @@ class MainActivity : Activity() {
     private lateinit var watchRow: LinearLayout
     private lateinit var watchTitle: TextView
     private val appsTitle by lazy { findViewById<TextView>(R.id.appsTitle) }
+    private val hero by lazy { findViewById<ImageView>(R.id.hero) }
+    private val shelf by lazy { findViewById<View>(R.id.shelf) }
+    private var shelfFor: Prog? = null
     private lateinit var watchScroll: View
     private lateinit var allApps: View
     private lateinit var allAppsGrid: GridLayout
@@ -198,6 +204,9 @@ class MainActivity : Activity() {
         wifi = findViewById(R.id.wifi)
         applyTheme()
         loadWallpaper()
+        // Blurred: poster art is card-sized, so sharp it would look upscaled; soft it reads as ambient light.
+        if (Build.VERSION.SDK_INT >= 31) hero.setRenderEffect(RenderEffect.createBlurEffect(dp(12).toFloat(), dp(12).toFloat(), Shader.TileMode.CLAMP))
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, now -> focusShelf(now?.getTag(R.id.watchRow) as? Prog) }
 
         // Top bar: network, All apps, Android settings, launcher settings. Round, lit on focus.
         for ((id, action) in listOf<Pair<Int, () -> Unit>>(
@@ -427,9 +436,16 @@ class MainActivity : Activity() {
         ground = if (dark) 0xFF0E1016.toInt() else 0xFFF3F5F7.toInt()
         findViewById<View>(R.id.root).setBackgroundColor(ground)
         allApps.setBackgroundColor(ground)
-        for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.watchTitle, R.id.allAppsTitle, R.id.rowLabel, R.id.weather)) {
+        for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.watchTitle, R.id.allAppsTitle, R.id.rowLabel, R.id.weather,
+            R.id.shelfTitle, R.id.shelfMeta)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
+        // Shelf scrims over the art: the start side for the title, top for the clock, bottom for the rows.
+        val g = ground and 0xFFFFFF
+        hero.foreground = LayerDrawable(arrayOf(
+            GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(g or 0xF2000000.toInt(), g or 0xA6000000.toInt(), g or 0x26000000)),
+            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(g or 0x8C000000.toInt(), g or 0x14000000, g or 0xF2000000.toInt())),
+        ))
         wifi.setColorFilter(fg)
     }
 
@@ -719,7 +735,15 @@ class MainActivity : Activity() {
         panelFrom = currentFocus
         findViewById<View>(R.id.settingsPanel).setBackgroundColor(if (dark) 0xF707080B.toInt() else 0xFFF7F8FA.toInt())
         findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
+        // Slides in from the end edge over a fading scrim (closing stays instant, see closeLauncherSettings).
+        val panel = findViewById<View>(R.id.settingsPanel)
+        if (settingsScrim.visibility != View.VISIBLE) {
+            settingsScrim.alpha = 0f
+            panel.translationX = dp(380).toFloat()
+        }
         settingsScrim.visibility = View.VISIBLE
+        settingsScrim.animate().alpha(1f).setDuration(240).setInterpolator(EASE_OUT).start()
+        panel.animate().translationX(0f).setDuration(420).setInterpolator(EMPH).start()
         homeFocusable(false)
     }
 
@@ -727,7 +751,7 @@ class MainActivity : Activity() {
         pageExit?.invoke()
         pageExit = null
         pageBack = null
-        settingsScrim.visibility = View.GONE
+        settingsScrim.visibility = View.GONE // instant: a dozen key paths read "visible" as "open"
         homeFocusable(allApps.visibility != View.VISIBLE) // the PIN can open over All apps
         (panelFrom?.takeIf { it.isAttachedToWindow } ?: findViewById(R.id.launcherSettings)).requestFocus()
         panelFrom = null
@@ -1134,7 +1158,7 @@ class MainActivity : Activity() {
         if (tiles.isEmpty()) return showNames()
         tiles.forEachIndexed { i, t ->
             t.id = View.generateViewId()
-            appRow.addView(t, LinearLayout.LayoutParams(width, dp(76)).apply { if (i > 0) marginStart = gap })
+            appRow.addView(t, LinearLayout.LayoutParams(width, dp(TILE_H)).apply { if (i > 0) marginStart = gap })
             val own = t.onFocusChangeListener
             t.setOnFocusChangeListener { v, focused ->
                 own.onFocusChange(v, focused)
@@ -1168,7 +1192,7 @@ class MainActivity : Activity() {
             a.pkg.startsWith(HDMI) -> tile(name, a.icon, true, a.pkg,
                 tint = BRAND_COLOURS["playstation"]?.takeIf { colour && a.label.contains("PlayStation", ignoreCase = true) }) { launch(a) }
             logo != null -> tile(name.takeIf { !logo.second }, getDrawable(logo.first)!!, true, a.pkg,
-                wordmarkInset = if (!logo.second) null else dp(if (labeled) 28 else 14),
+                wordmarkInset = if (!logo.second) null else dp(if (labeled) 40 else 30),
                 tint = BRAND_COLOURS[a.pkg]?.takeIf { colour }) { launch(a) }
             else -> cachedGlyph(a)?.let { tile(name, it, true, a.pkg, tint = if (colour) cachedAccent(a) else null) { launch(a) } }
                 ?: if (colour) tile(name, a.icon.constantState?.newDrawable(resources) ?: a.icon, false, a.pkg) { launch(a) }
@@ -1232,7 +1256,10 @@ class MainActivity : Activity() {
         img.alpha = restLogo
         text?.alpha = restText
         // Focus fills the tile (see style), so plain marks and names switch to the ink that reads on it.
-        style(col, dp(8), card = true) { focused ->
+        style(col, dp(10), card = true, lift = 1.12f) { focused ->
+            // The mark grows a little more than its tile, so focus reads as depth (tvOS layered icons).
+            img.animate().scaleX(if (focused) 1.1f else 1f).scaleY(if (focused) 1.1f else 1f)
+                .setDuration(260).setInterpolator(EASE_OUT).start()
             if (mono && tint == null) img.setColorFilter(if (focused) focusInk else fg)
             text?.setTextColor(if (focused) focusInk else fg)
             if (!dark) return@style
@@ -1246,11 +1273,11 @@ class MainActivity : Activity() {
                 img.scaleType = ImageView.ScaleType.CENTER_CROP
                 img.setPadding(wordmarkInset, 0, wordmarkInset, 0)
             } else {
-                img.setPadding(dp(16), dp(20), dp(16), dp(20))
+                img.setPadding(dp(16), dp(22), dp(16), dp(22))
             }
             col.addView(img, LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         } else {
-            col.addView(img, LinearLayout.LayoutParams(MATCH_PARENT, dp(26)))
+            col.addView(img, LinearLayout.LayoutParams(MATCH_PARENT, dp(40)))
             col.addView(text, LinearLayout.LayoutParams(MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         }
         col.tag = tag
@@ -1594,33 +1621,49 @@ class MainActivity : Activity() {
         prefs.edit().putInt("n_" + a.pkg, prefs.getInt("n_" + a.pkg, 0) + 1).putLong("t_" + a.pkg, System.currentTimeMillis()).apply()
         if (prefs.getString("sort", "manual") == "usage") appsDirty = true
         try {
-            startActivity(a.launch)
+            startActivity(a.launch, zoomFromFocus())
         } catch (e: Exception) {
-            packageManager.getLeanbackLaunchIntentForPackage(a.pkg)?.let { startActivity(it) }
+            packageManager.getLeanbackLaunchIntentForPackage(a.pkg)?.let { startActivity(it, zoomFromFocus()) }
         }
+    }
+
+    /** Apps open by growing out of the tile or card that launched them. */
+    private fun zoomFromFocus() = currentFocus?.let { ActivityOptions.makeScaleUpAnimation(it, 0, 0, it.width, it.height).toBundle() }
+
+    /** Back from an app: the home screen rises into place instead of popping in. */
+    override fun onRestart() {
+        super.onRestart()
+        val c = findViewById<View>(R.id.content)
+        c.alpha = 0f
+        c.translationY = dp(18).toFloat()
+        c.animate().alpha(1f).translationY(0f).setDuration(520).setInterpolator(EMPH).start()
     }
 
     // ---------- all apps ----------
 
     private fun openAllApps() {
         allAppsGrid.removeAllViews()
-        val gap = dp(10)
-        val width = (resources.displayMetrics.widthPixels - dp(96) - gap * 5) / 6
+        val gap = dp(GRID_GAP)
+        val width = (resources.displayMetrics.widthPixels - dp(96) - gap * (ROW_TILES - 1)) / ROW_TILES
         for (a in sortedApps()) {
             val t = appTile(a) // holding OK here pins it to the row (see onHold)
             allAppsGrid.addView(t, GridLayout.LayoutParams().apply {
                 this.width = width
-                height = dp(76)
+                height = dp(TILE_H)
                 setMargins(0, 0, gap, gap)
             })
         }
+        allApps.alpha = 0f
+        allApps.scaleX = 0.97f
+        allApps.scaleY = 0.97f
         allApps.visibility = View.VISIBLE
+        allApps.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(340).setInterpolator(EMPH).start()
         homeFocusable(false)
         allAppsGrid.getChildAt(0)?.requestFocus()
     }
 
     private fun closeAllApps() {
-        allApps.visibility = View.GONE
+        allApps.visibility = View.GONE // instant, like the settings panel: key handling reads "visible" as "open"
         homeFocusable(true)
         renderApps()
         findViewById<View>(R.id.allAppsButton).requestFocus() // back where it was opened from
@@ -2219,6 +2262,49 @@ class MainActivity : Activity() {
         return col
     }
 
+    // ---------- top shelf ----------
+    // tvOS-style: once focus rests on a Continue watching card, its art fades in behind everything and its
+    // title rises in above the rows. Anything else focused clears it back to the wallpaper.
+
+    private val shelfTick = Runnable { showShelf(shelfFor) }
+
+    private fun focusShelf(p: Prog?) {
+        if (p === shelfFor) return
+        shelfFor = p
+        ui.removeCallbacks(shelfTick)
+        // Wait for focus to settle, so scrolling along the row doesn't flash every poster.
+        if (p == null) showShelf(null) else ui.postDelayed(shelfTick, 280)
+    }
+
+    private fun showShelf(p: Prog?) {
+        val appScroll = findViewById<View>(R.id.appScroll)
+        if (p == null) {
+            shelf.animate().alpha(0f).setDuration(160).setInterpolator(EASE_OUT).start()
+            hero.animate().alpha(0f).setDuration(420).setInterpolator(EASE_OUT).start()
+            appScroll.animate().alpha(1f).setDuration(240).setInterpolator(EASE_OUT).start()
+            return
+        }
+        // The apps row above steps aside (fades out) and the shelf takes its space, sitting just above the
+        // Continue watching header, like 30nama and Google TV fade the rows above the focused one.
+        appScroll.animate().alpha(0f).setDuration(240).setInterpolator(EASE_OUT).start()
+        findViewById<TextView>(R.id.shelfEyebrow).text =
+            listOfNotNull("Continue watching", apps.firstOrNull { it.pkg == p.pkg }?.label).joinToString(" · ")
+        findViewById<TextView>(R.id.shelfTitle).text = p.title
+        findViewById<TextView>(R.id.shelfMeta).text = p.sub
+        shelf.measure(View.MeasureSpec.makeMeasureSpec(shelf.layoutParams.width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
+        val into = (watchTitle.top - shelf.measuredHeight - dp(14)).toFloat()
+        shelf.alpha = 0f
+        shelf.translationY = into + dp(14)
+        shelf.animate().alpha(1f).translationY(into).setDuration(380).setInterpolator(EMPH).start()
+        val art = p.image?.let { posters.get(it) }
+            ?: return run { hero.animate().alpha(0f).setDuration(240).start() }
+        // Dip out first only if another card's art is showing, then fade the new art in.
+        hero.animate().alpha(0f).setDuration(if (hero.alpha > 0f) 140L else 0L).setInterpolator(EASE_OUT).withEndAction {
+            hero.setImageBitmap(art)
+            hero.animate().alpha(1f).setDuration(480).setInterpolator(EASE_OUT).start()
+        }.start()
+    }
+
     private fun progressBarDrawable(): Drawable {
         fun bar(color: Int) = GradientDrawable().apply { cornerRadius = dp(2).toFloat(); setColor(color) }
         return LayerDrawable(arrayOf(
@@ -2233,9 +2319,9 @@ class MainActivity : Activity() {
     private fun open(p: Prog) {
         prefs.edit().putLong("t_${p.pkg}", System.currentTimeMillis()).apply()
         try {
-            startActivity(Intent.parseUri(p.intent, Intent.URI_INTENT_SCHEME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            startActivity(Intent.parseUri(p.intent, Intent.URI_INTENT_SCHEME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), zoomFromFocus())
         } catch (e: Exception) {
-            p.pkg?.let { packageManager.getLeanbackLaunchIntentForPackage(it) }?.let { startActivity(it) }
+            p.pkg?.let { packageManager.getLeanbackLaunchIntentForPackage(it) }?.let { startActivity(it, zoomFromFocus()) }
         }
     }
 
@@ -2321,8 +2407,8 @@ class MainActivity : Activity() {
             if (card) bg.colors = if (focused) cardLit else cardRest
             v.animate()
                 .scaleX(if (focused) lift else 1f).scaleY(if (focused) lift else 1f)
-                .translationZ(if (focused) dp(14).toFloat() else 0f)
-                .setDuration(160).setInterpolator(DECELERATE).start()
+                .translationZ(if (focused) dp(18).toFloat() else 0f)
+                .setDuration(220).setInterpolator(EASE_OUT).start()
             onFocus?.invoke(focused)
         }
     }
@@ -2370,7 +2456,8 @@ class MainActivity : Activity() {
         const val WRITE_EPG ="com.android.providers.tv.permission.WRITE_EPG_DATA"
         const val TV_SETTINGS = "com.android.tv.settings"
         const val HDMI = "hdmi:" // App.pkg prefix for HDMI device tiles; the rest is the TV input id
-        const val ROW_TILES = 8
+        const val ROW_TILES = 5 // big tvOS-size tiles
+        const val TILE_H = 96 // dp; 5:3 like tvOS app icons
         const val GRID_GAP = 16 // dp; shared by the apps row and the cards so their columns line up
         val BUNDLED_WALLPAPERS = linkedMapOf(
             "Rockies (day)" to R.drawable.wallpaper,
@@ -2385,6 +2472,9 @@ class MainActivity : Activity() {
         )
         val GREYSCALE = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
         val DECELERATE = android.view.animation.DecelerateInterpolator(1.5f)
+        // 30nama motion curves: EASE_OUT for focus and small moves, EMPH for big travel (screens, panels, the shelf).
+        val EASE_OUT = PathInterpolator(.2f, .8f, .2f, 1f)
+        val EMPH = PathInterpolator(.16f, 1f, .3f, 1f)
         @Volatile var APPS: List<App>? = null
         /** Mono marks made by glyph(), by package; null = icon has no usable symbol. Main thread only. */
         val GLYPHS = HashMap<String, Bitmap?>()

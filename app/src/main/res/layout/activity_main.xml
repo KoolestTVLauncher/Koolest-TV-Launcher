@@ -13,6 +13,54 @@
         android:importantForAccessibility="no"
         android:scaleType="centerCrop" />
 
+    <!-- Top shelf backdrop: the focused Continue watching card's art, blurred, fading in over the wallpaper. -->
+    <ImageView
+        android:id="@+id/hero"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop" />
+
+    <!-- Top shelf (tvOS style): eyebrow, title and details of the focused Continue watching card. -->
+    <LinearLayout
+        android:id="@+id/shelf"
+        android:layout_width="520dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="48dp"
+        android:alpha="0"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/shelfEyebrow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:textColor="#F0454A"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/shelfTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:lineSpacingMultiplier="0.95"
+            android:maxLines="2"
+            android:textSize="34sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/shelfMeta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:alpha="0.72"
+            android:maxLines="1"
+            android:textSize="14sp" />
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/content"
         android:layout_width="match_parent"
@@ -218,18 +266,20 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingStart="48dp"
         android:paddingTop="28dp"
-        android:paddingEnd="48dp"
         android:paddingBottom="28dp"
         android:scrollbars="none"
         android:visibility="gone">
 
+        <!-- Side padding here, not on the ScrollView: there it clipped the first column's focus lift. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:clipChildren="false"
-            android:orientation="vertical">
+            android:clipToPadding="false"
+            android:orientation="vertical"
+            android:paddingStart="48dp"
+            android:paddingEnd="48dp">
 
             <TextView
                 android:id="@+id/allAppsTitle"
@@ -244,7 +294,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:clipChildren="false"
-                android:columnCount="6" />
+                android:columnCount="5" />
         </LinearLayout>
     </ScrollView>
 
