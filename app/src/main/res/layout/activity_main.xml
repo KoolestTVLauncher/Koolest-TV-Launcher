@@ -42,7 +42,6 @@
                     android:id="@+id/clock"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif"
                     android:format12Hour="h:mm"
                     android:format24Hour="HH:mm"
                     android:includeFontPadding="false"
@@ -53,7 +52,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:fontFamily="sans-serif"
                     android:format12Hour="EEE d MMM"
                     android:format24Hour="EEE d MMM"
                     android:textSize="15sp" />
@@ -64,8 +62,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:alpha="0.7"
-                    android:fontFamily="sans-serif"
+                    android:alpha="0.72"
                     android:maxLines="1"
                     android:textSize="15sp"
                     android:visibility="gone" />
@@ -122,7 +119,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:fontFamily="sans-serif-medium"
+            android:textStyle="bold"
             android:textSize="15sp"
             android:visibility="gone" />
 
@@ -184,10 +181,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:alpha="0.7"
-            android:fontFamily="sans-serif-medium"
-            android:text="Continue Watching"
-            android:textSize="14sp"
+            android:alpha="0.72"
+            android:textStyle="bold"
+            android:text="Continue watching"
+            android:textSize="16sp"
             android:visibility="gone" />
 
         <dev.plume.SnapScrollView
@@ -239,7 +236,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
-                android:fontFamily="sans-serif"
                 android:text="All apps"
                 android:textSize="20sp" />
 
@@ -276,7 +272,7 @@
                 android:id="@+id/settingsTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
+                android:textStyle="bold"
                 android:paddingStart="14dp"
                 android:text="Plume settings"
                 android:textSize="20sp" />

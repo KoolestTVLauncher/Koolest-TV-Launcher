@@ -153,6 +153,8 @@ class MainActivity : Activity() {
     private var ground = Color.WHITE
     private var cardRest = intArrayOf(Color.WHITE, Color.WHITE)
     private var cardLit = cardRest
+    private var focusFill = Color.WHITE // 30nama: focus is white (dark ink on it); in light mode it turns dark
+    private var focusInk = Color.BLACK
 
     private lateinit var appRow: LinearLayout
     private lateinit var watchRow: LinearLayout
@@ -209,7 +211,8 @@ class MainActivity : Activity() {
             background = ring
             setOnFocusChangeListener { v, focused ->
                 if (focused) lastTop = v
-                ring.setColor(if (!focused) 0 else if (dark) 0xFF2A2A32.toInt() else Color.WHITE)
+                ring.setColor(if (focused) focusFill else 0)
+                setColorFilter(if (focused) focusInk else fg)
                 animate().scaleX(if (focused) 1.15f else 1f).scaleY(if (focused) 1.15f else 1f)
                     .setDuration(160).setInterpolator(DECELERATE).start()
             }
@@ -413,14 +416,15 @@ class MainActivity : Activity() {
 
     private fun applyTheme() {
         dark = wantDark()
-        fg = if (dark) 0xFFF5F5F7.toInt() else 0xFF111214.toInt()
-        // Dark cards are matte black glass on a true-black ground: lit faintly from the top and fading to
-        // near-black, no outline (outlines read as a grey grid). Focus brightens the glass, never to grey.
-        // Light cards are frosted grey glass, so they still read on white wallpapers; focus turns them white.
-        cardRest = if (dark) intArrayOf(0xFF16161B.toInt(), 0xFF060607.toInt()) else intArrayOf(0xD9E2E5E9.toInt(), 0xD9D8DCE1.toInt())
-        cardLit = if (dark) intArrayOf(0xFF26262E.toInt(), 0xFF0C0C0F.toInt()) else intArrayOf(Color.WHITE, Color.WHITE)
-        // Must match the colour each wallpaper fades into, or the bottom edge shows a seam.
-        ground = if (dark) Color.BLACK else 0xFFF3F5F7.toInt()
+        // 30nama style guide tokens: warm white / ink text, surface cards, and focus that is a solid fill.
+        fg = if (dark) 0xFFF4F1EA.toInt() else 0xFF14161C.toInt()
+        focusFill = if (dark) Color.WHITE else 0xFF16181E.toInt()
+        focusInk = if (dark) 0xFF0B0C10.toInt() else Color.WHITE
+        cardRest = if (dark) intArrayOf(0xFF161922.toInt(), 0xFF161922.toInt()) else intArrayOf(0xD9F2F0EB.toInt(), 0xD9E5E2DC.toInt())
+        cardLit = intArrayOf(focusFill, focusFill)
+        // Must match the colour each wallpaper fades into, or the bottom edge shows a seam
+        // (the dark one ends at ~#0F1014, which is 30nama's bg-1).
+        ground = if (dark) 0xFF0E1016.toInt() else 0xFFF3F5F7.toInt()
         findViewById<View>(R.id.root).setBackgroundColor(ground)
         allApps.setBackgroundColor(ground)
         for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.watchTitle, R.id.allAppsTitle, R.id.rowLabel, R.id.weather)) {
@@ -713,7 +717,7 @@ class MainActivity : Activity() {
 
     private fun showPanel() {
         panelFrom = currentFocus
-        findViewById<View>(R.id.settingsPanel).setBackgroundColor(if (dark) 0xFF09090B.toInt() else 0xFFF7F8FA.toInt())
+        findViewById<View>(R.id.settingsPanel).setBackgroundColor(if (dark) 0xF707080B.toInt() else 0xFFF7F8FA.toInt())
         findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
         settingsScrim.visibility = View.VISIBLE
         homeFocusable(false)
@@ -778,7 +782,7 @@ class MainActivity : Activity() {
                 refreshWatchNext()
                 renderSettings(10)
             },
-            Triple("Continue Watching apps", if (cwOff == 0) "All on" else "$cwOff off") { pickWatchSources() },
+            Triple("Continue watching apps", if (cwOff == 0) "All on" else "$cwOff off") { pickWatchSources() },
             // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
             Triple("Weather", toggle(weather != "off")) {
                 if (weather == "off") prefs.edit().putString("weather", unit).apply()
@@ -919,8 +923,8 @@ class MainActivity : Activity() {
             b.text = if (digits[i] == null) "" else if (i == at) digits[i].toString() else "•"
             b.background = GradientDrawable().apply {
                 cornerRadius = dp(8).toFloat()
-                setColor(if (dark) 0xFF1C1C22.toInt() else Color.WHITE)
-                if (i == at) setStroke(dp(2), fg)
+                setColor(if (dark) 0xFF161922.toInt() else Color.WHITE)
+                if (i == at) setStroke(dp(2), ACCENT)
             }
         }
         fun submit() {
@@ -995,24 +999,25 @@ class MainActivity : Activity() {
             else addView(label(value, 13f).apply { alpha = 0.6f })
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
-                bg.colors = if (!focused) intArrayOf(0, 0) else if (dark) cardLit else intArrayOf(Color.WHITE, Color.WHITE)
+                bg.colors = if (focused) cardLit else intArrayOf(0, 0)
+                for (i in 0 until childCount) (getChildAt(i) as? TextView)?.setTextColor(if (focused) focusInk else fg)
             }
         }
     }
 
     private fun toggle(on: Boolean) = if (on) TOGGLE_ON else TOGGLE_OFF
 
-    /** A mono switch for on/off rows: filled track with the knob right when on, outlined and left when off. */
+    /** On/off switch: accent track with a white knob right when on, outlined and left when off. */
     private fun switch(on: Boolean) = FrameLayout(this).apply {
-        val faint = fg and 0xFFFFFF or 0x66000000
+        val faint = 0xFF8A8C92.toInt() // mid grey: reads on the row at rest and on its focus fill, in both themes
         background = GradientDrawable().apply {
             cornerRadius = dp(10).toFloat()
-            if (on) setColor(fg) else setStroke(dp(2), faint)
+            if (on) setColor(ACCENT) else setStroke(dp(2), faint)
         }
         addView(View(context).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(if (!on) faint else if (dark) 0xFF09090B.toInt() else Color.WHITE)
+                setColor(if (on) Color.WHITE else faint)
             }
         }, FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER_VERTICAL or if (on) Gravity.END else Gravity.START).apply {
             marginStart = dp(3)
@@ -1226,7 +1231,10 @@ class MainActivity : Activity() {
         val restText = if (dark) 0.65f else 1f
         img.alpha = restLogo
         text?.alpha = restText
+        // Focus fills the tile (see style), so plain marks and names switch to the ink that reads on it.
         style(col, dp(8), card = true) { focused ->
+            if (mono && tint == null) img.setColorFilter(if (focused) focusInk else fg)
+            text?.setTextColor(if (focused) focusInk else fg)
             if (!dark) return@style
             img.animate().alpha(if (focused) 1f else restLogo).setDuration(160).start()
             text?.animate()?.alpha(if (focused) 1f else restText)?.setDuration(160)?.start()
@@ -1453,7 +1461,7 @@ class MainActivity : Activity() {
     /** Hold OK on a Continue Watching card: hide the show, or open its app rather than the episode. */
     private fun watchMenu(v: View, p: Prog) {
         holdMenu(v, listOfNotNull(
-            if (locked()) null else "Remove from Continue Watching" to { hideWatch(p) },
+            if (locked()) null else "Remove from Continue watching" to { hideWatch(p) },
             if (!locked()) null else UNLOCK_TO_EDIT to { unlock { v.requestFocus(); watchMenu(v, p) } },
             p.pkg?.let { pkg ->
                 "Open app" to {
@@ -1472,7 +1480,7 @@ class MainActivity : Activity() {
             setPadding(dp(6), dp(6), dp(6), dp(6))
             background = GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat()
-                setColor(if (dark) 0xFF141418.toInt() else 0xFFF7F8FA.toInt())
+                setColor(if (dark) 0xFF161922.toInt() else 0xFFF7F8FA.toInt())
             }
             elevation = dp(8).toFloat()
         }
@@ -2048,10 +2056,10 @@ class MainActivity : Activity() {
     private fun pickWatchSources() {
         val sources = watchSources()
         if (sources.isEmpty()) {
-            Toast.makeText(this, "No installed apps support Continue Watching", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No installed apps support Continue watching", Toast.LENGTH_SHORT).show()
             return
         }
-        toggles("Continue Watching apps", sources.map { it.label to it.pkg }, "cw_off", "On", "Off") {
+        toggles("Continue watching apps", sources.map { it.label to it.pkg }, "cw_off", "On", "Off") {
             watchKey = null
             refreshWatchNext()
             renderSettings(11)
@@ -2167,7 +2175,7 @@ class MainActivity : Activity() {
         }
         val img = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
-            setBackgroundColor(if (dark) 0xFF111113.toInt() else 0xFFDDE1E5.toInt())
+            setBackgroundColor(if (dark) 0xFF20242F.toInt() else 0xFFDDE1E5.toInt())
         }
         // Long titles scroll while their poster is focused instead of staying cut off.
         val title = label(p.title, 14f).apply {
@@ -2177,7 +2185,7 @@ class MainActivity : Activity() {
             marqueeRepeatLimit = -1
         }
         val frame = FrameLayout(this)
-        style(frame, dp(8), card = true, lift = 1.1f) { focused ->
+        style(frame, dp(6), card = true) { focused ->
             title.isSelected = focused
             if (focused) lastCard = frame
         }
@@ -2214,8 +2222,8 @@ class MainActivity : Activity() {
     private fun progressBarDrawable(): Drawable {
         fun bar(color: Int) = GradientDrawable().apply { cornerRadius = dp(2).toFloat(); setColor(color) }
         return LayerDrawable(arrayOf(
-            bar(if (dark) 0x40FFFFFF else 0x26000000),
-            ClipDrawable(bar(fg), Gravity.START, ClipDrawable.HORIZONTAL),
+            bar(if (dark) 0x38FFFFFF else 0x26000000),
+            ClipDrawable(bar(ACCENT), Gravity.START, ClipDrawable.HORIZONTAL),
         )).apply {
             setId(0, android.R.id.background)
             setId(1, android.R.id.progress)
@@ -2285,29 +2293,31 @@ class MainActivity : Activity() {
     // ---------- shared view bits ----------
 
     /**
-     * tvOS-style focus, no outline: the focused card lifts (scale + shadow). Light mode adds a soft
-     * top sheen; dark mode brightens the glass gradient instead (a white sheen would haze it grey).
+     * 30nama focus: the focused card fills with the focus colour (posters keep their art and get a focus
+     * ring instead), scales up and lifts. No resting shadow; depth appears only on focus.
      * Only transform/alpha/colour change, so it stays on the GPU and costs no re-layout.
      */
     private fun style(v: View, radius: Int, card: Boolean, lift: Float = 1.08f, onFocus: ((Boolean) -> Unit)? = null) {
-        val sheen = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x40FFFFFF, 0x00FFFFFF)).apply {
+        // shortcut: the ring is drawn inside the edge (the card clips to its outline), not 6 px outside as in 30nama.
+        val ring = GradientDrawable().apply {
             cornerRadius = radius.toFloat()
+            setStroke(dp(2), focusFill)
             alpha = 0
         }
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (card) cardRest else intArrayOf(0, 0)).apply {
             cornerRadius = radius.toFloat()
         }
         v.background = bg
-        if (!dark) v.foreground = sheen
+        v.foreground = ring
         v.clipToOutline = true
         v.outlineSpotShadowColor = Color.BLACK
         v.outlineAmbientShadowColor = Color.BLACK
-        v.elevation = if (card) dp(2).toFloat() else 0f
+        v.elevation = 0f
         v.isFocusable = true
         v.isClickable = true
         v.setOnLongClickListener { if (!holdFired) fireHold(v); true }
         v.setOnFocusChangeListener { _, focused ->
-            sheen.alpha = if (focused) 255 else 0
+            ring.alpha = if (focused) 255 else 0
             if (card) bg.colors = if (focused) cardLit else cardRest
             v.animate()
                 .scaleX(if (focused) lift else 1f).scaleY(if (focused) lift else 1f)
@@ -2354,7 +2364,8 @@ class MainActivity : Activity() {
         const val CHOOSE_FROM_TV = "Choose a folder on this TV…"
         const val CHOSEN = "✓"
         const val REMOVE_PHOTO = "Remove a photo…"
-        const val REPO = "aradhyas8/Plume_Launcher"
+        const val REPO = "benymaxparsa/Plume_Launcher" // this fork's releases (upstream ones are signed with another key)
+        const val ACCENT = 0xFFF0454A.toInt() // 30nama red: progress, switches on, the current PIN box
         const val UPDATE_STATUS = "dev.plume.UPDATE_STATUS"
         const val WRITE_EPG ="com.android.providers.tv.permission.WRITE_EPG_DATA"
         const val TV_SETTINGS = "com.android.tv.settings"

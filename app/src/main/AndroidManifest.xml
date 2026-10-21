@@ -33,7 +33,7 @@
         android:banner="@drawable/banner"
         android:icon="@drawable/banner"
         android:usesCleartextTraffic="true"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        android:theme="@style/Plume">
 
         <activity
             android:name=".MainActivity"
