@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/home.jpg" alt="Koolest home screen: menu on the left, a billboard for the focused video, and a YouTube row" width="100%">
+  <img src="docs/home.jpg" alt="Koolest home screen: the glass menu on the left, weather and clock in a capsule at the top, a billboard for the focused show and the Continue watching row" width="100%">
 </p>
 
 Koolest replaces the stock home screen with what you actually use: your apps, your consoles and what's on in them. There are no ads, no sponsored rows, no account and no tracking. It's a single small APK with no third-party libraries.
@@ -32,6 +32,23 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **Clock and weather** in the top corner: the time and date, and (if you turn it on) the weather with its icon, "feels like" and your city.
 - **Smooth on TV hardware.** Pictures load just ahead of where you're browsing, the billboard art cross-fades at full screen size, and the home screen draws as few full-screen layers as it can.
 - **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code) or changing Unsplash photos, a Gallery screensaver and a PIN lock for the layout.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/menu.jpg" alt="The menu open as a glass card: Search, Home, pinned apps and consoles, All apps"><br><sub>The menu opens into a glass card, in three groups.</sub></td>
+    <td width="50%"><img src="docs/youtube.jpg" alt="The YouTube row with the focused video's thumbnail as the billboard"><br><sub>Every row fills the billboard with the focused item's art.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/consoles.jpg" alt="The Consoles and inputs row with PlayStation 3, 4 and 5 tiles over an Unsplash photo"><br><sub>Consoles on HDMI, over a changing Unsplash wallpaper.</sub></td>
+    <td><img src="docs/all-apps.jpg" alt="All apps: a large title, a segmented control for sorting and a grid of app banners"><br><sub>All apps, sorted from a segmented control.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/settings.jpg" alt="Koolest settings panel with six groups: Look, Home screen, Continue watching, Weather, Screensaver, This TV"><br><sub>Settings in six groups.</sub></td>
+    <td></td>
+  </tr>
+</table>
 
 ## Requirements
 
