@@ -38,146 +38,135 @@
         android:layout_height="match_parent"
         android:clipChildren="false">
 
-        <!-- Top end, on one centre line: a pill with the weather and the time (two matching two-line columns, so they
-             line up), then a pill with network, Android settings and Koolest settings. The pills (tinted in code) keep
-             it readable over any picture. -->
+        <!-- Top end, Dynamic Island style: one capsule, everything on one centre line. Weather (icon, temperature,
+             "Feels -3° · Montreal"), the time and date, then network, Android settings and Koolest settings as round
+             buttons, split by hairlines. Its centre lines up with the rail's search icon. Colours set in applyTheme. -->
         <LinearLayout
             android:id="@+id/topBar"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_gravity="top|end"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="27dp"
             android:layout_marginEnd="40dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="5dp">
 
+            <!-- Off unless turned on in settings. -->
             <LinearLayout
-                android:id="@+id/infoPill"
+                android:id="@+id/weather"
                 android:layout_width="wrap_content"
-                android:layout_height="52dp"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="18dp"
-                android:paddingEnd="20dp">
+                android:visibility="gone">
 
-                <!-- Weather: icon, then "3° Clear" over "Feels -1° · Montreal". Off unless turned on in settings. -->
-                <LinearLayout
-                    android:id="@+id/weather"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:visibility="gone">
+                <ImageView
+                    android:id="@+id/wxIcon"
+                    android:layout_width="20dp"
+                    android:layout_height="16dp"
+                    android:importantForAccessibility="no" />
 
-                    <ImageView
-                        android:id="@+id/wxIcon"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:importantForAccessibility="no" />
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/wxTemp"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:includeFontPadding="false"
-                            android:maxLines="1"
-                            android:textSize="17sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/wxDesc"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="3dp"
-                            android:alpha="0.8"
-                            android:includeFontPadding="false"
-                            android:maxLines="1"
-                            android:textSize="11sp" />
-                    </LinearLayout>
-
-                    <View
-                        android:id="@+id/infoDivider"
-                        android:layout_width="1dp"
-                        android:layout_height="26dp"
-                        android:layout_marginStart="18dp"
-                        android:layout_marginEnd="18dp"
-                        android:alpha="0.25" />
-                </LinearLayout>
-
-                <!-- The time over the day and date, the same two lines as the weather. -->
+                <!-- Default (top) gravity so the two sizes share a baseline. -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:layout_marginStart="6dp"
+                    android:orientation="horizontal">
 
-                    <TextClock
-                        android:id="@+id/clock"
+                    <TextView
+                        android:id="@+id/wxTemp"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:format12Hour="h:mm a"
-                        android:format24Hour="HH:mm"
                         android:includeFontPadding="false"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
+                        android:maxLines="1"
+                        android:textFontWeight="600"
+                        android:textSize="16sp" />
 
-                    <TextClock
-                        android:id="@+id/date"
+                    <TextView
+                        android:id="@+id/wxDesc"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
-                        android:alpha="0.8"
-                        android:format12Hour="EEEE, MMM d"
-                        android:format24Hour="EEEE, d MMM"
+                        android:layout_marginStart="6dp"
+                        android:alpha="0.6"
                         android:includeFontPadding="false"
-                        android:textSize="11sp" />
+                        android:maxLines="1"
+                        android:textSize="12sp" />
                 </LinearLayout>
+
+                <View
+                    android:id="@+id/infoDivider"
+                    android:layout_width="1dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
+                    android:alpha="0.2" />
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/buttonPill"
                 android:layout_width="wrap_content"
-                android:layout_height="52dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextClock
+                    android:id="@+id/clock"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:format12Hour="h:mm"
+                    android:format24Hour="HH:mm"
+                    android:includeFontPadding="false"
+                    android:textFontWeight="600"
+                    android:textSize="16sp" />
+
+                <TextClock
+                    android:id="@+id/date"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:alpha="0.6"
+                    android:format12Hour="EEE, MMM d"
+                    android:format24Hour="EEE, d MMM"
+                    android:includeFontPadding="false"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <View
+                android:id="@+id/iconDivider"
+                android:layout_width="1dp"
+                android:layout_height="16dp"
                 android:layout_marginStart="12dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp">
+                android:layout_marginEnd="6dp"
+                android:alpha="0.2" />
 
-                <ImageView
-                    android:id="@+id/wifi"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:contentDescription="Network settings"
-                    android:focusable="true"
-                    android:padding="10dp"
-                    android:src="@drawable/rail_wifi" />
+            <ImageView
+                android:id="@+id/wifi"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:contentDescription="Network settings"
+                android:focusable="true"
+                android:padding="8dp"
+                android:src="@drawable/rail_wifi" />
 
-                <ImageView
-                    android:id="@+id/systemSettings"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="2dp"
-                    android:contentDescription="Settings"
-                    android:focusable="true"
-                    android:padding="10dp"
-                    android:src="@drawable/rail_gear" />
+            <ImageView
+                android:id="@+id/systemSettings"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="Settings"
+                android:focusable="true"
+                android:padding="8dp"
+                android:src="@drawable/rail_gear" />
 
-                <ImageView
-                    android:id="@+id/launcherSettings"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="2dp"
-                    android:contentDescription="Koolest settings"
-                    android:focusable="true"
-                    android:padding="10dp"
-                    android:src="@drawable/rail_tune" />
-            </LinearLayout>
+            <ImageView
+                android:id="@+id/launcherSettings"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="Koolest settings"
+                android:focusable="true"
+                android:padding="8dp"
+                android:src="@drawable/rail_tune" />
         </LinearLayout>
 
         <!-- Billboard: eyebrow, title, meta line, plot (3 lines, 820 px wide), ending just above the rows. -->
@@ -272,21 +261,27 @@
             android:layout_height="match_parent"
             android:alpha="0" />
 
-        <!-- Menu rail: icons at rest; focus opens it with labels on a panel and a white pill on the focused item. -->
+        <!-- Menu rail: icons in a glass capsule at rest; focus opens it into a card with labels and a white pill on the focused item. -->
         <FrameLayout
             android:id="@+id/rail"
             android:layout_width="320dp"
             android:layout_height="match_parent">
 
+            <!-- Floating glass, centred like the items: a capsule round the icons, and the card it opens into
+                 (the focused pill sits 5 dp inside both). Heights are set in buildRail to hug the items. -->
             <View
                 android:id="@+id/railRest"
-                android:layout_width="60dp"
-                android:layout_height="match_parent" />
+                android:layout_width="52dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="16dp" />
 
             <View
                 android:id="@+id/railPanel"
-                android:layout_width="320dp"
+                android:layout_width="160dp"
                 android:layout_height="match_parent"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="16dp"
                 android:alpha="0" />
 
             <!-- Centred down the edge, like Google TV's: no mark on top, so the menu has the full height. -->
@@ -324,18 +319,20 @@
                 android:id="@+id/allAppsTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="16dp"
                 android:text="All apps"
-                android:textSize="20sp"
+                android:textSize="30sp"
                 android:textStyle="bold" />
 
-            <!-- Sort pills (30nama pills): Home order, A–Z, Most used, Recently used, Recently installed. -->
+            <!-- Sort, as an iOS segmented control on a glass track: Home order, A–Z, Most used, Recently used,
+                 Recently installed. -->
             <LinearLayout
                 android:id="@+id/allAppsSort"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                android:orientation="horizontal" />
+                android:layout_marginBottom="24dp"
+                android:orientation="horizontal"
+                android:padding="4dp" />
 
             <GridLayout
                 android:id="@+id/allAppsGrid"
