@@ -86,8 +86,11 @@ internal fun prefersDark(prefs: SharedPreferences) = when (prefs.getString("them
     else -> false
 }
 
-/** An HDMI device's mark: the drawable, its brand colour for colour mode, and whether it's a wordmark (fit by width). */
-internal class DeviceLogo(val res: Int, val colour: Int? = null, val wordmark: Boolean = false)
+/**
+ * An HDMI device's mark: the drawable, the tile colour it sits on (null: a plain tile), the mark's colour on it,
+ * and whether it's a wordmark (fit by width).
+ */
+internal class DeviceLogo(val res: Int, val colour: Int? = null, val wordmark: Boolean = false, val ink: Int = Color.WHITE)
 
 /**
  * The mark for an HDMI device, from the name it gives over CEC ("PlayStation 5", "NintendoSwitch", "SHIELD";
@@ -101,9 +104,10 @@ internal fun deviceLogo(name: String): DeviceLogo {
     val ps = 0xFF0070D1.toInt() // PlayStation's brighter blue: the brand hex is too dark on dark cards
     val nintendo = 0xFFE60012.toInt()
     return when {
-        has("playstation5", "ps5") -> DeviceLogo(R.drawable.logo_dev_playstation5, ps, wordmark = true)
-        has("playstation4", "ps4") -> DeviceLogo(R.drawable.logo_dev_playstation4, ps, wordmark = true)
-        has("playstation3", "ps3") -> DeviceLogo(R.drawable.logo_dev_playstation3, ps, wordmark = true)
+        // Each in its own generation's colours: the white PS5, PlayStation blue for the PS4, the PS3's piano black.
+        has("playstation5", "ps5") -> DeviceLogo(R.drawable.logo_dev_playstation5, 0xFFF4F4F6.toInt(), ink = 0xFF101014.toInt())
+        has("playstation4", "ps4") -> DeviceLogo(R.drawable.logo_dev_playstation4, 0xFF003791.toInt())
+        has("playstation3", "ps3") -> DeviceLogo(R.drawable.logo_dev_playstation3, 0xFF0B0B0D.toInt(), ink = 0xFFE4E4E8.toInt())
         has("vita") -> DeviceLogo(R.drawable.logo_dev_playstationvita, ps, wordmark = true)
         has("psp") -> DeviceLogo(R.drawable.logo_dev_playstationportable, ps, wordmark = true)
         has("playstation") -> DeviceLogo(R.drawable.logo_playstation, ps)
@@ -802,9 +806,10 @@ class MainActivity : Activity() {
     private val settingsScrim by lazy { findViewById<View>(R.id.settingsScrim) }
     private val settingsList by lazy { findViewById<LinearLayout>(R.id.settingsList) }
 
-    private fun openLauncherSettings(focus: Int = 0) {
+    /** Opens on the groups, or straight on one setting (by its place in [renderSettings]'s list). */
+    private fun openLauncherSettings(focus: Int? = null) {
         showPanel()
-        renderSettings(focus)
+        if (focus == null) settingsHome() else renderSettings(focus)
     }
 
     private fun showPanel() {
@@ -846,45 +851,45 @@ class MainActivity : Activity() {
         val names = rowNames()
         val colour = colourIcons()
         val rows = listOf<Triple<String, String, () -> Unit>>(
-            Triple("Edit apps row", "") { closeLauncherSettings(); startEdit(grab = null) },
-            Triple("Theme", theme.replaceFirstChar { it.uppercase() }) {
+            Triple("Rearrange apps", "") { closeLauncherSettings(); startEdit(grab = null) },
+            Triple("Theme", mapOf("light" to "Light", "dark" to "Dark", "auto" to "Day and night")[theme]!!) {
                 prefs.edit().putString("theme", mapOf("light" to "dark", "dark" to "auto", "auto" to "light")[theme])
                     .putBoolean("reopen_settings", true).apply()
                 recreate() // colours are applied once per activity; reopen the panel after
             },
-            Triple("Light mode wallpaper", wallpaperName(currentWallpaper(false))) { pickWallpaper(false) },
-            Triple("Dark mode wallpaper", wallpaperName(currentWallpaper(true))) { pickWallpaper(true) },
-            Triple("Photo fade", toggle(wallpaperFade())) {
+            Triple("Wallpaper in light theme", wallpaperName(currentWallpaper(false))) { pickWallpaper(false) },
+            Triple("Wallpaper in dark theme", wallpaperName(currentWallpaper(true))) { pickWallpaper(true) },
+            Triple("Fade photos into the background", toggle(wallpaperFade())) {
                 prefs.edit().putBoolean("wp_fade", !wallpaperFade()).apply()
                 loadWallpaper()
                 renderSettings(4)
             },
-            Triple("Folder photo changes", PHOTO_EVERY[photoEvery()]!!) { pickPhotoEvery() },
-            Triple("Sort apps", if (sort == "manual") "Manual" else "Most used") {
+            Triple("Change folder photo", PHOTO_EVERY[photoEvery()]!!) { pickPhotoEvery() },
+            Triple("App order", if (sort == "manual") "As you arranged" else "Most used first") {
                 prefs.edit().putString("sort", if (sort == "manual") "usage" else "manual").apply()
                 renderApps()
                 renderSettings(6)
             },
-            Triple("Apps in row", if (rowHidden == 0) "All" else "${apps.size - rowHidden} of ${apps.size}") { pickRowApps() },
+            Triple("Apps shown", if (rowHidden == 0) "All" else "${apps.size - rowHidden} of ${apps.size}") { pickRowApps() },
             Triple("App names", mapOf("focus" to "On focus", "always" to "Always", "never" to "Never")[names]!!) {
                 prefs.edit().putString("names", mapOf("focus" to "always", "always" to "never", "never" to "focus")[names]).apply()
                 renderApps()
                 renderSettings(8)
             },
-            Triple("Icon style", if (colour) "Colour" else "Monochrome") {
+            Triple("Logo colours", if (colour) "Brand colours" else "Plain") {
                 prefs.edit().putBoolean("colour_icons", !colour).apply()
                 renderApps()
                 renderSettings(9)
             },
-            Triple("Restore hidden shows", if (hidden == 0) "None hidden" else "$hidden hidden") {
+            Triple("Bring back hidden shows", if (hidden == 0) "None hidden" else "$hidden hidden") {
                 prefs.edit().remove("hidden_watch").apply()
                 rowKeys.clear()
                 refreshWatchNext()
                 renderSettings(10)
             },
-            Triple("Continue watching apps", if (cwOff == 0) "All on" else "$cwOff off") { pickWatchSources() },
+            Triple("Which apps appear", if (cwOff == 0) "All on" else "$cwOff off") { pickWatchSources() },
             // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
-            Triple("Weather", toggle(weather != "off")) {
+            Triple("Show weather", toggle(weather != "off")) {
                 if (weather == "off") prefs.edit().putString("weather", unit).apply()
                 else prefs.edit().putString("wx_unit", weather).putString("weather", "off").apply()
                 showWeather()
@@ -892,37 +897,43 @@ class MainActivity : Activity() {
                 ui.post(weatherTick)
                 renderSettings(12)
             },
-            Triple("Weather units", if (unit == "f") "°F" else "°C") {
+            Triple("Units", if (unit == "f") "°F" else "°C") {
                 val next = if (unit == "f") "c" else "f"
                 prefs.edit().putString("wx_unit", next).putString("weather", if (weather == "off") "off" else next).apply()
                 showWeather()
                 renderSettings(13)
             },
-            Triple("Weather location", if (manualCity()) prefs.getString("geo_city", null) ?: "" else "Automatic") { pickCity() },
+            Triple("Location", if (manualCity()) prefs.getString("geo_city", null) ?: "" else "Automatic") { pickCity() },
             Triple("Screensaver", when {
                 downloading -> "Downloading Gallery…"
                 !galleryOn() -> screensaverName()
                 else -> photoScreensaver()?.let { wallpaperName(it) } ?: "Gallery"
             }) { pickScreensaver() },
-            Triple("Test screensaver", "") { testScreensaver() },
-            Triple("Screensaver timing", "") { openScreensaverSettings() },
-            Triple("Home button", toggle(homeServiceOn())) { toggleHomeButton() },
-            Triple("Default launcher", if (isDefaultHome()) "Plume: press to change" else "Press to set") { makeDefaultHome() },
+            Triple("Preview screensaver", "") { testScreensaver() },
+            Triple("When it starts", "") { openScreensaverSettings() },
+            Triple("Home button opens Plume", toggle(homeServiceOn())) { toggleHomeButton() },
+            Triple("Make Plume the home screen", if (isDefaultHome()) "It is: press to change" else "Press to set") { makeDefaultHome() },
             Triple("Updates", when {
                 updating -> "Updating…"
                 checking -> "Checking…"
                 availableUpdate() != null -> "${availableUpdate()} available: press to update"
                 else -> "Up to date (${myVersion()})"
             }) { availableUpdate()?.let { installUpdate(it) } ?: checkUpdate(force = true) },
-            Triple("Lock layout", toggle(lockOn())) {
+            Triple("Lock layout with a PIN", toggle(lockOn())) {
                 if (!lockOn()) return@Triple setLock()
                 prefs.edit().remove("lock_pin").apply()
                 renderSettings(LOCK_ROW)
             },
-            Triple("Menu apps", railApps().count { pkg -> apps.any { it.pkg == pkg } }.let { if (it == 1) "1 app" else "$it apps" }) { pickRailApps() },
+            Triple("Apps in the menu", railApps().count { pkg -> apps.any { it.pkg == pkg } }.let { if (it == 1) "1 app" else "$it apps" }) { pickRailApps() },
         )
-        showPage("Plume settings", rows, focus, back = null)
+        val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
+        showPage(name, picks.map { rows[it] }, picks.indexOf(focus), back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.first == name }) })
     }
+
+    /** The first settings page: a few groups, each a short list. */
+    private fun settingsHome(focus: Int = 0) = showPage("Plume settings", SETTINGS_GROUPS.map { (name, hint, picks) ->
+        page(name, hint) { renderSettings(picks.first()) }
+    }, focus, back = null)
 
     // Pages inside the settings panel (wallpaper list, app toggles…) instead of system dialogs, so they
     // match Plume's look. Back goes up one page; from the main list it closes the panel.
@@ -973,7 +984,7 @@ class MainActivity : Activity() {
     }
 
     private fun addRailApp(pinned: List<String>) {
-        val choices = apps.filter { it.pkg !in pinned && !it.pkg.startsWith(HDMI) }.sortedBy { it.label.lowercase() }
+        val choices = apps.filter { it.pkg !in pinned }.sortedBy { it.label.lowercase() }
         showPage("Add to menu", choices.map { a ->
             page(a.label) { saveRailApps(pinned + a.pkg); pickRailApps(pinned.size) }
         }, back = { pickRailApps(pinned.size) })
@@ -1291,10 +1302,10 @@ class MainActivity : Activity() {
         val inset = width * 2 / 9 // a wordmark fills the middle of the tile's width
         val t = when {
             custom != null -> tile(name, custom, false, a.pkg, width) { launch(a) }
-            // Consoles: a white mark on the brand's colour (PlayStation blue, Xbox green), the way Apple TV tiles look.
+            // Consoles: the mark on the brand's colour (PS5 white, PlayStation blue, Xbox green), the way Apple TV tiles look.
             a.pkg.startsWith(HDMI) -> deviceLogo(a.label).let { d ->
                 tile(name.takeIf { !d.wordmark }, a.icon, true, a.pkg, width, wordmarkInset = if (d.wordmark) inset else null,
-                    tint = Color.WHITE.takeIf { d.colour != null }, fill = d.colour) { launch(a) }
+                    tint = d.ink.takeIf { d.colour != null }, fill = d.colour) { launch(a) }
             }
             a.banner != null -> tile(name, a.icon, false, a.pkg, width, banner = a.banner) { launch(a) }
             logo != null -> tile(name.takeIf { !logo.second }, getDrawable(logo.first)!!, true, a.pkg, width,
@@ -1335,7 +1346,9 @@ class MainActivity : Activity() {
                     setPadding(wordmarkInset, 0, wordmarkInset, 0)
                 } else {
                     scaleType = ImageView.ScaleType.FIT_CENTER
-                    setPadding(0, width / 7, 0, width / 7)
+                    // A console's symbol-over-model mark sits in a square with room round it: give it more of the tile.
+                    val pad = if (fill != null) width / 14 else width / 7
+                    setPadding(0, pad, 0, pad)
                 }
             }
             foreground = GradientDrawable().apply {
@@ -2535,6 +2548,14 @@ class MainActivity : Activity() {
      * 30nama to start) and All apps last. Rebuilt only when the pinned apps change.
      */
     private fun buildRail() {
+        // Once: a menu already set up by hand gets the consoles too (they joined the menu after it was first set).
+        val consoles = apps.filter { it.pkg.startsWith(HDMI) && deviceLogo(it.label).res != R.drawable.logo_dev_hdmi }.sortedBy { it.label }.map { it.pkg }
+        val saved = prefs.getString("rail_apps", null)
+        if (saved != null && consoles.isNotEmpty() && !prefs.getBoolean("rail_consoles", false)) {
+            prefs.edit().putBoolean("rail_consoles", true).apply()
+            saveRailApps(railApps() + consoles.filter { it !in railApps() })
+            return // saveRailApps built it
+        }
         val pinned = railApps().mapNotNull { pkg -> apps.firstOrNull { it.pkg == pkg } }
         val key = pinned.joinToString(",") { it.pkg }
         if (key == railKey) return
@@ -2543,25 +2564,43 @@ class MainActivity : Activity() {
         railLabels.clear()
         railItem(R.id.railSearch, getDrawable(R.drawable.rail_search)!!, "Search") { search() }
         railItem(R.id.railHome, getDrawable(R.drawable.rail_home)!!, "Home", current = true) { leaveRail() }
-        for (a in pinned) railItem(View.generateViewId(), a.icon, a.label, app = true) { launch(a) }
+        for (a in pinned) railItem(View.generateViewId(), railIcon(a), a.label, app = true) { launch(a) }
         railItem(R.id.allAppsButton, getDrawable(R.drawable.rail_apps)!!, "All apps") { openAllApps() }
     }
 
-    private fun railApps() = prefs.getString("rail_apps", DEFAULT_RAIL)!!.split(',').filter { it.isNotEmpty() }
+    /** The pinned menu apps; until changed in settings, the usual streaming apps and every named console. */
+    private fun railApps() = prefs.getString("rail_apps", null)?.split(',')?.filter { it.isNotEmpty() }
+        ?: (DEFAULT_RAIL.split(',') + apps.filter { it.pkg.startsWith(HDMI) && deviceLogo(it.label).res != R.drawable.logo_dev_hdmi }.sortedBy { it.label }.map { it.pkg })
+
+    /** An app's own icon; a console, a tiny version of its tile (its mark on its colour). */
+    private fun railIcon(a: App): Drawable {
+        if (!a.pkg.startsWith(HDMI)) return a.icon
+        val d = deviceLogo(a.label)
+        val mark = getDrawable(d.res)!!.mutate().apply { setTint(if (d.colour != null) d.ink else fg) }
+        return LayerDrawable(arrayOf(android.graphics.drawable.ColorDrawable(d.colour ?: 0xFF20242F.toInt()), android.graphics.drawable.InsetDrawable(mark, dp(1))))
+    }
 
     private fun saveRailApps(pkgs: List<String>) {
         prefs.edit().putString("rail_apps", pkgs.joinToString(",")).apply()
         buildRail()
     }
     /**
-     * One menu item, 72 px tall: a 40 px icon (text-3, the current one text-1 with a 4 × 28 accent bar at
+     * One menu item, 68 px tall (a little under 30nama's 72, so a dozen fit): a 40 px icon (text-3, the current one text-1 with a 4 × 28 accent bar at
      * the edge) and its label, shown once the menu opens. Focused, it's a white 300 × 64 pill.
      */
     private fun railItem(id: Int, icon: Drawable, name: String, current: Boolean = false, app: Boolean = false, action: () -> Unit) {
         val rest = if (current) fg else fg and 0xFFFFFF or 0x75000000
         val img = ImageView(this).apply {
             setImageDrawable(icon)
-            if (app) alpha = 0.85f else setColorFilter(rest) // apps keep their own colours
+            if (app) {
+                alpha = 0.85f // apps keep their own colours, in a soft rounded square
+                outlineProvider = object : android.view.ViewOutlineProvider() {
+                    override fun getOutline(view: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, view.width, view.height, view.width * 0.28f)
+                }
+                clipToOutline = true
+            } else {
+                setColorFilter(rest)
+            }
         }
         val text = label(name, 14f).apply {
             setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -2594,7 +2633,7 @@ class MainActivity : Activity() {
                 }
             }, FrameLayout.LayoutParams(dp(2), dp(14), Gravity.CENTER_VERTICAL))
             addView(item, FrameLayout.LayoutParams(dp(150), dp(32), Gravity.CENTER_VERTICAL).apply { marginStart = dp(10) })
-        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(36)))
+        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(34)))
     }
 
     /** Focus entering the menu opens it: panel and labels fade in (labels 20 ms apart), the screen behind dims. */
@@ -2810,15 +2849,24 @@ class MainActivity : Activity() {
         const val TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
         const val WRITE_SECURE = "android.permission.WRITE_SECURE_SETTINGS"
         const val ROLE_REQUEST = 2
-        const val CITY_ROW = 14 // positions in the settings list (see renderSettings)
+        const val CITY_ROW = 14 // positions in the settings list (see renderSettings), not where they show
+        /** Settings groups: name, a hint of what's in it, and its settings (positions in renderSettings' list) in show order. */
+        val SETTINGS_GROUPS = listOf(
+            Triple("Look", "Theme and wallpaper", listOf(1, 2, 3, 4, 5)),
+            Triple("Home screen", "Apps, menu, names", listOf(0, 22, 6, 7, 8, 9)),
+            Triple("Continue watching", "Which shows appear", listOf(11, 10)),
+            Triple("Weather", "Show, units, place", listOf(12, 13, 14)),
+            Triple("Screensaver", "Gallery and timing", listOf(15, 16, 17)),
+            Triple("Plume and this TV", "Home button, updates, PIN", listOf(18, 19, 21, 20)),
+        )
         const val SCREENSAVER_ROW = 15
         const val HOME_BUTTON_ROW = 18
         const val DEFAULT_HOME_ROW = 19
         const val UPDATE_ROW = 20
         const val LOCK_ROW = 21
         const val MENU_APPS_ROW = 22
-        // The menu's apps to start with (any not installed are skipped).
-        const val DEFAULT_RAIL = "com.google.android.youtube.tv,com.spotify.tv.android,com.nama30.tv"
+        // The menu's apps to start with (any not installed are skipped), followed by the consoles (see railApps).
+        const val DEFAULT_RAIL = "com.google.android.youtube.tv,com.netflix.ninja,com.amazon.amazonvideo.livingroom,com.spotify.tv.android,com.nama30.tv"
         val ALL_SORTS = linkedMapOf(
             "home" to "Home order", "name" to "A–Z", "used" to "Most used", "recent" to "Recently used", "installed" to "Recently installed",
         )
