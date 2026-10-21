@@ -1,7 +1,7 @@
 <h1 align="center">Koolest TV Launcher</h1>
 
 <p align="center">
-  A fast, ad-free home screen for Android TV and Google TV, in the look of the 30nama TV app.
+  A fast, ad-free home screen for Android TV and Google TV, in the look of Glass design, iOS style app.
 </p>
 
 <p align="center">
