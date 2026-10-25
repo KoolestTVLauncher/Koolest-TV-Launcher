@@ -935,45 +935,6 @@ class MainActivity : Activity() {
         }
     }
 
-    private var shotShare: ScreenshotServer? = null
-
-    /**
-     * "Screenshots": a QR code for a page on this TV that shows the screenshots on a phone, to save them there.
-     * Read-only, and running only while this page is open, like "Add from phone".
-     */
-    private fun shareScreenshots() {
-        val ip = lanAddress() ?: return Toast.makeText(this, "Connect the TV to Wi-Fi or Ethernet first", Toast.LENGTH_LONG).show()
-        val count = screenshots(this).size
-        val server = try {
-            ScreenshotServer(ByteArray(8).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }, applicationContext)
-        } catch (e: IOException) {
-            return Toast.makeText(this, "Couldn't start the screenshots page", Toast.LENGTH_LONG).show()
-        }
-        shotShare = server
-        val url = "http://$ip:${server.port}/${server.code}"
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(0, dp(4), 0, dp(12))
-            addView(ImageView(this@MainActivity).apply { setImageBitmap(qrBitmap(url, dp(200))) })
-            addView(label(url, 14f).apply { gravity = Gravity.CENTER; setPadding(0, dp(12), 0, dp(4)) })
-            addView(label(
-                if (count == 0) "No screenshots yet. Set Hold Home to Screenshot, then hold Home in any app."
-                else "Scan with your phone, on the TV's Wi-Fi, to see and save your $count screenshot${if (count == 1) "" else "s"}.",
-                12f,
-            ).apply {
-                gravity = Gravity.CENTER
-                alpha = 0.6f
-                maxLines = 3
-            })
-        }
-        showPage("Screenshots", listOf(page("Done") { renderSettings(SCREENSHOTS_ROW) }), top = box) { renderSettings(SCREENSHOTS_ROW) }
-        pageExit = {
-            server.stop()
-            if (shotShare === server) shotShare = null
-        }
-    }
-
     /** The TV's own address on the home network (IPv4: easy to read and type). */
     private fun lanAddress(): String? {
         val cm = getSystemService(ConnectivityManager::class.java)
@@ -1123,11 +1084,6 @@ class MainActivity : Activity() {
             Triple("Rows", rowChoices().count { it.second in rowsOff() }.let { if (it == 0) "All on" else "$it off" }) { pickRows() },
             Triple("Keep Home working", if (checkSelfPermission(WRITE_SECURE) == PackageManager.PERMISSION_GRANTED) "Done" else "Set up") { adbSetup() },
             Triple("Only launcher", toggle(onlyLauncher())) { toggleOnlyLauncher() },
-            Triple("Hold Home", if (HomeOverride.holdForScreenshot(this)) "Screenshot" else "Dashboard") {
-                prefs.edit().putBoolean("hold_screenshot", !HomeOverride.holdForScreenshot(this)).apply()
-                renderSettings(HOLD_HOME_ROW)
-            },
-            Triple("Screenshots", screenshots(this).size.let { if (it == 1) "1 saved" else "$it saved" }) { shareScreenshots() },
         )
         val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
         showPage(name, picks.map { rows[it] }, picks.indexOf(focus), back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.first == name }) })
@@ -3240,13 +3196,10 @@ class MainActivity : Activity() {
             Triple("Weather", "Units, place", listOf(12, 13, 14)),
             Triple("Screensaver", "Gallery", listOf(15, 16, 17)),
             Triple("This TV", "Home button, updates",
-                (if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW) else listOf(18, 19)) +
-                    (if (Build.VERSION.SDK_INT >= 30) listOf(HOLD_HOME_ROW, SCREENSHOTS_ROW) else emptyList()) + listOf(21, 20)),
+                if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
         )
         const val ADB_SETUP_ROW = 24
         const val ONLY_LAUNCHER_ROW = 25
-        const val HOLD_HOME_ROW = 26 // Android 11+: holding Home takes a screenshot instead of opening the dashboard
-        const val SCREENSHOTS_ROW = 27
         const val SCREENSAVER_ROW = 15
         const val HOME_BUTTON_ROW = 18
         const val DEFAULT_HOME_ROW = 19
@@ -3267,7 +3220,6 @@ class MainActivity : Activity() {
             "Preview" to R.drawable.ic_s_play, "When it starts" to R.drawable.ic_s_timer, "Home button" to R.drawable.rail_home,
             "Default home" to R.drawable.ic_s_tv, "PIN lock" to R.drawable.ic_s_lock, "Updates" to R.drawable.ic_s_update,
             "Keep Home working" to R.drawable.rail_home, "Only launcher" to R.drawable.ic_s_tv,
-            "Hold Home" to R.drawable.rail_home, "Screenshots" to R.drawable.ic_s_image,
             "Open Developer options" to R.drawable.ic_s_tv, "Try again" to R.drawable.ic_s_update,
         )
         // The menu's apps to start with (any not installed are skipped), followed by the consoles (see railApps).

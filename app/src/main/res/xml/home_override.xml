@@ -7,5 +7,4 @@
     android:canRetrieveWindowContent="false"
     android:canRequestFilterKeyEvents="true"
     android:accessibilityFlags="flagRequestFilterKeyEvents"
-    android:canTakeScreenshot="true"
     android:description="@string/override_desc" />
