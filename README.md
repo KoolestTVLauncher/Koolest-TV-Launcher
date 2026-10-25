@@ -36,6 +36,7 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **Simple settings.** Six groups: Look, Home screen, Continue watching, Weather, Screensaver and This TV.
 - **Home button support on Google TV.** The Home button opens Koolest even where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 - **Setup without a computer.** **Keep Home working** and **Only launcher** in Settings → This TV do the adb steps from the remote, through the TV's own network debugging. Only launcher switches Google TV's home screen off so Koolest is the only one; switch it off to bring Google TV back.
+- **Screenshots from any app** (Android 11+). Set **Settings → This TV → Hold Home** to *Screenshot*, then hold Home in YouTube or any other app. **Settings → This TV → Screenshots** shows a QR code that opens them on your phone to save. Apps that protect their video (Netflix and the like) come out black.
 - **Clock and weather** in the top corner: the time and date, and (if you turn it on) the weather with its icon, "feels like" and your city.
 - **Smooth on TV hardware.** Pictures load just ahead of where you're browsing, the billboard art cross-fades at full screen size, and the home screen draws as few full-screen layers as it can.
 - **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code) or changing Unsplash photos, a Gallery screensaver and a PIN lock for the layout.
@@ -125,7 +126,9 @@ Wait about 15 seconds before rebooting, or Android may not have saved the change
 | Change theme or wallpaper | **Settings → Look** |
 | Lock the layout with a PIN | **Settings → This TV → PIN lock** |
 | Back on the home screen | From deep in a row, back to its first item; again, to the menu; again, back to the rows |
-| Open the Google TV dashboard | Hold the **Home** button (not if Google TV is [turned off](#optional-make-koolest-the-only-launcher-adb)) |
+| Open the Google TV dashboard | Hold the **Home** button (not if Google TV is [turned off](#optional-make-koolest-the-only-launcher-adb), or Hold Home is set to Screenshot) |
+| Take a screenshot | Set **Settings → This TV → Hold Home** to *Screenshot*, then hold **Home** in any app |
+| Get screenshots onto your phone | **Settings → This TV → Screenshots**, then scan the QR code |
 
 ## Troubleshooting
 
@@ -165,7 +168,7 @@ Koolest has no analytics, no ads and no account. It only connects to the interne
 - download a wallpaper photo from [Lorem Picsum](https://picsum.photos), **only if you choose Unsplash photos**
 - fetch the weather, **only if you turn it on**, via [ipwho.is](https://ipwho.is) (approximate location from your IP) and [Open-Meteo](https://open-meteo.com)
 
-**Add from phone…** runs a small upload page on the TV itself, reachable only on your home network and only while that screen is open.
+**Add from phone…** and **Screenshots** each run a small page on the TV itself, reachable only on your home network, behind a random code in the QR code, and only while that screen is open.
 
 ## Building from source
 

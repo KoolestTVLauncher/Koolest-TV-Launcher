@@ -10,9 +10,13 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.os.Build
 import android.provider.Settings
+import android.view.Display
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
+import android.widget.Toast
 
 /**
  * Google TV's launcher has to stay enabled (disabling it boot-loops the TV), so we take the Home key before
@@ -36,9 +40,45 @@ class HomeOverride : AccessibilityService() {
         if (e.keyCode != KeyEvent.KEYCODE_HOME) return false
         // Decided on release, by how long it was held: this TV's remote doesn't reliably send key repeats.
         if (e.action == KeyEvent.ACTION_UP && !e.isCanceled) {
-            if (e.eventTime - e.downTime < LONG_PRESS_MS) goHome() else performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+            when {
+                e.eventTime - e.downTime < LONG_PRESS_MS -> goHome()
+                holdForScreenshot(this) -> screenshot()
+                else -> performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+            }
         }
         return true
+    }
+
+    /** Whatever is on screen, saved for the phone page (Screenshots.kt). Apps that block capture come out black. */
+    private fun screenshot() {
+        if (Build.VERSION.SDK_INT < 30) return
+        takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+            override fun onSuccess(shot: ScreenshotResult) {
+                val buffer = shot.hardwareBuffer
+                val bmp = Bitmap.wrapHardwareBuffer(buffer, shot.colorSpace)?.let { hw ->
+                    hw.copy(Bitmap.Config.ARGB_8888, false).also { hw.recycle() } // hardware bitmaps can't be compressed
+                }
+                buffer.close()
+                if (bmp == null) return onFailure(ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR)
+                Thread {
+                    val ok = try {
+                        saveScreenshot(this@HomeOverride, bmp)
+                        true
+                    } catch (e: Exception) {
+                        android.util.Log.w("Koolest", "screenshot not saved ($e)")
+                        false
+                    } finally {
+                        bmp.recycle()
+                    }
+                    mainExecutor.execute {
+                        Toast.makeText(this@HomeOverride, if (ok) "Screenshot saved" else "Couldn't save the screenshot", Toast.LENGTH_SHORT).show()
+                    }
+                }.start()
+            }
+
+            override fun onFailure(code: Int) =
+                Toast.makeText(this@HomeOverride, "Couldn't take a screenshot", Toast.LENGTH_SHORT).show()
+        })
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
@@ -58,6 +98,10 @@ class HomeOverride : AccessibilityService() {
         private const val GOOGLE_TV = "com.google.android.apps.tv.launcherx"
         private const val LONG_PRESS_MS = 500L
         private const val KEEP_JOB = 1
+
+        /** "Hold Home" in settings: the Google TV dashboard (default) or a screenshot, which needs Android 11. */
+        fun holdForScreenshot(c: Context) = Build.VERSION.SDK_INT >= 30 &&
+            c.getSharedPreferences("home", MODE_PRIVATE).getBoolean("hold_screenshot", false)
 
         private fun others(c: Context): List<String> {
             val me = ComponentName(c, HomeOverride::class.java)

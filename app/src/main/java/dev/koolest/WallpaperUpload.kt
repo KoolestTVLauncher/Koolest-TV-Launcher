@@ -54,17 +54,17 @@ internal class UploadServer(val code: String, private val temp: File, private va
         s.soTimeout = 30_000
         val input = BufferedInputStream(s.getInputStream())
         val out = s.getOutputStream()
-        val request = readLine(input) ?: return
-        val headers = generateSequence { readLine(input)?.takeIf { it.isNotEmpty() } }
+        val request = httpLine(input) ?: return
+        val headers = generateSequence { httpLine(input)?.takeIf { it.isNotEmpty() } }
             .associate { it.substringBefore(':').trim().lowercase() to it.substringAfter(':').trim() }
         val method = request.substringBefore(' ')
         val path = request.substringAfter(' ').substringBefore(' ')
         when {
-            path != "/$code" -> reply(out, 404, "text/plain", "Not found. Scan the code on the TV again.")
-            method == "GET" -> reply(out, 200, "text/html; charset=utf-8", PAGE)
+            path != "/$code" -> httpReply(out, 404, "text/plain", "Not found. Scan the code on the TV again.")
+            method == "GET" -> httpReply(out, 200, "text/html; charset=utf-8", PAGE)
             method == "POST" -> {
                 val length = headers["content-length"]?.toLongOrNull() ?: -1
-                if (length !in 1..MAX_BYTES) return reply(out, 413, "text/plain", "That file is too big (25 MB at most).")
+                if (length !in 1..MAX_BYTES) return httpReply(out, 413, "text/plain", "That file is too big (25 MB at most).")
                 temp.outputStream().use { file ->
                     val buf = ByteArray(64 * 1024)
                     var left = length
@@ -80,30 +80,11 @@ internal class UploadServer(val code: String, private val temp: File, private va
                 } finally {
                     temp.delete()
                 }
-                if (name != null) reply(out, 200, "text/plain", "Added \"$name\" to your TV.")
-                else reply(out, 415, "text/plain", "That doesn't look like a photo the TV can open.")
+                if (name != null) httpReply(out, 200, "text/plain", "Added \"$name\" to your TV.")
+                else httpReply(out, 415, "text/plain", "That doesn't look like a photo the TV can open.")
             }
-            else -> reply(out, 405, "text/plain", "Not allowed")
+            else -> httpReply(out, 405, "text/plain", "Not allowed")
         }
-    }
-
-    /** One header line, without the line break; null at the end of the stream. Capped so junk can't fill memory. */
-    private fun readLine(input: InputStream): String? {
-        val sb = StringBuilder()
-        while (sb.length < 8192) {
-            val c = input.read()
-            if (c < 0) return if (sb.isEmpty()) null else sb.toString()
-            if (c == '\n'.code) return sb.toString().trimEnd('\r')
-            sb.append(c.toChar())
-        }
-        throw IOException("header line too long")
-    }
-
-    private fun reply(out: OutputStream, status: Int, type: String, body: String) {
-        val bytes = body.toByteArray()
-        out.write("HTTP/1.1 $status ${if (status == 200) "OK" else "Error"}\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray())
-        out.write(bytes)
-        out.flush()
     }
 
     private companion object {
@@ -140,6 +121,26 @@ internal class UploadServer(val code: String, private val temp: File, private va
             </script></body></html>
         """.trimIndent()
     }
+}
+
+/** One header line, without the line break; null at the end of the stream. Capped so junk can't fill memory. */
+internal fun httpLine(input: InputStream): String? {
+    val sb = StringBuilder()
+    while (sb.length < 8192) {
+        val c = input.read()
+        if (c < 0) return if (sb.isEmpty()) null else sb.toString()
+        if (c == '\n'.code) return sb.toString().trimEnd('\r')
+        sb.append(c.toChar())
+    }
+    throw IOException("header line too long")
+}
+
+internal fun httpReply(out: OutputStream, status: Int, type: String, body: String) = httpReply(out, status, type, body.toByteArray())
+
+internal fun httpReply(out: OutputStream, status: Int, type: String, body: ByteArray) {
+    out.write("HTTP/1.1 $status ${if (status == 200) "OK" else "Error"}\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray())
+    out.write(body)
+    out.flush()
 }
 
 /**
