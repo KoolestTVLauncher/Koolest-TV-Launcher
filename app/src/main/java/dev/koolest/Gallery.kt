@@ -34,14 +34,28 @@ private val LIGHT = listOf(
     Painting("rye", "Rye", "Ivan Shishkin, 1878"),
     Painting("chimborazo", "Chimborazo", "Frederic Edwin Church, 1864"),
     Painting("hudson", "Autumn on the Hudson River", "Jasper Francis Cropsey, 1860"),
+    Painting("yellowstone", "The Grand Canyon of the Yellowstone", "Thomas Moran, 1893–1901"),
+    Painting("wilderness", "A Home in the Wilderness", "Sanford Robinson Gifford, 1866"),
+    Painting("nybay", "Sunset Over New York Bay", "Sanford Robinson Gifford, 1873"),
+    Painting("mountdesert", "The Artist Sketching at Mount Desert, Maine", "Sanford Robinson Gifford, 1864–65"),
+    Painting("steppe", "Steppe", "Arkhip Kuindzhi, 1890–95"),
+    Painting("lulworth", "By the Sea, Lulworth", "Jasper Francis Cropsey, 1857"),
+    Painting("wyoming", "The Valley of Wyoming", "Jasper Francis Cropsey, 1865"),
+    Painting("kensettsunset", "Sunset", "John Frederick Kensett, 1872"),
+    Painting("labrador", "Whaler and Fishing Vessels near the Coast of Labrador", "William Bradford, c. 1880"),
 )
 private val DARK = listOf(
     Painting("cotopaxi", "Cotopaxi", "Frederic Edwin Church, 1862"),
     Painting("thunderstorm", "Thunder Storm on Narragansett Bay", "Martin Johnson Heade, 1868"),
+    Painting("rosalie", "A Storm in the Rocky Mountains, Mt. Rosalie", "Albert Bierstadt, 1866"),
+    Painting("pointjudith", "Point Judith, Rhode Island", "Martin Johnson Heade, 1867"),
+    Painting("shepherds", "The Angel Appearing to the Shepherds", "Thomas Cole, 1833–34"),
+    Painting("saltmeadow", "Salt Meadow in October", "John Frederick Kensett, 1872"),
+    Painting("capestjohns", "Near Cape St. Johns, Coast of Labrador", "William Bradford, 1874"),
 )
 
 internal const val PAINTINGS_URL = "https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/download/gallery-1/"
-internal const val PAINTINGS_MB = "4.7 MB"
+internal const val PAINTINGS_MB = "9.1 MB"
 internal val PAINTING_FILES = (LIGHT + DARK).map { "${it.file}.jpg" }
 internal fun paintingsDir(c: Context) = File(c.filesDir, "paintings")
 internal fun paintingsReady(c: Context) = PAINTING_FILES.all { File(paintingsDir(c), it).exists() }
@@ -49,7 +63,7 @@ internal fun paintingsReady(c: Context) = PAINTING_FILES.all { File(paintingsDir
 /**
  * The Gallery screensaver. Picked in launcher settings, which also restore the previous one when it's off.
  * Shows the paintings, or a folder of your photos when one is chosen there ("ss_folder").
- * ◀ ▶ step through the pictures; any other key leaves to the launcher's home screen.
+ * ◀ ▶ step through the pictures, ▲ ▼ through the weather; any other key leaves to the launcher's home screen.
  */
 class GalleryDream : DreamService() {
     private var show: GalleryShow? = null
@@ -64,6 +78,10 @@ class GalleryDream : DreamService() {
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
         if (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
             if (e.action == KeyEvent.ACTION_DOWN) show?.step(if (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1)
+            return true
+        }
+        if (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            if (e.action == KeyEvent.ACTION_DOWN) show?.info?.flip(if (e.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) 1 else -1)
             return true
         }
         if (e.action == KeyEvent.ACTION_UP) {
@@ -103,12 +121,19 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
             val uri = ContentUris.withAppendedId(PHOTOS, id)
             Picture("", "") { fitWallpaper { context.contentResolver.openInputStream(uri) ?: throw IOException("gone: $uri") } }
         }
-        return (if (prefersDark(prefs)) DARK else LIGHT).map { p ->
+        // Only those already downloaded: an update that adds paintings fetches them the next time Koolest opens.
+        return (if (prefersDark(prefs)) DARK else LIGHT).filter { File(paintingsDir(context), "${it.file}.jpg").exists() }.map { p ->
             Picture(p.title, p.artist) { File(paintingsDir(context), "${p.file}.jpg").inputStream().use { BitmapFactory.decodeStream(it) } }
         }
     }
 
-    private class Slide(val bmp: Bitmap, val painting: Picture, val start: Long, val fadeMs: Long)
+    /** [blur] is the picture frosted for the glass panels (see [frost]), about 1/8 its size. */
+    private class Slide(val bmp: Bitmap, val blur: Bitmap, val painting: Picture, val start: Long, val fadeMs: Long) {
+        fun recycle() {
+            bmp.recycle()
+            blur.recycle()
+        }
+    }
 
     // Shared between the loader and the render thread; swaps and draws hold [lock], so a bitmap is
     // never recycled mid-draw.
@@ -116,17 +141,19 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
     @Volatile private var current: Slide? = null
     @Volatile private var previous: Slide? = null
     @Volatile private var running = false
-    private var index = paintings.indices.random()
+    private var index = if (paintings.isEmpty()) 0 else paintings.indices.random()
     @Volatile private var advanceAt = 0L
     private var render: Thread? = null
 
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val title = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; setShadowLayer(12f, 0f, 2f, 0x99000000.toInt()) }
     private val artist = Paint(title)
+    val info = GlassInfo(context)
+    @Volatile private var weatherAt = 0L
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         running = true
-        load(index)
+        if (paintings.isNotEmpty()) load(index)
         render = Thread(::loop, "gallery").apply { start() }
     }
 
@@ -138,6 +165,7 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
     }
 
     fun step(by: Int) {
+        if (paintings.isEmpty()) return
         index = (index + by + paintings.size) % paintings.size
         load(index)
     }
@@ -146,8 +174,8 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
         io.shutdownNow()
         synchronized(lock) {
             running = false
-            current?.bmp?.recycle()
-            previous?.bmp?.recycle()
+            current?.recycle()
+            previous?.recycle()
             current = null
             previous = null
         }
@@ -161,16 +189,18 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
             } catch (e: Exception) {
                 null
             } ?: return@execute
+            val blur = frost(bmp)
             synchronized(lock) {
                 if (!running) { // dream ended while decoding
                     bmp.recycle()
+                    blur.recycle()
                     return@execute
                 }
-                previous?.bmp?.recycle() // stepped again mid-fade: that one won't be drawn any more
+                previous?.recycle() // stepped again mid-fade: that one won't be drawn any more
                 // The first painting fades up from black: keep that short or the screen just looks off.
                 val fade = if (current == null) FIRST_FADE_MS else FADE_MS
                 previous = current
-                current = Slide(bmp, p, System.currentTimeMillis(), fade)
+                current = Slide(bmp, blur, p, System.currentTimeMillis(), fade)
                 advanceAt = System.currentTimeMillis() + HOLD_MS
             }
         }
@@ -183,6 +213,10 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
                 advanceAt = 0
                 step(1)
             }
+            if (now >= weatherAt) {
+                weatherAt = now + 30 * 60_000L
+                io.execute { info.refresh() }
+            }
             val holder = view.holder
             val canvas = try {
                 holder.lockHardwareCanvas()
@@ -194,22 +228,26 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
             } finally {
                 holder.unlockCanvasAndPost(canvas)
             }
-            Thread.sleep(FRAME_MS) // 30 fps is plenty for motion this slow, and spares the GPU
+            // 30 fps while something fades (plenty for motion this slow); otherwise only the clock and the slow drift
+            // move, and a few frames a second spares the GPU.
+            val busy = info.animating(now) || current?.let { now - it.start < CAPTION_MS + FADE_MS } ?: true
+            Thread.sleep(if (busy) FRAME_MS else IDLE_MS)
         }
     }
 
     private fun draw(c: Canvas, now: Long) = synchronized(lock) {
         c.drawColor(Color.BLACK)
         if (!running) return
-        val cur = current ?: return
+        val cur = current ?: return info.draw(c, now, emptyList()) // no picture yet (or none to show): the clock still shows
         val fade = ((now - cur.start).toFloat() / cur.fadeMs).coerceIn(0f, 1f)
         previous?.let {
             if (fade < 1f) drawSlide(c, it, ((1f - fade) * 255).toInt()) else {
-                it.bmp.recycle() // faded out: free it now rather than whenever GC gets to it
+                it.recycle() // faded out: free it now rather than whenever GC gets to it
                 previous = null
             }
         }
         drawSlide(c, cur, (fade * 255).toInt())
+        info.draw(c, now, listOfNotNull(previous?.let { it.blur to ((1f - fade) * 255).toInt() }, cur.blur to (fade * 255).toInt()))
 
         // Title for the first seconds of each painting, fading in and out.
         val t = now - cur.start
@@ -221,12 +259,15 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
         }
         if (a > 0f && cur.painting.title.isNotEmpty()) {
             val u = c.height / 1080f // design in 1080p units, draw at panel resolution
-            title.textSize = 30f * u
-            artist.textSize = 22f * u
+            title.textSize = 24f * u
+            artist.textSize = 20f * u
             title.alpha = (a * 235).toInt()
             artist.alpha = (a * 190).toInt()
-            c.drawText(cur.painting.title, 96f * u, c.height - 96f * u, title)
-            c.drawText(cur.painting.artist, 96f * u, c.height - 60f * u, artist)
+            // Small, bottom right: the clock has the top right, weather and music the bottom left.
+            title.textAlign = Paint.Align.RIGHT
+            artist.textAlign = Paint.Align.RIGHT
+            c.drawText(cur.painting.title, c.width - 80f * u, c.height - 108f * u, title)
+            c.drawText(cur.painting.artist, c.width - 80f * u, c.height - 80f * u, artist)
         }
     }
 
@@ -242,5 +283,6 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
         const val FIRST_FADE_MS = 600L
         const val CAPTION_MS = 8_000L
         const val FRAME_MS = 33L
+        const val IDLE_MS = 250L
     }
 }

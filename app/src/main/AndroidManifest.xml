@@ -92,6 +92,17 @@
             </intent-filter>
         </service>
 
+        <!-- Never used for notifications: switching it on is what lets the screensaver see what's playing. -->
+        <service
+            android:name=".MediaListener"
+            android:exported="true"
+            android:label="Koolest now playing"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- Google TV's launcher must stay enabled; this service replaces it on screen whenever it shows. -->
         <service
             android:name=".HomeOverride"

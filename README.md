@@ -38,9 +38,12 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **Setup without a computer.** **Keep Home working** and **Only launcher** in Settings → This TV do the adb steps from the remote, through the TV's own network debugging. Only launcher switches Google TV's home screen off so Koolest is the only one; switch it off to bring Google TV back.
 - **Clock and weather** in the top corner: the time and date, and (if you turn it on) the weather with its icon, "feels like" and your city.
 - **Smooth on TV hardware.** Pictures load just ahead of where you're browsing, the billboard art cross-fades at full screen size, and the home screen draws as few full-screen layers as it can.
-- **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code) or changing Unsplash photos, a Gallery screensaver and a PIN lock for the layout.
+- **A glass screensaver.** Gallery shows paintings or your photos under a glass clock and calendar tiles in the top corner, with Gregorian, Persian (Shamsi) or both dates (Settings → Screensaver → Dates). If the weather is on, one glass card shows it now (with feels like), then a stack that turns every few seconds (▲ ▼ on the remote) between the next hours, five days, and humidity, wind, rain, UV, air quality and the next sunrise or sunset. While music plays, a Now Playing card shows the cover, title and progress (Settings → Screensaver → Music).
+- **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code) or changing Unsplash photos, and a PIN lock for the layout.
 
 ## Screenshots
+
+![The Gallery screensaver: clock, calendar tiles, music and weather on glass over a Bierstadt painting](docs/screensaver.jpg)
 
 <table>
   <tr>
@@ -165,6 +168,8 @@ Koolest has no analytics, no ads and no account. It only connects to the interne
 - download a wallpaper photo from [Lorem Picsum](https://picsum.photos), **only if you choose Unsplash photos**
 - fetch the weather, **only if you turn it on**, via [ipwho.is](https://ipwho.is) (approximate location from your IP) and [Open-Meteo](https://open-meteo.com)
 
+**Music** in the screensaver settings switches on notification access for Koolest. Android only shares what's playing with apps that have it; Koolest reads the playing track and nothing else. Like **Keep Home working**, it goes through the TV's network debugging; from a computer it's `adb shell cmd notification allow_listener dev.koolest/dev.koolest.MediaListener`.
+
 **Add from phone…** runs a small upload page on the TV itself, reachable only on your home network and only while that screen is open.
 
 ## Building from source
@@ -183,7 +188,7 @@ The APK is written to `app/build/outputs/apk/sideload/release/`. There are two f
 - Design language from the 30nama TV app.
 - **Font:** [Vazirmatn](https://github.com/rastikerdar/vazirmatn) by Saber Rastikerdar (SIL Open Font License 1.1).
 - **Logos:** [Simple Icons](https://simpleicons.org) (CC0) and [Material Symbols](https://fonts.google.com/icons) (Apache 2.0). All trademarks belong to their respective owners.
-- **Screensaver paintings** (public domain, via Wikimedia Commons; files in [`screensaver/`](screensaver)): Frederic Edwin Church, Ivan Shishkin, Jasper Francis Cropsey and Martin Johnson Heade.
+- **Screensaver paintings** (public domain, via Wikimedia Commons; files in [`screensaver/`](screensaver)): Frederic Edwin Church, Ivan Shishkin, Jasper Francis Cropsey, Martin Johnson Heade, Albert Bierstadt, Thomas Moran, Thomas Cole, Sanford Robinson Gifford, John Frederick Kensett, William Bradford and Arkhip Kuindzhi.
 - **Wallpaper:** "Canada" by Thomas Curryer, via [Unsplash](https://unsplash.com/@tawc20).
 - **Changing wallpapers:** photos by Unsplash photographers, served by [Lorem Picsum](https://picsum.photos).
 

@@ -779,11 +779,24 @@ class MainActivity : Activity() {
         if (!prefs.contains(photoKey()) || !file.exists()) try {
             val m = resources.displayMetrics
             val tmp = File(filesDir, "online_wallpaper.part")
-            openStream("https://picsum.photos/${m.widthPixels}/${m.heightPixels}").use { input -> tmp.outputStream().use { input.copyTo(it) } }
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(tmp.path, bounds)
-            if (bounds.outWidth <= 0) throw IOException("not an image") // e.g. a captive-portal page
-            tmp.renameTo(file)
+            // Random photos can be anything: try a few until one suits the theme (see photoFits). If none does,
+            // keep the one on show; with none on show yet, take the last try.
+            for (attempt in 1..PHOTO_TRIES) {
+                openStream("https://picsum.photos/${m.widthPixels}/${m.heightPixels}").use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                val small = BitmapFactory.decodeFile(tmp.path, BitmapFactory.Options().apply { inSampleSize = 8 })
+                    ?: throw IOException("not an image") // e.g. a captive-portal page
+                val grey = Bitmap.createScaledBitmap(small, 120, 68, true).let { b ->
+                    IntArray(b.width * b.height).also { b.getPixels(it, 0, b.width, 0, 0, b.width, b.height) }
+                        .map { (Color.red(it) * 299 + Color.green(it) * 587 + Color.blue(it) * 114) / 1000 }.toIntArray()
+                        .also { if (b !== small) b.recycle() }
+                }
+                small.recycle()
+                if (photoFits(grey, 120, dark) || (attempt == PHOTO_TRIES && !file.exists())) {
+                    tmp.renameTo(file)
+                    break
+                }
+            }
+            tmp.delete()
             prefs.edit().putLong(photoKey(), System.currentTimeMillis()).apply()
         } catch (e: Exception) {
             android.util.Log.w("Koolest", "online wallpaper: $e") // keep the last one
@@ -1008,6 +1021,7 @@ class MainActivity : Activity() {
         val rowHidden = rowHiddenSet().count { pkg -> apps.any { it.pkg == pkg } }
         val names = rowNames()
         val colour = colourIcons()
+        val ssDates = prefs.getString("ss_dates", "g")!!
         val rows = listOf<Triple<String, String, () -> Unit>>(
             Triple("Rearrange apps", "") { closeLauncherSettings(); startEdit(grab = null) },
             Triple("Theme", mapOf("light" to "Light", "dark" to "Dark", "auto" to "Auto")[theme]!!) {
@@ -1086,6 +1100,16 @@ class MainActivity : Activity() {
             Triple("Rows", rowChoices().count { it.second in rowsOff() }.let { if (it == 0) "All on" else "$it off" }) { pickRows() },
             Triple("Keep Home working", if (checkSelfPermission(WRITE_SECURE) == PackageManager.PERMISSION_GRANTED) "Done" else "Set up") { adbSetup() },
             Triple("Only launcher", toggle(onlyLauncher())) { toggleOnlyLauncher() },
+            // The screensaver's dates: "g" Gregorian, "both", or "fa" Persian (Shamsi) only.
+            Triple("Dates", mapOf("g" to "Gregorian", "both" to "Gregorian and Persian", "fa" to "Persian")[ssDates]!!) {
+                prefs.edit().putString("ss_dates", mapOf("g" to "both", "both" to "fa", "fa" to "g")[ssDates]).apply()
+                renderSettings(DATES_ROW)
+            },
+            // Music needs notification access (that's how Android shares what's playing); tapping it sets that up.
+            Triple("Music", if (!musicAccess(this)) "Set up" else toggle(prefs.getBoolean("ss_music", true))) {
+                if (!musicAccess(this)) allowMusic() else prefs.edit().putBoolean("ss_music", !prefs.getBoolean("ss_music", true)).apply()
+                renderSettings(MUSIC_ROW)
+            },
         )
         val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
         showPage(name, picks.map { rows[it] }, picks.indexOf(focus), back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.first == name }) })
@@ -2096,7 +2120,8 @@ class MainActivity : Activity() {
 
     private fun currentScreensaver() = Settings.Secure.getString(contentResolver, "screensaver_components").orEmpty()
 
-    private fun galleryOn() = currentScreensaver() == gallery()
+    // Compared as components: set by hand (adb, Android's settings) it may be stored in the short form.
+    private fun galleryOn() = ComponentName.unflattenFromString(currentScreensaver()) == ComponentName(this, GalleryDream::class.java)
 
     private fun screensaverName(component: String = currentScreensaver()): String {
         val pkg = ComponentName.unflattenFromString(component)?.packageName ?: return "Off"
@@ -2148,6 +2173,23 @@ class MainActivity : Activity() {
         Settings.Secure.putInt(contentResolver, "screensaver_enabled", 1)
     }
 
+    /**
+     * Switches on Koolest's notification listener so the screensaver can show what's playing. Since Android 10 the
+     * system keeps its own list of allowed listeners, so the secure setting alone does nothing: the sideload build
+     * asks through the TV's adb, the Play build opens Android's notification access page (which some TVs don't have).
+     */
+    private fun allowMusic() {
+        prefs.edit().putBoolean("ss_music", true).apply()
+        if (SelfAdb.AVAILABLE) return viaAdb(MUSIC_ROW, listOf("cmd notification allow_listener ${ComponentName(this, MediaListener::class.java).flattenToString()}")) {
+            if (musicAccess(this)) null else "The TV didn't allow it. Try again."
+        }
+        try {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        } catch (e: Exception) {
+            Toast.makeText(this, "This TV has no notification access page", Toast.LENGTH_LONG).show()
+        }
+    }
+
     /** Back to whatever screensaver was set before Gallery. */
     private fun stopGallery() {
         if (checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED) return openScreensaverSettings()
@@ -2179,8 +2221,11 @@ class MainActivity : Activity() {
         Thread {
             val part = File(filesDir, "paintings.part").apply { deleteRecursively(); mkdirs() }
             val ok = try {
-                for (f in PAINTING_FILES) openStream(PAINTINGS_URL + f).use { input ->
-                    File(part, f).outputStream().use { input.copyTo(it) }
+                for (f in PAINTING_FILES) {
+                    val have = File(paintingsDir(this), f) // after an update that adds paintings, keep the ones already here
+                    if (have.exists()) have.copyTo(File(part, f)) else openStream(PAINTINGS_URL + f).use { input ->
+                        File(part, f).outputStream().use { input.copyTo(it) }
+                    }
                 }
                 paintingsDir(this).deleteRecursively()
                 part.renameTo(paintingsDir(this))
@@ -2328,14 +2373,7 @@ class MainActivity : Activity() {
         if (System.currentTimeMillis() - prefs.getLong("wx_time", 0) < 25 * 60_000L && prefs.contains("wx_feel")) return
         io.execute {
             try {
-                if (!manualCity() && System.currentTimeMillis() - prefs.getLong("geo_time", 0) > 6 * 3600_000L) {
-                    val geo = getJson("https://ipwho.is/?fields=success,city,latitude,longitude")
-                    if (geo.optBoolean("success")) prefs.edit()
-                        .putString("geo_city", geo.getString("city"))
-                        .putFloat("geo_lat", geo.getDouble("latitude").toFloat())
-                        .putFloat("geo_lon", geo.getDouble("longitude").toFloat())
-                        .putLong("geo_time", System.currentTimeMillis()).apply()
-                }
+                locate(prefs)
                 if (!prefs.contains("geo_lat")) return@execute
                 val now = getJson("https://api.open-meteo.com/v1/forecast?latitude=${prefs.getFloat("geo_lat", 0f)}" +
                     "&longitude=${prefs.getFloat("geo_lon", 0f)}&current=temperature_2m,apparent_temperature,is_day,weather_code").getJSONObject("current")
@@ -2450,29 +2488,6 @@ class MainActivity : Activity() {
             prefs.getString("geo_city", null),
         ).joinToString(" · ")
         view.visibility = View.VISIBLE
-    }
-
-    private fun weatherIcon(code: Int, day: Boolean) = when (code) {
-        0 -> if (day) R.drawable.ic_wx_clear_day else R.drawable.ic_wx_clear_night
-        1, 2 -> if (day) R.drawable.ic_wx_partly_day else R.drawable.ic_wx_partly_night
-        45, 48 -> R.drawable.ic_wx_fog
-        in 51..67, in 80..82 -> R.drawable.ic_wx_rain
-        in 71..77, 85, 86 -> R.drawable.ic_wx_snow
-        in 95..99 -> R.drawable.ic_wx_storm
-        else -> R.drawable.ic_wx_cloudy
-    }
-
-    /** WMO weather codes, as Open-Meteo reports them. */
-    private fun weatherWord(code: Int) = when (code) {
-        0 -> "Clear"
-        1, 2 -> "Partly cloudy"
-        3 -> "Cloudy"
-        45, 48 -> "Fog"
-        in 51..57 -> "Drizzle"
-        in 61..67, in 80..82 -> "Rain"
-        in 71..77, 85, 86 -> "Snow"
-        in 95..99 -> "Thunderstorm"
-        else -> ""
     }
 
     private fun getJson(url: String) = JSONObject(openStream(url).use { it.readBytes().decodeToString() })
@@ -3196,12 +3211,14 @@ class MainActivity : Activity() {
             Triple("Home screen", "Rows, apps", listOf(ROWS_ROW, 0, 22, 6, 7, 8, 9)),
             Triple("Continue watching", "Shows", listOf(11, 10)),
             Triple("Weather", "Units, place", listOf(12, 13, 14)),
-            Triple("Screensaver", "Gallery", listOf(15, 16, 17)),
+            Triple("Screensaver", "Gallery, clock, weather", listOf(15, DATES_ROW, MUSIC_ROW, 16, 17)),
             Triple("This TV", "Home button, updates",
                 if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
         )
         const val ADB_SETUP_ROW = 24
         const val ONLY_LAUNCHER_ROW = 25
+        const val DATES_ROW = 26
+        const val MUSIC_ROW = 27
         const val SCREENSAVER_ROW = 15
         const val HOME_BUTTON_ROW = 18
         const val DEFAULT_HOME_ROW = 19
@@ -3219,7 +3236,7 @@ class MainActivity : Activity() {
             "Apps shown" to R.drawable.ic_s_eye, "App names" to R.drawable.ic_s_text, "Logo colours" to R.drawable.ic_s_palette,
             "Hidden shows" to R.drawable.ic_s_eye, "Apps" to R.drawable.rail_apps, "Consoles & inputs" to R.drawable.ic_s_gamepad,
             "Units" to R.drawable.ic_s_thermo, "Location" to R.drawable.ic_s_place, "Automatic" to R.drawable.ic_s_place,
-            "Preview" to R.drawable.ic_s_play, "When it starts" to R.drawable.ic_s_timer, "Home button" to R.drawable.rail_home,
+            "Preview" to R.drawable.ic_s_play, "Dates" to R.drawable.ic_s_text, "Music" to R.drawable.ic_s_music, "When it starts" to R.drawable.ic_s_timer, "Home button" to R.drawable.rail_home,
             "Default home" to R.drawable.ic_s_tv, "PIN lock" to R.drawable.ic_s_lock, "Updates" to R.drawable.ic_s_update,
             "Keep Home working" to R.drawable.rail_home, "Only launcher" to R.drawable.ic_s_tv,
             "Open Developer options" to R.drawable.ic_s_tv, "Try again" to R.drawable.ic_s_update,
@@ -3261,6 +3278,7 @@ class MainActivity : Activity() {
         const val REPO = "KoolestTVLauncher/Koolest-TV-Launcher" // this repo's releases, which the in-app updater installs
         const val ACCENT = 0xFFF0454A.toInt() // 30nama red: progress, switches on, the current PIN box
         const val UNSPLASH = "online:Unsplash photos" // a new photo every "Photo changes", see onlinePhoto
+        const val PHOTO_TRIES = 6
         const val RAIL_GAP = 12 // dp between the menu's groups: Search/Home, the apps, All apps
         const val UPDATE_STATUS = "dev.koolest.UPDATE_STATUS"
         const val WRITE_EPG ="com.android.providers.tv.permission.WRITE_EPG_DATA"
