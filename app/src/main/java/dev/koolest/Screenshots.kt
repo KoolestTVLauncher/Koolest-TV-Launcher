@@ -20,6 +20,21 @@ internal fun screenshotDir(c: Context) = File(c.getExternalFilesDir(null), "Scre
 internal fun screenshots(c: Context) =
     screenshotDir(c).listFiles { f -> SHOT_NAME.matches(f.name) }.orEmpty().sortedByDescending { it.name }
 
+/**
+ * True when every sampled pixel is black or nearly so: what this TV returns while video plays, because the
+ * video goes straight to a hardware plane no capture can read. Anything on top (player controls, menus) makes
+ * it false, so a partly useful screenshot is still kept.
+ */
+internal fun isBlank(pixels: IntArray) = pixels.all { p ->
+    maxOf(p shr 16 and 0xff, p shr 8 and 0xff, p and 0xff) <= 20
+}
+
+/** A 64×36 sample of [bmp], enough for [isBlank]. */
+internal fun samplePixels(bmp: Bitmap): IntArray {
+    val small = Bitmap.createScaledBitmap(bmp, 64, 36, true)
+    return IntArray(64 * 36).also { small.getPixels(it, 0, 64, 0, 0, 64, 36); small.recycle() }
+}
+
 /** Saves [bmp] as a PNG and keeps only the newest [KEEP_SHOTS]. Runs off the UI thread. */
 internal fun saveScreenshot(c: Context, bmp: Bitmap): File {
     val dir = screenshotDir(c).apply { mkdirs() }
