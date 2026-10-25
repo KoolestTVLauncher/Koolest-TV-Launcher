@@ -1,10 +1,12 @@
 package dev.koolest
 
 import android.content.Context
+import android.provider.Settings
 import java.io.DataInputStream
 import java.io.File
 import java.io.IOException
 import java.math.BigInteger
+import java.net.ConnectException
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.nio.ByteBuffer
@@ -31,6 +33,9 @@ object SelfAdb {
         val keyFile = File(c.noBackupFilesDir, "adbkey") // never in a backup: it unlocks this TV's adb
         Thread {
             done(runCatching {
+                // Debugging off: whatever listens on 5555 isn't adbd, so don't sign its token.
+                // shortcut: we can't check the listener's uid from an app (/proc/net/tcp is closed since Android 10).
+                if (Settings.Global.getInt(c.contentResolver, Settings.Global.ADB_ENABLED, 0) != 1) throw ConnectException("adb is off")
                 Socket().use { s ->
                     s.connect(InetSocketAddress("127.0.0.1", 5555), 3000)
                     s.soTimeout = 10_000
@@ -108,7 +113,9 @@ object SelfAdb {
             val cmd = head.int
             val arg0 = head.int
             val arg1 = head.int
-            return Message(cmd, arg0, arg1, ByteArray(head.int).also { inp.readFully(it) })
+            val size = head.int
+            if (size !in 0..MAX_DATA) throw IOException("adb message too large ($size)") // not adbd, or a broken one
+            return Message(cmd, arg0, arg1, ByteArray(size).also { inp.readFully(it) })
         }
     }
 
