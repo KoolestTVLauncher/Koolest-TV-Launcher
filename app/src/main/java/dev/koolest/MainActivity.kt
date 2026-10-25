@@ -374,6 +374,8 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         unlockedUntil = 0L // leaving the home screen locks it again (onPause would also fire for permission dialogs)
+        // "Add from phone" serves the network only while someone is looking at it: leaving closes it.
+        if (upload != null) closeLauncherSettings()
         super.onStop()
     }
 
