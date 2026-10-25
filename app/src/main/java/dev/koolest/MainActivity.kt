@@ -374,8 +374,6 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         unlockedUntil = 0L // leaving the home screen locks it again (onPause would also fire for permission dialogs)
-        // The phone pages serve the network only while someone is looking at them: leaving closes them.
-        if (upload != null || shotShare != null) closeLauncherSettings()
         super.onStop()
     }
 
@@ -389,7 +387,6 @@ class MainActivity : Activity() {
         applicationContext.getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(net)
         getSystemService(TvInputManager::class.java)?.unregisterCallback(inputCallback)
         upload?.stop()
-        shotShare?.stop()
         io.shutdownNow()
         posterIo.shutdownNow()
         super.onDestroy()
