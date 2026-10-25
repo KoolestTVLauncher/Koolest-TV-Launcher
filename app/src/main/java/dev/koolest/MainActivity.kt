@@ -3256,7 +3256,7 @@ class MainActivity : Activity() {
         const val CHOOSE_FROM_TV = "Choose a folder on this TV…"
         const val CHOSEN = "✓"
         const val REMOVE_PHOTO = "Remove a photo…"
-        const val REPO = "benymaxparsa/Koolest-TV-Launcher" // this repo's releases, which the in-app updater installs
+        const val REPO = "KoolestTVLauncher/Koolest-TV-Launcher" // this repo's releases, which the in-app updater installs
         const val ACCENT = 0xFFF0454A.toInt() // 30nama red: progress, switches on, the current PIN box
         const val UNSPLASH = "online:Unsplash photos" // a new photo every "Photo changes", see onlinePhoto
         const val RAIL_GAP = 12 // dp between the menu's groups: Search/Home, the apps, All apps

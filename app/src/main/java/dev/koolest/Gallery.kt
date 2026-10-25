@@ -40,7 +40,7 @@ private val DARK = listOf(
     Painting("thunderstorm", "Thunder Storm on Narragansett Bay", "Martin Johnson Heade, 1868"),
 )
 
-internal const val PAINTINGS_URL = "https://github.com/benymaxparsa/Koolest-TV-Launcher/releases/download/gallery-1/"
+internal const val PAINTINGS_URL = "https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/download/gallery-1/"
 internal const val PAINTINGS_MB = "4.7 MB"
 internal val PAINTING_FILES = (LIGHT + DARK).map { "${it.file}.jpg" }
 internal fun paintingsDir(c: Context) = File(c.filesDir, "paintings")

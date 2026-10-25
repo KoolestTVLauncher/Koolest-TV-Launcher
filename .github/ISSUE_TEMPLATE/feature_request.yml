@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Koolest stays small on purpose. Please read [what's in and out of scope](https://github.com/benymaxparsa/Koolest-TV-Launcher/blob/main/CONTRIBUTING.md#whats-out-of-scope) before suggesting something.
+        Koolest stays small on purpose. Please read [what's in and out of scope](https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/blob/main/CONTRIBUTING.md#whats-out-of-scope) before suggesting something.
   - type: textarea
     id: problem
     attributes:
