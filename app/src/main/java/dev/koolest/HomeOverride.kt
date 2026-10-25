@@ -61,16 +61,18 @@ class HomeOverride : AccessibilityService() {
                 buffer.close()
                 if (bmp == null) return onFailure(ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR)
                 Thread {
-                    val message = try {
-                        if (isBlank(samplePixels(bmp))) "This TV doesn't let apps capture playing video. Menus and other screens work."
-                        else saveScreenshot(this@HomeOverride, bmp).let { "Screenshot saved" }
+                    val ok = try {
+                        saveScreenshot(this@HomeOverride, bmp)
+                        true
                     } catch (e: Exception) {
                         android.util.Log.w("Koolest", "screenshot not saved ($e)")
-                        "Couldn't save the screenshot"
+                        false
                     } finally {
                         bmp.recycle()
                     }
-                    mainExecutor.execute { Toast.makeText(this@HomeOverride, message, Toast.LENGTH_LONG).show() }
+                    mainExecutor.execute {
+                        Toast.makeText(this@HomeOverride, if (ok) "Screenshot saved" else "Couldn't save the screenshot", Toast.LENGTH_SHORT).show()
+                    }
                 }.start()
             }
 
