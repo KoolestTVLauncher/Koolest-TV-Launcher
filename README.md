@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" alt="Koolest logo" width="112"></p>
+
 <h1 align="center">Koolest TV Launcher</h1>
 
 <p align="center">

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8565c"/>
+      <stop offset="1" stop-color="#d4323a"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".16"/>
+      <stop offset=".55" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#sheen)"/>
+  <!-- One white shape: a 16:9 screen wearing a roof -->
+  <path fill="#fff" stroke="#fff" stroke-width="20" stroke-linejoin="round"
+        d="M256 110L398 212V344a26 26 0 0 1-26 26H140a26 26 0 0 1-26-26V212z"/>
+  <!-- The billboard line, then a row with the focused tile first -->
+  <rect x="148" y="236" width="104" height="15" rx="7.5" fill="#d4323a" opacity=".38"/>
+  <rect x="148" y="266" width="96" height="70" rx="14" fill="#e03a41"/>
+  <rect x="258" y="274" width="62" height="54" rx="11" fill="#e03a41" opacity=".38"/>
+  <rect x="332" y="274" width="34" height="54" rx="11" fill="#e03a41" opacity=".2"/>
+  <rect x="212" y="396" width="88" height="18" rx="9" fill="#fff"/>
+</svg>
