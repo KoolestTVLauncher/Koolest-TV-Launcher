@@ -449,6 +449,89 @@ class MainActivity : Activity() {
         }
     }
 
+    // ---------- adb shortcuts (sideload build only, see SelfAdb) ----------
+    // The README's adb lines, run through the TV's own network debugging so nobody needs a computer.
+
+    /** Grants what "Recommended" in the README grants: the Home service then switches itself back on. */
+    private fun adbSetup() = if (!SelfAdb.AVAILABLE) Unit else viaAdb(ADB_SETUP_ROW, grants()) { // the play build compiles none of this
+        if (checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED) return@viaAdb "Setup didn't finish. Try again."
+        HomeOverride.revive(this)
+        null
+    }
+
+    private fun grants() = listOf("pm grant $packageName $WRITE_SECURE", "appops set $packageName APP_AUTO_START allow") // the second is TCL's; others ignore it
+
+    /** Every other home screen on the TV (Google TV's and its setup screen), not Android's fallback. */
+    private fun otherHomes() = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+        .map { it.activityInfo.packageName }.filter { it != packageName && it != "com.android.tv.settings" }.toSet()
+
+    private fun homesOff() = prefs.getStringSet("homes_off", emptySet())!!
+
+    private fun onlyLauncher() = homesOff().isNotEmpty() && homesOff().all { pkg ->
+        try {
+            packageManager.getApplicationEnabledSetting(pkg) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
+        } catch (e: IllegalArgumentException) {
+            true // uninstalled since
+        }
+    }
+
+    /** On switches the other home screens off (and does the setup too); off turns back on the ones Koolest switched off. */
+    private fun toggleOnlyLauncher() {
+        if (!SelfAdb.AVAILABLE) return
+        if (onlyLauncher()) {
+            val homes = homesOff()
+            return viaAdb(ONLY_LAUNCHER_ROW, homes.map { "pm enable $it" }) {
+                prefs.edit().remove("homes_off").apply()
+                null
+            }
+        }
+        val homes = otherHomes() + homesOff()
+        if (homes.isEmpty()) return Toast.makeText(this, "Koolest is already the only launcher", Toast.LENGTH_SHORT).show()
+        prefs.edit().putStringSet("homes_off", homes).apply()
+        viaAdb(ONLY_LAUNCHER_ROW, grants() + homes.map { "pm disable-user --user 0 $it" }) {
+            if (!onlyLauncher()) "The TV didn't switch its launcher off. Try again." else {
+                HomeOverride.revive(this)
+                null
+            }
+        }
+    }
+
+    /**
+     * Runs [commands] through the TV's adb, then [check] on the UI thread: null when it worked, or what to say.
+     * adb off: a page that walks through switching on network debugging.
+     */
+    private fun viaAdb(row: Int, commands: List<String>, check: () -> String?) {
+        Toast.makeText(this, "If the TV asks, tick \"Always allow\" and choose Allow", Toast.LENGTH_LONG).show()
+        SelfAdb.run(this, commands) { result ->
+            result.onSuccess { android.util.Log.i("Koolest", "adb: $it") }.onFailure { android.util.Log.w("Koolest", "adb failed ($it)") }
+            ui.post {
+                val error = result.exceptionOrNull()
+                when {
+                    error is java.net.ConnectException -> return@post adbHelp(row, commands, check)
+                    error != null -> Toast.makeText(this, "The TV didn't allow it. Try again and choose Allow.", Toast.LENGTH_LONG).show()
+                    else -> Toast.makeText(this, check() ?: "Done", Toast.LENGTH_LONG).show()
+                }
+                if (settingsScrim.visibility == View.VISIBLE) renderSettings(row)
+            }
+        }
+    }
+
+    private fun adbHelp(row: Int, commands: List<String>, check: () -> String?) {
+        val steps = label("Koolest does this through the TV's network debugging, which is off.\n\n" +
+            "1. Settings → System → About: press OK on \"Android TV OS build\" 7 times.\n" +
+            "2. Settings → System → Developer options: turn on USB debugging, and Network debugging if it's listed.\n" +
+            "3. Come back and choose Try again.\n\n" +
+            "You can switch debugging off again afterwards; the change stays.", 13f).apply {
+            maxLines = 20
+            alpha = 0.8f
+            setPadding(dp(14), dp(8), dp(14), dp(12))
+        }
+        showPage("Turn on debugging", listOf(
+            page("Open Developer options") { openSettings(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) },
+            page("Try again") { viaAdb(row, commands, check) },
+        ), top = steps, back = { renderSettings(row) })
+    }
+
     private fun isDefaultHome() = Build.VERSION.SDK_INT >= 29 &&
         getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_HOME)
 
@@ -999,6 +1082,8 @@ class MainActivity : Activity() {
             },
             Triple("Menu apps", railApps().count { pkg -> apps.any { it.pkg == pkg } }.let { if (it == 1) "1 app" else "$it apps" }) { pickRailApps() },
             Triple("Rows", rowChoices().count { it.second in rowsOff() }.let { if (it == 0) "All on" else "$it off" }) { pickRows() },
+            Triple("Keep Home working", if (checkSelfPermission(WRITE_SECURE) == PackageManager.PERMISSION_GRANTED) "Done" else "Set up") { adbSetup() },
+            Triple("Only launcher", toggle(onlyLauncher())) { toggleOnlyLauncher() },
         )
         val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
         showPage(name, picks.map { rows[it] }, picks.indexOf(focus), back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.first == name }) })
@@ -3110,8 +3195,11 @@ class MainActivity : Activity() {
             Triple("Continue watching", "Shows", listOf(11, 10)),
             Triple("Weather", "Units, place", listOf(12, 13, 14)),
             Triple("Screensaver", "Gallery", listOf(15, 16, 17)),
-            Triple("This TV", "Home button, updates", listOf(18, 19, 21, 20)),
+            Triple("This TV", "Home button, updates",
+                if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
         )
+        const val ADB_SETUP_ROW = 24
+        const val ONLY_LAUNCHER_ROW = 25
         const val SCREENSAVER_ROW = 15
         const val HOME_BUTTON_ROW = 18
         const val DEFAULT_HOME_ROW = 19
@@ -3131,6 +3219,8 @@ class MainActivity : Activity() {
             "Units" to R.drawable.ic_s_thermo, "Location" to R.drawable.ic_s_place, "Automatic" to R.drawable.ic_s_place,
             "Preview" to R.drawable.ic_s_play, "When it starts" to R.drawable.ic_s_timer, "Home button" to R.drawable.rail_home,
             "Default home" to R.drawable.ic_s_tv, "PIN lock" to R.drawable.ic_s_lock, "Updates" to R.drawable.ic_s_update,
+            "Keep Home working" to R.drawable.rail_home, "Only launcher" to R.drawable.ic_s_tv,
+            "Open Developer options" to R.drawable.ic_s_tv, "Try again" to R.drawable.ic_s_update,
         )
         // The menu's apps to start with (any not installed are skipped), followed by the consoles (see railApps).
         const val DEFAULT_RAIL = "com.google.android.youtube.tv,com.netflix.ninja,com.amazon.amazonvideo.livingroom,com.spotify.tv.android,com.nama30.tv"

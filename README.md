@@ -29,6 +29,7 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **Motion.** Focused cards grow and lift, rows glide into place and the background crossfades to the focused item's art. A row starts over from its first item each time you come back to it.
 - **Simple settings.** Six groups: Look, Home screen, Continue watching, Weather, Screensaver and This TV.
 - **Home button support on Google TV.** The Home button opens Koolest even where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
+- **Setup without a computer.** **Keep Home working** and **Only launcher** in Settings → This TV do the adb steps from the remote, through the TV's own network debugging. Only launcher switches Google TV's home screen off so Koolest is the only one; switch it off to bring Google TV back.
 - **Clock and weather** in the top corner: the time and date, and (if you turn it on) the weather with its icon, "feels like" and your city.
 - **Smooth on TV hardware.** Pictures load just ahead of where you're browsing, the billboard art cross-fades at full screen size, and the home screen draws as few full-screen layers as it can.
 - **Extras:** light, dark or automatic theme with your own wallpapers (upload from your phone by QR code) or changing Unsplash photos, a Gallery screensaver and a PIN lock for the layout.
@@ -84,6 +85,8 @@ Allow the **TV listings** permission when asked; the content rows and Continue w
 
 ### Recommended: keep the Home button working (adb)
 
+No computer? In **Settings → This TV**, choose **Keep Home working**. Koolest runs these lines itself through the TV's network debugging: turn on Developer options and USB debugging first (Koolest shows how), then choose **Allow** when the TV asks. You can turn debugging off again afterwards. From a computer:
+
 ```sh
 adb shell pm grant dev.koolest android.permission.WRITE_SECURE_SETTINGS
 adb shell appops set dev.koolest APP_AUTO_START allow   # TCL TVs
@@ -93,7 +96,7 @@ Android only starts the Home button service when its setting changes. After a re
 
 ### Optional: make Koolest the only launcher (adb)
 
-On Google TV, the system launcher always outranks Koolest as the default home. To have Koolest be the only one, turn off Google TV's launcher and its setup screen, which otherwise takes over Home:
+On Google TV, the system launcher always outranks Koolest as the default home. To have Koolest be the only one, turn off Google TV's launcher and its setup screen, which otherwise takes over Home. On the TV, switch on **Settings → This TV → Only launcher** (same debugging steps as above; switch it off to undo), or from a computer:
 
 ```sh
 adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
@@ -162,10 +165,10 @@ Koolest has no analytics, no ads and no account. It only connects to the interne
 ```sh
 git clone https://github.com/benymaxparsa/Koolest-TV-Launcher.git
 cd Koolest-TV-Launcher
-./gradlew testDebugUnitTest assembleRelease
+./gradlew testSideloadDebugUnitTest assembleSideloadRelease
 ```
 
-The APK is written to `app/build/outputs/apk/release/`. Without a `keystore.properties` file (git-ignored; it holds `storeFile`, `storePassword`, `keyAlias` and `keyPassword`), release builds are signed with your local debug key, which is fine for installing your own build. Unit tests live in `app/src/test`.
+The APK is written to `app/build/outputs/apk/sideload/release/`. There are two flavors: `sideload` is the GitHub APK, and `play` (`assemblePlayRelease`) leaves out the adb shortcuts in `app/src/sideload`, which Google Play doesn't allow. Without a `keystore.properties` file (git-ignored; it holds `storeFile`, `storePassword`, `keyAlias` and `keyPassword`), release builds are signed with your local debug key, which is fine for installing your own build. Unit tests live in `app/src/test` and `app/src/testSideload`.
 
 ## Credits
 

@@ -13,8 +13,8 @@ android {
         applicationId = "dev.koolest"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "2.0.0"
+        versionCode = 8
+        versionName = "2.1.0"
     }
 
     // Release key lives outside the repo; keystore.properties (git-ignored) points at it. Without that file
@@ -28,6 +28,13 @@ android {
             keyAlias = keys.getProperty("keyAlias")
             keyPassword = keys.getProperty("keyPassword")
         }
+    }
+
+    // sideload: the GitHub APK, with the adb shortcuts (src/sideload). play: for Google Play, without them.
+    flavorDimensions += "store"
+    productFlavors {
+        create("sideload") { dimension = "store" }
+        create("play") { dimension = "store" }
     }
 
     buildTypes {
