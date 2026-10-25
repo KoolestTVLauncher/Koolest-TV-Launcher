@@ -91,6 +91,17 @@ adb shell appops set dev.koolest APP_AUTO_START allow   # TCL TVs
 
 Android only starts the Home button service when its setting changes. After a reboot, an update, or the TV closing Koolest in the background (TCL TVs do this while a console is on), Home would land on Google TV again. With the first permission, Koolest switches its service back on by itself: at boot, after an update, every 15 minutes and whenever it opens. It also lets Koolest set the Gallery screensaver. The second line is for TCL TVs, whose own "auto start" guard otherwise stops Android from starting the service and from telling Koolest the TV has booted.
 
+### Optional: make Koolest the only launcher (adb)
+
+On Google TV, the system launcher always outranks Koolest as the default home. To have Koolest be the only one, turn off Google TV's launcher and its setup screen, which otherwise takes over Home:
+
+```sh
+adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
+adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
+```
+
+Wait about 15 seconds before rebooting, or Android may not have saved the change yet. Nothing is uninstalled. Holding Home no longer opens the Google TV dashboard, and its quick-settings panel and profiles go away with it; the full Settings app still works. To undo, run the same lines with `pm enable <package>`. A factory reset or a system update may turn Google TV back on.
+
 ## Using Koolest
 
 | Action | How |
@@ -104,7 +115,7 @@ Android only starts the Home button service when its setting changes. After a re
 | Change theme or wallpaper | **Settings → Look** |
 | Lock the layout with a PIN | **Settings → This TV → PIN lock** |
 | Back on the home screen | From deep in a row, back to its first item; again, to the menu; again, back to the rows |
-| Open the Google TV dashboard | Hold the **Home** button |
+| Open the Google TV dashboard | Hold the **Home** button (not if Google TV is [turned off](#optional-make-koolest-the-only-launcher-adb)) |
 
 ## Troubleshooting
 
