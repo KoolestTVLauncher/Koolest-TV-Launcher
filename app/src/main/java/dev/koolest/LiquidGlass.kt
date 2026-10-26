@@ -24,18 +24,33 @@ internal class Backdrop {
             field = v
             panes.forEach { it.invalidateSelf() }
         }
+    /**
+     * The open menu's view: the home screen as drawn, without the menu, taken when it opens (rows and text pass
+     * under the open card, which [frost] doesn't have). Null while the menu is closed.
+     */
+    var snapshot: Bitmap? = null
+        set(v) {
+            field?.recycle()
+            field = v
+            panes.forEach { it.invalidateSelf() }
+        }
+    /** The dimming over the screen behind the menu (railDim's colour at its current opacity), for the menu's panes. */
+    var dim = 0
+        set(v) {
+            field = v
+            panes.forEach { it.invalidateSelf() }
+        }
     val panes = mutableListOf<Drawable>()
 
     companion object {
         /**
-         * The blurred screen: [picture] centre-cropped to the screen's shape, [over] (the scrims) on top, then
-         * shrunk to 1/16 in halving steps (each averages 2×2, so nothing aliases) and drawn back up to 1/8 with
-         * filtering, which leaves a soft blur of about 24 px at 1080p.
+         * The screen behind the glass: [picture] centre-cropped to the screen's shape with [over] (the scrims) on
+         * top, at a quarter of the screen's size; drawn back up filtered, that softens it a little.
          */
-        fun build(picture: Bitmap?, over: Drawable, screenW: Int, screenH: Int, ground: Int): Bitmap {
-            val w = 240
+        fun build(picture: Bitmap?, over: Drawable?, screenW: Int, screenH: Int, ground: Int): Bitmap {
+            val w = 480
             val h = w * screenH / screenW
-            val small = Bitmap.createBitmap(w * 2, h * 2, Bitmap.Config.ARGB_8888)
+            val small = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             Canvas(small).apply {
                 drawColor(ground)
                 if (picture != null && !picture.isRecycled) {
@@ -45,13 +60,14 @@ internal class Backdrop {
                     drawBitmap(picture, null, RectF((small.width - pw) / 2, (small.height - ph) / 2, (small.width + pw) / 2, (small.height + ph) / 2),
                         Paint(Paint.FILTER_BITMAP_FLAG))
                 }
-                scale(small.width / screenW.toFloat(), small.height / screenH.toFloat())
-                over.setBounds(0, 0, screenW, screenH)
-                over.draw(this)
+                if (over != null) {
+                    scale(small.width / screenW.toFloat(), small.height / screenH.toFloat())
+                    over.setBounds(0, 0, screenW, screenH)
+                    over.draw(this)
+                }
             }
-            val tiny = Bitmap.createScaledBitmap(Bitmap.createScaledBitmap(small, w, h, true), w / 2, h / 2, true)
-            small.recycle()
-            return Bitmap.createScaledBitmap(tiny, w, h, true).also { if (it !== tiny) tiny.recycle() }
+            // Liquid Glass is mostly clear: a light softening (1/4 size, drawn back up filtered), not a frost.
+            return small
         }
     }
 }
@@ -63,7 +79,7 @@ internal class Backdrop {
  * For the navigation layer only (bars, menu, panels), never on content, never glass on glass.
  */
 internal class LiquidGlass(private val radius: Float, private val fill: Int, private val dark: Boolean, private val dp: Float,
-                           private val backdrop: Backdrop? = null) : Drawable() {
+                           private val backdrop: Backdrop? = null, private val inMenu: Boolean = false) : Drawable() {
     init {
         backdrop?.panes?.add(this)
     }
@@ -92,18 +108,18 @@ internal class LiquidGlass(private val radius: Float, private val fill: Int, pri
 
     override fun draw(c: Canvas) {
         val r = minOf(radius, box.height() / 2, box.width() / 2)
-        val frost = backdrop?.frost
+        val frost = (if (inMenu) backdrop?.snapshot else null) ?: backdrop?.frost
         val view = callback as? android.view.View
         if (frost != null && view != null) {
-            // The screen behind, where this pane is: the view's place on screen, less its own scale and drift,
-            // magnified 6 % about the pane's centre, the lens of the glass.
+            // The screen behind, exactly where this pane is (its place on screen), so the glass lines up with
+            // what's around it; the menu's panes also take the dimming that sits between them and the screen.
             view.getLocationOnScreen(at)
             val m = view.resources.displayMetrics
             c.save()
             c.clipPath(clip)
-            c.scale(1.06f, 1.06f, box.centerX(), box.centerY())
             frostPaint.alpha = alpha
             c.drawBitmap(frost, null, RectF(-at[0].toFloat(), -at[1].toFloat(), m.widthPixels - at[0].toFloat(), m.heightPixels - at[1].toFloat()), frostPaint)
+            backdrop?.dim?.takeIf { inMenu && it != 0 }?.let { c.drawColor(it) }
             c.restore()
         }
         body.color = fill
@@ -159,12 +175,48 @@ internal class Sheen(private val radius: Float) : Drawable() {
         val b = bounds
         c.save()
         c.clipPath(clip)
-        c.translate(b.left - b.width() / 3f + progress * (b.width() * 4 / 3f), b.top.toFloat())
+        // From fully off the start edge to fully off the end edge. The band slants (it's half a card high per third
+        // of a card wide), so at the bottom it trails by half the card's height: it must travel that much further,
+        // or it was cut off there at the end.
+        val from = b.left - b.width() / 3f
+        val to = b.left + b.width() + b.height() / 2f
+        c.translate(from + progress * (to - from), b.top.toFloat())
         c.drawRect(-b.width().toFloat(), -b.height().toFloat(), b.width() * 2f, b.height() * 2f, paint)
         c.restore()
     }
 
     override fun setAlpha(a: Int) {}
+    override fun setColorFilter(cf: ColorFilter?) {}
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity() = PixelFormat.TRANSLUCENT
+}
+
+/**
+ * A picture that centre-crops itself to whatever bounds it gets, with no size of its own. The billboard art
+ * cross-fades two of these in one TransitionDrawable: with plain bitmaps that drawable took the larger picture's
+ * size, the ImageView cropped for that, and a picture of another shape was stretched, then jumped back when the
+ * fade ended.
+ */
+internal class CenterCrop(val bitmap: Bitmap) : Drawable() {
+    private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val src = Rect()
+
+    override fun onBoundsChange(b: Rect) {
+        val scale = maxOf(b.width() / bitmap.width.toFloat(), b.height() / bitmap.height.toFloat())
+        val w = (b.width() / scale).toInt()
+        val h = (b.height() / scale).toInt()
+        src.set((bitmap.width - w) / 2, (bitmap.height - h) / 2, (bitmap.width + w) / 2, (bitmap.height + h) / 2)
+    }
+
+    override fun draw(c: Canvas) {
+        if (!bitmap.isRecycled) c.drawBitmap(bitmap, src, bounds, paint)
+    }
+
+    override fun setAlpha(a: Int) {
+        paint.alpha = a
+        invalidateSelf()
+    }
+
     override fun setColorFilter(cf: ColorFilter?) {}
     @Deprecated("Deprecated in Java")
     override fun getOpacity() = PixelFormat.TRANSLUCENT

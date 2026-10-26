@@ -340,6 +340,9 @@ class MainActivity : Activity() {
         ui.postDelayed(themeTick, 60_000L)
         ui.removeCallbacks(wallpaperTick)
         ui.post(wallpaperTick)
+        ui.removeCallbacks(musicTick)
+        ui.post(musicTick)
+        if (railOpen) ui.post(snapTick) // the menu's glass, stopped while away
         // Gallery chosen but its paintings missing (updated from a version that bundled them): fetch them.
         if (galleryOn() && photoScreensaver() == null && !paintingsReady(this)) downloadPaintings {}
         checkUpdate(force = false)
@@ -368,6 +371,8 @@ class MainActivity : Activity() {
         ui.removeCallbacks(weatherTick)
         ui.removeCallbacks(themeTick)
         ui.removeCallbacks(wallpaperTick)
+        ui.removeCallbacks(musicTick)
+        ui.removeCallbacks(snapTick)
         if (editing) endEdit()
         super.onPause()
     }
@@ -608,17 +613,17 @@ class MainActivity : Activity() {
         allApps.setBackgroundColor(ground)
         // The top bar's capsule: smoky grey glass with a light hairline edge in dark, frosted white in light.
         backdrop.panes.clear() // the panes are made again below, in this theme
-        findViewById<View>(R.id.topBar).background = glass(dp(22), if (dark) 0x8C4A4D57.toInt() else 0x8CFAFAFB.toInt(), frosted = true)
-        for (id in intArrayOf(R.id.infoDivider, R.id.iconDivider)) findViewById<View>(id).setBackgroundColor(fg)
+        findViewById<View>(R.id.topBar).background = glass(dp(22), if (dark) 0x404A4D57 else 0x52FAFAFB, frosted = true)
+        for (id in intArrayOf(R.id.infoDivider, R.id.iconDivider, R.id.npDivider)) findViewById<View>(id).setBackgroundColor(fg)
         for (id in intArrayOf(R.id.clock, R.id.date, R.id.wxTemp, R.id.wxDesc, R.id.appsTitle, R.id.allAppsTitle,
-            R.id.shelfTitle, R.id.shelfMeta, R.id.shelfPlot)) {
+            R.id.shelfTitle, R.id.shelfMeta, R.id.shelfPlot, R.id.npTitle, R.id.npArtist, R.id.faDate)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
         findViewById<View>(R.id.stageScrim).background = stageScrims(ground)
         // The menu: clear frosted glass (a faint white veil) round the icons at rest; open, a card of the same height,
         // a little denser so the labels read, over the dimmed screen.
-        findViewById<View>(R.id.railRest).background = glass(dp(26), if (dark) 0x40202228 else 0x73FAFAFB, frosted = true)
-        findViewById<View>(R.id.railPanel).background = glass(dp(26), if (dark) 0x9933363E.toInt() else 0xB3F7F7F8.toInt(), frosted = true)
+        findViewById<View>(R.id.railRest).background = glass(dp(26), if (dark) 0x1FFFFFFF else 0x3DFAFAFB, frosted = true, inMenu = true)
+        findViewById<View>(R.id.railPanel).background = glass(dp(26), if (dark) 0x8C1C1E24.toInt() else 0x99F7F7F8.toInt(), frosted = true, inMenu = true)
         // Under an open menu the screen dims, as under an iOS sheet: toward the ground in dark, toward black in light,
         // where fading toward white washed the screen out.
         findViewById<View>(R.id.railDim).setBackgroundColor(if (dark) ground else Color.BLACK)
@@ -635,8 +640,8 @@ class MainActivity : Activity() {
     }
 
     /** A rounded Liquid Glass surface for the navigation layer (see [LiquidGlass]); [frosted] shows the screen behind. */
-    private fun glass(radius: Int, fill: Int, frosted: Boolean = false) =
-        LiquidGlass(radius.toFloat(), fill, dark, resources.displayMetrics.density, if (frosted) backdrop else null)
+    private fun glass(radius: Int, fill: Int, frosted: Boolean = false, inMenu: Boolean = false) =
+        LiquidGlass(radius.toFloat(), fill, dark, resources.displayMetrics.density, if (frosted) backdrop else null, inMenu)
 
     private val backdrop = Backdrop()
     private var wallpaperBmp: Bitmap? = null
@@ -646,12 +651,12 @@ class MainActivity : Activity() {
         val m = resources.displayMetrics
         val scrims = stageScrims(ground)
         io.execute {
-            val frost = try {
+            val built = try {
                 Backdrop.build(picture, scrims, m.widthPixels, m.heightPixels, ground)
             } catch (e: Exception) { // the picture was recycled meanwhile: the next change rebuilds it
                 null
             } ?: return@execute
-            ui.post { backdrop.frost = frost }
+            ui.post { backdrop.frost = built }
         }
     }
 
@@ -1140,15 +1145,27 @@ class MainActivity : Activity() {
             Triple("Rows", rowChoices().count { it.second in rowsOff() }.let { if (it == 0) "All on" else "$it off" }) { pickRows() },
             Triple("Keep Home working", if (checkSelfPermission(WRITE_SECURE) == PackageManager.PERMISSION_GRANTED) "Done" else "Set up") { adbSetup() },
             Triple("Only launcher", toggle(onlyLauncher())) { toggleOnlyLauncher() },
-            // The screensaver's dates: "g" Gregorian, "both", or "fa" Persian (Shamsi) only.
-            Triple("Dates", mapOf("g" to "Gregorian", "both" to "Gregorian and Persian", "fa" to "Persian")[ssDates]!!) {
-                prefs.edit().putString("ss_dates", mapOf("g" to "both", "both" to "fa", "fa" to "g")[ssDates]).apply()
+            // The screensaver's dates: "g" Gregorian, "both" (a tile each), "one" (both in one tile), or "fa" Persian (Shamsi) only.
+            Triple("Dates", mapOf("g" to "Gregorian", "both" to "Both, separate", "one" to "Both, one tile", "fa" to "Persian")[ssDates] ?: "Gregorian") {
+                prefs.edit().putString("ss_dates", mapOf("g" to "both", "both" to "one", "one" to "fa", "fa" to "g")[ssDates] ?: "g").apply()
                 renderSettings(DATES_ROW)
             },
             // Music needs notification access (that's how Android shares what's playing); tapping it sets that up.
             Triple("Music", if (!musicAccess(this)) "Set up" else toggle(prefs.getBoolean("ss_music", true))) {
-                if (!musicAccess(this)) allowMusic() else prefs.edit().putBoolean("ss_music", !prefs.getBoolean("ss_music", true)).apply()
+                if (!musicAccess(this)) allowMusic(MUSIC_ROW) else prefs.edit().putBoolean("ss_music", !prefs.getBoolean("ss_music", true)).apply()
                 renderSettings(MUSIC_ROW)
+            },
+            Triple("Now playing", if (!musicAccess(this)) "Set up" else toggle(homeMusic())) {
+                if (!musicAccess(this)) allowMusic(HOME_MUSIC_ROW) else prefs.edit().putBoolean("home_music", !homeMusic()).apply()
+                showNowPlaying()
+                renderSettings(HOME_MUSIC_ROW)
+            },
+            Triple("Starts after", minutes(Settings.System.getInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 600_000))) { pickTimeout(false) },
+            Triple("TV sleeps after", minutes(Settings.Secure.getInt(contentResolver, SLEEP_TIMEOUT, -1))) { pickTimeout(true) },
+            Triple("Top bar date", mapOf("g" to "Gregorian", "both" to "Both", "fa" to "Persian")[barDates()] ?: "Gregorian") {
+                prefs.edit().putString("bar_dates", mapOf("g" to "both", "both" to "fa", "fa" to "g")[barDates()] ?: "g").apply()
+                showDates()
+                renderSettings(BAR_DATES_ROW)
             },
         )
         val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
@@ -1679,8 +1696,8 @@ class MainActivity : Activity() {
         frame.foreground = android.graphics.drawable.LayerDrawable(arrayOf(android.graphics.drawable.InsetDrawable(ring, -dp(5)), sheen))
         val sweep = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
             startDelay = 120 // once the lift is under way
-            duration = 750
-            interpolator = EASE_OUT
+            duration = 700
+            interpolator = PathInterpolator(.45f, 0f, .3f, 1f) // even in and out: no long crawl at the end
             addUpdateListener { sheen.progress = it.animatedValue as Float }
         }
         return { focused ->
@@ -2015,11 +2032,57 @@ class MainActivity : Activity() {
         "30nama" to "nama", "YouTube" to "youtube", "Spotify" to "spotify",
     ) + cardRows.keys.mapNotNull { key -> apps.firstOrNull { it.pkg == key }?.let { it.label to key } }
 
-    private fun pickRows() = toggles("Rows", rowChoices(), "rows_off", "On", "Off") {
-        rowKeys.clear()
-        refreshWatchNext()
-        renderApps()
-        renderSettings(ROWS_ROW)
+    /** Rows top to bottom as they show: by the saved order ("row_order"), new ones where they were made. */
+    private fun orderedRows() = rowChoices().sortedBy { (_, key) -> rowOrder().indexOf(key).let { if (it < 0) Int.MAX_VALUE else it } }
+
+    private fun rowOrder() = prefs.getString("row_order", "")!!.split(',').filter { it.isNotEmpty() }
+
+    /** Each row's container in [rows], by key. */
+    private fun rowViews(): Map<String, View> =
+        (mapOf("apps" to appRow, "consoles" to consoleRow) + cardRows).mapNotNull { (k, strip) -> rowOf(strip)?.let { k to it } }.toMap()
+
+    /** Puts the rows on the home screen in the saved order; does nothing when they already are. */
+    private fun applyRowOrder() {
+        if (rowOrder().isEmpty()) return
+        val views = rowViews()
+        val want = orderedRows().mapNotNull { views[it.second] }
+        val now = kids(rows).filter { it in want }
+        if (now == want) return
+        val focus = currentFocus
+        want.forEach { rows.removeView(it) }
+        want.forEach { rows.addView(it) } // others (none today) stay ahead of them
+        focus?.takeIf { it.isAttachedToWindow }?.requestFocus()
+    }
+
+    private fun pickRows(focus: Int = 0) {
+        val off = rowsOff()
+        val list = orderedRows()
+        showPage("Rows", list.mapIndexed { i, (name, key) ->
+            page(name, if (key in off) "Off" else "On") { rowPage(list, i) }
+        }, focus, back = {
+            rowKeys.clear()
+            refreshWatchNext()
+            renderApps()
+            renderSettings(ROWS_ROW)
+        })
+    }
+
+    private fun rowPage(list: List<Pair<String, String>>, i: Int) {
+        val (name, key) = list[i]
+        fun move(to: Int) {
+            prefs.edit().putString("row_order", list.map { it.second }.toMutableList().apply { add(to, removeAt(i)) }.joinToString(",")).apply()
+            applyRowOrder()
+            pickRows(to)
+        }
+        val on = key !in rowsOff()
+        showPage(name, listOfNotNull(
+            page("Show", toggle(on)) {
+                prefs.edit().putStringSet("rows_off", if (on) rowsOff() + key else rowsOff() - key).apply()
+                rowPage(list, i)
+            },
+            if (i == 0) null else page("Move up") { move(i - 1) },
+            if (i == list.lastIndex) null else page("Move down") { move(i + 1) },
+        ), back = { pickRows(i) })
     }
 
     private fun rowHiddenSet() = prefs.getStringSet("row_hidden", emptySet())!!
@@ -2233,9 +2296,9 @@ class MainActivity : Activity() {
      * system keeps its own list of allowed listeners, so the secure setting alone does nothing: the sideload build
      * asks through the TV's adb, the Play build opens Android's notification access page (which some TVs don't have).
      */
-    private fun allowMusic() {
-        prefs.edit().putBoolean("ss_music", true).apply()
-        if (SelfAdb.AVAILABLE) return viaAdb(MUSIC_ROW, listOf("cmd notification allow_listener ${ComponentName(this, MediaListener::class.java).flattenToString()}")) {
+    private fun allowMusic(row: Int) {
+        prefs.edit().putBoolean(if (row == MUSIC_ROW) "ss_music" else "home_music", true).apply()
+        if (SelfAdb.AVAILABLE) return viaAdb(row, listOf("cmd notification allow_listener ${ComponentName(this, MediaListener::class.java).flattenToString()}")) {
             if (musicAccess(this)) null else "The TV didn't allow it. Try again."
         }
         try {
@@ -2243,6 +2306,49 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             Toast.makeText(this, "This TV has no notification access page", Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun minutes(ms: Int) = when {
+        ms < 0 || ms >= Int.MAX_VALUE / 2 -> "Never"
+        ms < 3_600_000 -> "${ms / 60_000} min"
+        else -> "${ms / 3_600_000} h" + (ms % 3_600_000 / 60_000).let { if (it > 0) " $it min" else "" }
+    }
+
+    /**
+     * When the screensaver starts (Android's screen-off time, a system setting) or, with [sleep], how long it runs
+     * before the TV goes to sleep (a secure setting, which the adb permission already covers).
+     */
+    private fun pickTimeout(sleep: Boolean) {
+        val row = if (sleep) SLEEP_ROW else START_ROW
+        val now = if (sleep) Settings.Secure.getInt(contentResolver, SLEEP_TIMEOUT, -1)
+            else Settings.System.getInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 600_000)
+        val choices = if (sleep) listOf(1_800_000, 3_600_000, 7_200_000, 14_400_000, -1) else listOf(60_000, 120_000, 300_000, 600_000, 900_000, 1_800_000)
+        showPage(if (sleep) "TV sleeps after" else "Screensaver starts after", choices.map { ms ->
+            page(minutes(ms), if (ms == now || (ms < 0 && now < 0)) CHOSEN else "") {
+                if (setTimeout(sleep, ms)) pickTimeout(sleep)
+            }
+        }, choices.indexOfFirst { it == now }.coerceAtLeast(0), back = { renderSettings(row) })
+    }
+
+    /** False when Koolest isn't allowed yet: then it asks (adb in the sideload build, else Android's page). */
+    private fun setTimeout(sleep: Boolean, ms: Int): Boolean {
+        if (sleep) {
+            if (checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Set up \"Keep Home working\" in This TV first", Toast.LENGTH_LONG).show()
+                return false
+            }
+            return Settings.Secure.putInt(contentResolver, SLEEP_TIMEOUT, ms)
+        }
+        if (Settings.System.canWrite(this)) return Settings.System.putInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, ms)
+        if (SelfAdb.AVAILABLE) viaAdb(START_ROW, listOf("appops set $packageName WRITE_SETTINGS allow")) {
+            if (Settings.System.canWrite(this)) { Settings.System.putInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, ms); null }
+            else "The TV didn't allow it. Try again."
+        } else try {
+            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
+        } catch (e: Exception) {
+            Toast.makeText(this, "This TV has no page to allow it", Toast.LENGTH_LONG).show()
+        }
+        return false
     }
 
     /** Back to whatever screensaver was set before Gallery. */
@@ -2411,6 +2517,67 @@ class MainActivity : Activity() {
         if (settingsScrim.visibility == View.VISIBLE) renderSettings(UPDATE_ROW)
     }
 
+    // ---------- now playing (top bar) ----------
+
+    private fun homeMusic() = prefs.getBoolean("home_music", true)
+
+    /** Checks what's playing every 2 s while the home screen shows; cheap (one system call), no listener to leak. */
+    private val musicTick = object : Runnable {
+        override fun run() {
+            showNowPlaying()
+            showDates() // the Persian date has no TextClock to turn it over at midnight
+            ui.postDelayed(this, 2000)
+        }
+    }
+
+    private var npShown: Track? = null
+
+    /** "g" Gregorian, "fa" Persian (Shamsi), or "both" in the top bar. */
+    private fun barDates() = prefs.getString("bar_dates", "g")!!
+
+    private fun showDates() {
+        val mode = barDates()
+        findViewById<View>(R.id.date).visibility = if (mode == "fa") View.GONE else View.VISIBLE
+        findViewById<TextView>(R.id.faDate).apply {
+            visibility = if (mode == "g") View.GONE else View.VISIBLE
+            if (mode == "g") return
+            // On its own it takes the weekday; beside the other date, the day and month are enough.
+            val fa = android.icu.text.SimpleDateFormat(if (mode == "fa") "EEEE d MMMM" else "d MMMM",
+                android.icu.util.ULocale("fa_IR@calendar=persian")).format(java.util.Date())
+            // Beside the other date, the dot leads and the Persian is isolated so right-to-left doesn't swap them round.
+            text = if (mode == "both") "· \u2068$fa\u2069" else fa
+            textDirection = if (mode == "both") View.TEXT_DIRECTION_LTR else View.TEXT_DIRECTION_FIRST_STRONG
+        }
+    }
+
+    private fun showNowPlaying() {
+        val view = findViewById<View>(R.id.nowPlaying)
+        val t = if (homeMusic()) nowPlaying(this) else null
+        if (t == null) {
+            npShown = null
+            if (view.visibility == View.VISIBLE) view.animate().alpha(0f).setDuration(200).withEndAction { view.visibility = View.GONE }.start()
+            return
+        }
+        if (npShown?.title != t.title || npShown?.artist != t.artist) {
+            findViewById<TextView>(R.id.npTitle).text = t.title
+            findViewById<TextView>(R.id.npArtist).text = t.artist
+            findViewById<ImageView>(R.id.npArt).apply {
+                if (t.art != null) setImageBitmap(t.art) else setImageResource(R.drawable.ic_s_music)
+                if (t.art == null) setColorFilter(fg) else clearColorFilter()
+                outlineProvider = object : android.view.ViewOutlineProvider() { // round, like the capsule it sits in
+                    override fun getOutline(v: View, o: android.graphics.Outline) = o.setOval(0, 0, v.width, v.height)
+                }
+                clipToOutline = true
+            }
+        }
+        npShown = t
+        if (view.visibility != View.VISIBLE) {
+            view.alpha = 0f
+            view.visibility = View.VISIBLE
+            view.animate().alpha(1f).setDuration(300).start()
+        }
+    }
+
     // ---------- weather (under the date) ----------
     // Location comes from the public IP (ipwho.is): a TV has no GPS and Android TV no location service.
     // Weather is Open-Meteo. Both are free and keyless. We always fetch Celsius and convert, so
@@ -2569,6 +2736,7 @@ class MainActivity : Activity() {
                     showCards(row, if (key in off) emptyList() else list)
                 }
                 for ((key, row) in cardRows) if (key !in lists) showCards(row, emptyList()) // stopped publishing
+                applyRowOrder() // rows for newly found apps were just added at the end
             }
         }
     }
@@ -2813,6 +2981,15 @@ class MainActivity : Activity() {
             // the ones before it sliding on under the menu; it runs to the screen's end edge.
             addView(SnapScrollView(context, null).apply {
                 isHorizontalScrollBarEnabled = false
+                // Items sliding on under the menu fade out as they pass the content edge (x 92), instead of showing
+                // through the glass. Android's fading edge would start at the padding, over the focused item itself.
+                setOnScrollChangeListener { _, x, _, _, _ ->
+                    val edge = dp(92).toFloat()
+                    for (i in 0 until strip.childCount) strip.getChildAt(i).let { item ->
+                        val left = strip.left + item.left - x.toFloat() // strip.left already includes the padding
+                        item.alpha = if (left >= edge - dp(2)) 1f else (1f - (edge - left) / item.width).coerceIn(0f, 1f)
+                    }
+                }
                 clipToPadding = false
                 setPadding(dp(92 - FOCUS_ROOM), 0, dp(48 - FOCUS_ROOM), 0) // items still start at x 92
                 addView(strip)
@@ -2997,12 +3174,57 @@ class MainActivity : Activity() {
     private fun setRail(open: Boolean) {
         railOpen = open
         val t = if (open) 1f else 0f
+        // The screen behind keeps moving while the menu is open (rows glide back on Home, art cross-fades), so the
+        // glass retakes its view 5 times a second until the menu closes.
+        ui.removeCallbacks(snapTick)
+        backdrop.snapshot = if (open) homeSnapshot() else null
+        if (open) ui.postDelayed(snapTick, 200)
         findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).start()
         findViewById<View>(R.id.railRest).animate().alpha(1 - t).setDuration(240).setInterpolator(EASE_OUT).start() // else it shows through the card
-        findViewById<View>(R.id.railDim).animate().alpha(t * if (dark) 0.7f else 0.25f).setDuration(240).setInterpolator(EASE_OUT).start()
+        val dim = findViewById<View>(R.id.railDim)
+        val dimColor = if (dark) ground else Color.BLACK
+        dim.animate().alpha(t * if (dark) 0.7f else 0.25f).setDuration(240).setInterpolator(EASE_OUT)
+            .setUpdateListener { backdrop.dim = (dimColor and 0xFFFFFF) or ((dim.alpha * 255).toInt() shl 24) }.start()
         railLabels.forEachIndexed { i, l ->
             l.animate().alpha(t).setStartDelay(if (open) i * 20L else 0L).setDuration(240).setInterpolator(EASE_OUT).start()
         }
+    }
+
+    private val snapTick = object : Runnable {
+        override fun run() {
+            if (!railOpen) return
+            backdrop.snapshot = homeSnapshot()
+            ui.postDelayed(this, 200)
+        }
+    }
+
+    /**
+     * The home screen as it's drawn now, without the menu and its dimming, at a quarter size: what the open menu's
+     * glass shows. Drawn in software, so it's taken between frames and nothing flickers.
+     */
+    private fun homeSnapshot(): Bitmap? = try {
+        val m = resources.displayMetrics
+        val bmp = Bitmap.createBitmap(m.widthPixels / 4, m.heightPixels / 4, Bitmap.Config.ARGB_8888)
+        // Left out by opacity, not visibility: a hidden menu would lose focus, and losing it closes the menu.
+        val hidden = listOf(R.id.rail, R.id.railDim).map { findViewById<View>(it) }.map { it to it.alpha }
+        hidden.forEach { it.first.alpha = 0f }
+        Canvas(bmp).apply {
+            drawColor(ground)
+            scale(.25f, .25f)
+            for (v in homeLayers) if (v.visibility == View.VISIBLE && v.alpha > 0f) {
+                save()
+                translate(v.left.toFloat(), v.top.toFloat())
+                if (v.alpha < 1f) saveLayerAlpha(0f, 0f, v.width.toFloat(), v.height.toFloat(), (v.alpha * 255).toInt())
+                v.draw(this)
+                restore()
+                if (v.alpha < 1f) restore()
+            }
+        }
+        hidden.forEach { (v, alpha) -> v.alpha = alpha }
+        bmp
+    } catch (e: Exception) { // a hardware bitmap a software canvas can't draw: the glass falls back to the picture
+        findViewById<View>(R.id.rail).alpha = 1f
+        null
     }
 
     /** Back to the row item the menu was opened from (Right, Back, or Home in the menu). */
@@ -3102,8 +3324,8 @@ class MainActivity : Activity() {
         val now = (hero.drawable as? android.graphics.drawable.TransitionDrawable)?.getDrawable(1) ?: hero.drawable
         // Same picture already set (e.g. back on the first card after an app tile faded the art out): keep it, but
         // still stop that fade-out and bring it back up below. Returning early here left the wallpaper showing.
-        if ((now as? android.graphics.drawable.BitmapDrawable)?.bitmap !== art) {
-            val next = android.graphics.drawable.BitmapDrawable(resources, art)
+        if ((now as? CenterCrop)?.bitmap !== art) {
+            val next = CenterCrop(art)
             if (swap || now == null || hero.alpha == 0f) {
                 hero.setImageDrawable(next)
             } else {
@@ -3267,10 +3489,10 @@ class MainActivity : Activity() {
         /** Settings groups: name, a hint of what's in it, and its settings (positions in renderSettings' list) in show order. */
         val SETTINGS_GROUPS = listOf(
             Triple("Look", "Theme, wallpaper", listOf(1, 2, 3, 4, 5)),
-            Triple("Home screen", "Rows, apps", listOf(ROWS_ROW, 0, 22, 6, 7, 8, 9)),
+            Triple("Home screen", "Rows, apps", listOf(ROWS_ROW, 0, 22, HOME_MUSIC_ROW, BAR_DATES_ROW, 6, 7, 8, 9)),
             Triple("Continue watching", "Shows", listOf(11, 10)),
             Triple("Weather", "Units, place", listOf(12, 13, 14)),
-            Triple("Screensaver", "Gallery, clock, weather", listOf(15, DATES_ROW, MUSIC_ROW, 16, 17)),
+            Triple("Screensaver", "Gallery, clock, weather", listOf(15, DATES_ROW, MUSIC_ROW, 16, START_ROW, SLEEP_ROW, 17)),
             Triple("This TV", "Home button, updates",
                 if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
         )
@@ -3278,6 +3500,11 @@ class MainActivity : Activity() {
         const val ONLY_LAUNCHER_ROW = 25
         const val DATES_ROW = 26
         const val MUSIC_ROW = 27
+        const val HOME_MUSIC_ROW = 28
+        const val START_ROW = 29
+        const val SLEEP_ROW = 30
+        const val BAR_DATES_ROW = 31
+        const val SLEEP_TIMEOUT = "sleep_timeout" // Settings.Secure, hidden: how long the screensaver runs before the TV sleeps
         const val SCREENSAVER_ROW = 15
         const val HOME_BUTTON_ROW = 18
         const val DEFAULT_HOME_ROW = 19
@@ -3295,7 +3522,8 @@ class MainActivity : Activity() {
             "Apps shown" to R.drawable.ic_s_eye, "App names" to R.drawable.ic_s_text, "Logo colours" to R.drawable.ic_s_palette,
             "Hidden shows" to R.drawable.ic_s_eye, "Apps" to R.drawable.rail_apps, "Consoles & inputs" to R.drawable.ic_s_gamepad,
             "Units" to R.drawable.ic_s_thermo, "Location" to R.drawable.ic_s_place, "Automatic" to R.drawable.ic_s_place,
-            "Preview" to R.drawable.ic_s_play, "Dates" to R.drawable.ic_s_text, "Music" to R.drawable.ic_s_music, "When it starts" to R.drawable.ic_s_timer, "Home button" to R.drawable.rail_home,
+            "Preview" to R.drawable.ic_s_play, "Dates" to R.drawable.ic_s_text, "Music" to R.drawable.ic_s_music, "Now playing" to R.drawable.ic_s_music, "Top bar date" to R.drawable.ic_s_text,
+            "Starts after" to R.drawable.ic_s_timer, "TV sleeps after" to R.drawable.ic_s_timer, "Move up" to R.drawable.ic_s_move, "Move down" to R.drawable.ic_s_move, "When it starts" to R.drawable.ic_s_timer, "Home button" to R.drawable.rail_home,
             "Default home" to R.drawable.ic_s_tv, "PIN lock" to R.drawable.ic_s_lock, "Updates" to R.drawable.ic_s_update,
             "Keep Home working" to R.drawable.rail_home, "Only launcher" to R.drawable.ic_s_tv,
             "Open Developer options" to R.drawable.ic_s_tv, "Try again" to R.drawable.ic_s_update,

@@ -100,6 +100,27 @@ internal fun musicAccess(c: Context): Boolean {
         .split(':').any { ComponentName.unflattenFromString(it) == me }
 }
 
+internal class Track(val title: String, val artist: String, val art: Bitmap?, val progress: Float?)
+
+/** What's playing on the TV; null when nothing is, or Koolest hasn't been allowed to see it (see [musicAccess]). */
+internal fun nowPlaying(context: Context): Track? = try {
+    context.getSystemService(MediaSessionManager::class.java)
+        .getActiveSessions(ComponentName(context, MediaListener::class.java))
+        .firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }?.let { s ->
+            val m = s.metadata ?: return@let null
+            val title = m.getString(MediaMetadata.METADATA_KEY_TITLE) ?: m.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE) ?: return@let null
+            val state = s.playbackState!!
+            val length = m.getLong(MediaMetadata.METADATA_KEY_DURATION)
+            // The position is reported now and then; it has moved on by the time passed, at the playback speed.
+            val at = state.position + ((android.os.SystemClock.elapsedRealtime() - state.lastPositionUpdateTime) * state.playbackSpeed).toLong()
+            Track(title, m.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: m.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE) ?: "",
+                m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: m.getBitmap(MediaMetadata.METADATA_KEY_ART) ?: m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON),
+                if (length > 0) (at.toFloat() / length).coerceIn(0f, 1f) else null)
+        }
+} catch (e: SecurityException) { // not allowed (no notification access)
+    null
+}
+
 /**
  * The screensaver's clock, dates, weather and music on iOS-style glass, drawn over the Gallery pictures in 1080p
  * units: the clock and dates top right, music and weather bottom left, the picture's credit bottom right (in Gallery).
@@ -235,7 +256,18 @@ internal class GlassInfo(private val context: Context) {
         fill.shader = null
         fill.clearShadowLayer()
 
-        val tiles = when (prefs.getString("ss_dates", "g")) {
+        val mode = prefs.getString("ss_dates", "g")
+        if (mode == "one") {
+            // Both calendars in one tile across the clock: Gregorian on the left, Persian on the right, a hairline between.
+            val r = RectF(minOf(ink, right - 2 * TILE - 16), base + 44, right, base + 44 + TILE) // ink: the clock's left edge
+            g.panel(c, r, 32f)
+            dateTile(c, RectF(r.left, r.top, r.centerX(), r.bottom), now, true, g, panel = false)
+            dateTile(c, RectF(r.centerX(), r.top, r.right, r.bottom), now, false, g, panel = false)
+            fill.color = 0x33FFFFFF
+            c.drawRect(r.centerX() - .75f, r.top + 28, r.centerX() + .75f, r.bottom - 28, fill)
+            return
+        }
+        val tiles = when (mode) {
             "fa" -> listOf(false)
             "both" -> listOf(true, false)
             else -> listOf(true)
@@ -255,8 +287,8 @@ internal class GlassInfo(private val context: Context) {
      * Like the Calendar app's icon: weekday in red, the day large, month and year. Square tiles stack the three,
      * centred as a block by ink; a wide one (one calendar) puts the day beside the other two, Persian mirrored.
      */
-    private fun dateTile(c: Canvas, r: RectF, now: Long, gregorian: Boolean, g: Glass) {
-        g.panel(c, r, 32f)
+    private fun dateTile(c: Canvas, r: RectF, now: Long, gregorian: Boolean, g: Glass, panel: Boolean = true) {
+        if (panel) g.panel(c, r, 32f)
         fun f(pattern: String) = if (gregorian) DateFormat.format(pattern, now).toString()
             else android.icu.text.SimpleDateFormat(pattern, fa).format(Date(now))
         val weekday = Triple(if (gregorian) f("EEEE").uppercase(Locale.getDefault()) else f("EEEE"), 26f to bold, RED)
@@ -279,7 +311,7 @@ internal class GlassInfo(private val context: Context) {
             }
         }
 
-        if (r.width() < r.height() * 1.6f) return stack(listOf(weekday, day, month), r.centerX(), r.centerY(), Paint.Align.CENTER, 14f)
+        if (!panel || r.width() < r.height() * 1.6f) return stack(listOf(weekday, day, month), r.centerX(), r.centerY(), Paint.Align.CENTER, 14f)
         // Wide: the day, then the weekday over the month beside it, the pair centred in the tile.
         // Persian reads right to left, so its day goes on the right.
         val dayInk = ink(day)
@@ -437,32 +469,13 @@ internal class GlassInfo(private val context: Context) {
 
     // ---------- music (above the weather) ----------
 
-    private class Track(val title: String, val artist: String, val art: Bitmap?, val progress: Float?)
-
     private var track: Track? = null
     private var trackAt = 0L
 
-    /** What's playing, looked up once a second; null when nothing is, or Music hasn't been allowed. */
     private fun playing(now: Long): Track? {
         if (now - trackAt < 1000) return track
         trackAt = now
-        track = try {
-            val sessions = context.getSystemService(MediaSessionManager::class.java)
-                .getActiveSessions(ComponentName(context, MediaListener::class.java))
-            sessions.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }?.let { s ->
-                val m = s.metadata ?: return@let null
-                val title = m.getString(MediaMetadata.METADATA_KEY_TITLE) ?: m.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE) ?: return@let null
-                val state = s.playbackState!!
-                val length = m.getLong(MediaMetadata.METADATA_KEY_DURATION)
-                // The position is reported now and then; it has moved on by the time passed, at the playback speed.
-                val at = state.position + ((android.os.SystemClock.elapsedRealtime() - state.lastPositionUpdateTime) * state.playbackSpeed).toLong()
-                Track(title, m.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: m.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE) ?: "",
-                    m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: m.getBitmap(MediaMetadata.METADATA_KEY_ART) ?: m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON),
-                    if (length > 0) (at.toFloat() / length).coerceIn(0f, 1f) else null)
-            }
-        } catch (e: SecurityException) { // Music not allowed (no notification access)
-            null
-        }
+        track = nowPlaying(context)
         return track
     }
 

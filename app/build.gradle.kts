@@ -13,8 +13,8 @@ android {
         applicationId = "dev.koolest"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "2.3.0"
+        versionCode = 13
+        versionName = "2.4.0"
     }
 
     // Release key lives outside the repo; keystore.properties (git-ignored) points at it. Without that file

@@ -20,7 +20,7 @@
         android:layout_height="match_parent"
         android:alpha="0"
         android:importantForAccessibility="no"
-        android:scaleType="centerCrop" />
+        android:scaleType="fitXY" /> <!-- each picture crops itself, see CenterCrop -->
 
     <!-- 30nama's static scrims over the stage (start edge and bottom), painted in code from the ground colour. -->
     <View
@@ -48,10 +48,62 @@
             android:layout_gravity="top|end"
             android:layout_marginTop="27dp"
             android:layout_marginEnd="40dp"
+            android:clipToPadding="false"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="16dp"
             android:paddingEnd="5dp">
+
+            <!-- Now playing, like a Live Activity in the Dynamic Island: the cover, title and artist, while music
+                 plays (Settings, Home screen, Now playing; it needs Koolest's notification access). -->
+            <LinearLayout
+                android:id="@+id/nowPlaying"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="-10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/npArt"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:importantForAccessibility="no"
+                    android:scaleType="centerCrop" />
+
+                <TextView
+                    android:id="@+id/npTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:maxWidth="170dp"
+                    android:maxLines="1"
+                    android:textFontWeight="600"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/npArtist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:alpha="0.6"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:maxWidth="120dp"
+                    android:maxLines="1"
+                    android:textSize="12sp" />
+
+                <View
+                    android:id="@+id/npDivider"
+                    android:layout_width="1dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
+                    android:alpha="0.2" />
+            </LinearLayout>
 
             <!-- Off unless turned on in settings. -->
             <LinearLayout
@@ -129,6 +181,17 @@
                     android:format24Hour="EEE, d MMM"
                     android:includeFontPadding="false"
                     android:textSize="12sp" />
+
+                <!-- The Persian (Shamsi) date, beside or instead of the other (Settings, Home screen, Top bar date). -->
+                <TextView
+                    android:id="@+id/faDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:alpha="0.6"
+                    android:includeFontPadding="false"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <View

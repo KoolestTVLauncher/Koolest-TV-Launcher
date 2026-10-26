@@ -20,6 +20,12 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Screensaver timing (Settings, Screensaver, Starts after): Android's screen-off time is a system setting.
+         Allowed once, on Android's "Modify system settings" page or, in the sideload build, through the TV's adb. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
