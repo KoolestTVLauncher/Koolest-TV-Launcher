@@ -343,25 +343,27 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- Launcher settings: side panel over a dimmed home screen; Back closes it. -->
+    <!-- Launcher settings: a floating glass card over the dimmed (and, on Android 12+, blurred) home screen;
+         Back closes it. Its top lines up with the top bar it opens from; padding is PANEL_PAD so rows nest concentric. -->
     <FrameLayout
         android:id="@+id/settingsScrim"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#99000000"
+        android:background="#73000000"
         android:clickable="true"
         android:visibility="gone">
 
         <LinearLayout
             android:id="@+id/settingsPanel"
-            android:layout_width="380dp"
+            android:layout_width="360dp"
             android:layout_height="match_parent"
             android:layout_gravity="end"
+            android:layout_marginTop="27dp"
+            android:layout_marginEnd="40dp"
+            android:layout_marginBottom="27dp"
             android:orientation="vertical"
-            android:paddingStart="28dp"
-            android:paddingTop="40dp"
-            android:paddingEnd="48dp"
-            android:paddingBottom="27dp">
+            android:padding="14dp"
+            android:paddingTop="22dp">
 
             <TextView
                 android:id="@+id/settingsTitle"

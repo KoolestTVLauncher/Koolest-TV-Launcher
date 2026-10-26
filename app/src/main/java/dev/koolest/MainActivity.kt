@@ -595,18 +595,20 @@ class MainActivity : Activity() {
         fg = if (dark) 0xFFF4F1EA.toInt() else 0xFF14161C.toInt()
         focusFill = if (dark) Color.WHITE else 0xFF16181E.toInt()
         focusInk = if (dark) 0xFF0B0C10.toInt() else Color.WHITE
-        cardRest = if (dark) intArrayOf(0xFF161922.toInt(), 0xFF161922.toInt()) else intArrayOf(0xD9F2F0EB.toInt(), 0xD9E5E2DC.toInt())
+        cardRest = if (dark) intArrayOf(0xFF161922.toInt(), 0xFF161922.toInt()) else intArrayOf(0xD9EFF0F2.toInt(), 0xD9E4E5E8.toInt())
         cardLit = intArrayOf(focusFill, focusFill)
         // Must match the colour each wallpaper fades into, or the bottom edge shows a seam
-        // (the dark one ends at ~#0F1014, which is 30nama's bg-1).
-        ground = if (dark) 0xFF0E1016.toInt() else 0xFFF3F5F7.toInt()
+        // (the dark one ends at ~#0F1014, which is 30nama's bg-1). Light is a soft white, not paper white: a white
+        // screen glares across a dark living room.
+        ground = if (dark) 0xFF0E1016.toInt() else 0xFFE3E4E6.toInt()
         // The ground colour is the window's background, not the root's too (one full-screen layer instead of two).
         // Keep the window's: without one, Android composites the screen the slow way and frames drop further.
         window.setBackgroundDrawable(ColorDrawable(ground))
         findViewById<ImageView>(R.id.wallpaper).let { if (it.drawable == null) it.setImageDrawable(ColorDrawable(ground)) }
         allApps.setBackgroundColor(ground)
         // The top bar's capsule: smoky grey glass with a light hairline edge in dark, frosted white in light.
-        findViewById<View>(R.id.topBar).background = glass(dp(22), if (dark) 0x8C4A4D57.toInt() else 0xE6FFFFFF.toInt())
+        backdrop.panes.clear() // the panes are made again below, in this theme
+        findViewById<View>(R.id.topBar).background = glass(dp(22), if (dark) 0x8C4A4D57.toInt() else 0x8CFAFAFB.toInt(), frosted = true)
         for (id in intArrayOf(R.id.infoDivider, R.id.iconDivider)) findViewById<View>(id).setBackgroundColor(fg)
         for (id in intArrayOf(R.id.clock, R.id.date, R.id.wxTemp, R.id.wxDesc, R.id.appsTitle, R.id.allAppsTitle,
             R.id.shelfTitle, R.id.shelfMeta, R.id.shelfPlot)) {
@@ -615,16 +617,42 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.stageScrim).background = stageScrims(ground)
         // The menu: clear frosted glass (a faint white veil) round the icons at rest; open, a card of the same height,
         // a little denser so the labels read, over the dimmed screen.
-        findViewById<View>(R.id.railRest).background = glass(dp(26), if (dark) 0x14FFFFFF else 0x80FFFFFF.toInt())
-        findViewById<View>(R.id.railPanel).background = glass(dp(26), if (dark) 0xB333363E.toInt() else 0xCCFFFFFF.toInt())
-        findViewById<View>(R.id.railDim).setBackgroundColor(ground)
+        findViewById<View>(R.id.railRest).background = glass(dp(26), if (dark) 0x40202228 else 0x73FAFAFB, frosted = true)
+        findViewById<View>(R.id.railPanel).background = glass(dp(26), if (dark) 0x9933363E.toInt() else 0xB3F7F7F8.toInt(), frosted = true)
+        // Under an open menu the screen dims, as under an iOS sheet: toward the ground in dark, toward black in light,
+        // where fading toward white washed the screen out.
+        findViewById<View>(R.id.railDim).setBackgroundColor(if (dark) ground else Color.BLACK)
+        // Glass floats: a soft shadow under each pane (its outline comes from LiquidGlass). It's what makes
+        // light glass visible at all, white on a light screen; in dark the rim does that and a shadow would vanish.
+        // Not the menu: its glass is a sibling behind the icons, and elevation would lift it over them.
+        for (id in intArrayOf(R.id.topBar, R.id.settingsPanel)) findViewById<View>(id).apply {
+            elevation = if (dark) 0f else dp(10).toFloat()
+            if (Build.VERSION.SDK_INT >= 28) {
+                outlineAmbientShadowColor = 0x40000000
+                outlineSpotShadowColor = 0x59000000
+            }
+        }
     }
 
-    /** A rounded glass panel: the fill with a hairline edge (light on dark, dark on light). */
-    private fun glass(radius: Int, fill: Int) = GradientDrawable().apply {
-        cornerRadius = radius.toFloat()
-        setColor(fill)
-        setStroke(dp(1), if (dark) 0x33FFFFFF else 0x14000000)
+    /** A rounded Liquid Glass surface for the navigation layer (see [LiquidGlass]); [frosted] shows the screen behind. */
+    private fun glass(radius: Int, fill: Int, frosted: Boolean = false) =
+        LiquidGlass(radius.toFloat(), fill, dark, resources.displayMetrics.density, if (frosted) backdrop else null)
+
+    private val backdrop = Backdrop()
+    private var wallpaperBmp: Bitmap? = null
+
+    /** Rebuilds what the floating glass shows through it: [picture] (the art or the wallpaper) under the scrims. */
+    private fun updateBackdrop(picture: Bitmap?) {
+        val m = resources.displayMetrics
+        val scrims = stageScrims(ground)
+        io.execute {
+            val frost = try {
+                Backdrop.build(picture, scrims, m.widthPixels, m.heightPixels, ground)
+            } catch (e: Exception) { // the picture was recycled meanwhile: the next change rebuilds it
+                null
+            } ?: return@execute
+            ui.post { backdrop.frost = frost }
+        }
     }
 
     /**
@@ -701,6 +729,8 @@ class MainActivity : Activity() {
             } ?: decodeWallpaper(fallback)
             ui.post {
                 val old = view.drawable
+                wallpaperBmp = bmp
+                if (hero.alpha == 0f) updateBackdrop(bmp)
                 if (bmp == null) return@post view.setImageDrawable(ColorDrawable(ground))
                 if (old == null) return@post view.setImageBitmap(bmp)
                 // Soft change from one photo to the next; then drop the old one so only one stays in memory.
@@ -985,17 +1015,26 @@ class MainActivity : Activity() {
 
     private fun showPanel() {
         panelFrom = currentFocus
-        findViewById<View>(R.id.settingsPanel).setBackgroundColor(if (dark) 0xF707080B.toInt() else 0xFFF7F8FA.toInt())
-        findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
-        // Slides in from the end edge over a fading scrim (closing stays instant, see closeLauncherSettings).
+        // A floating glass card. On Android 12+ the home screen under it is blurred, so the glass is truly frosted
+        // and the screen recedes, as iOS does under a sheet; before that, the dimming alone separates them.
+        val frost = Build.VERSION.SDK_INT >= 31
         val panel = findViewById<View>(R.id.settingsPanel)
+        panel.background = glass(dp(PANEL_RADIUS), if (dark) (if (frost) 0xA61C1E25 else 0xF21C1E25).toInt() else (if (frost) 0xB8F7F7F8 else 0xF5F7F7F8).toInt())
+        findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
+        if (frost) (homeLayers + allApps).forEach { it.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(dp(24).toFloat(), dp(24).toFloat(), android.graphics.Shader.TileMode.CLAMP)) }
+        // Grows out of the settings button (top end), as iOS menus open from what you pressed; closing stays
+        // instant, see closeLauncherSettings.
         if (settingsScrim.visibility != View.VISIBLE) {
             settingsScrim.alpha = 0f
-            panel.translationX = dp(380).toFloat()
+            panel.pivotX = panel.width.toFloat().takeIf { it > 0 } ?: dp(380).toFloat()
+            panel.pivotY = 0f
+            panel.scaleX = .9f
+            panel.scaleY = .9f
+            panel.alpha = 0f
         }
         settingsScrim.visibility = View.VISIBLE
         settingsScrim.animate().alpha(1f).setDuration(240).setInterpolator(EASE_OUT).start()
-        panel.animate().translationX(0f).setDuration(420).setInterpolator(EMPH).start()
+        panel.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(380).setInterpolator(EMPH).start()
         homeFocusable(false)
     }
 
@@ -1004,6 +1043,7 @@ class MainActivity : Activity() {
         pageExit = null
         pageBack = null
         settingsScrim.visibility = View.GONE // instant: a dozen key paths read "visible" as "open"
+        if (Build.VERSION.SDK_INT >= 31) (homeLayers + allApps).forEach { it.setRenderEffect(null) }
         homeFocusable(allApps.visibility != View.VISIBLE) // the PIN can open over All apps
         (panelFrom?.takeIf { it.isAttachedToWindow } ?: findViewById(R.id.launcherSettings)).requestFocus()
         panelFrom = null
@@ -1308,7 +1348,8 @@ class MainActivity : Activity() {
     }
 
     private fun settingsRow(title: String, value: String, action: () -> Unit): View {
-        val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0, 0)).apply { cornerRadius = dp(8).toFloat() }
+        // Concentric with the panel: its radius less the padding round the rows.
+        val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0, 0)).apply { cornerRadius = dp(PANEL_RADIUS - PANEL_PAD).toFloat() }
         return LinearLayout(this).apply {
             id = View.generateViewId()
             orientation = LinearLayout.HORIZONTAL
@@ -1625,14 +1666,28 @@ class MainActivity : Activity() {
         frame.outlineProvider = object : android.view.ViewOutlineProvider() { // for the lift shadow
             override fun getOutline(view: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, view.width, view.height, radius)
         }
+        if (Build.VERSION.SDK_INT >= 28) {
+            frame.outlineSpotShadowColor = if (dark) Color.BLACK else 0x40000000
+            frame.outlineAmbientShadowColor = if (dark) Color.BLACK else 0x26000000
+        }
         val ring = GradientDrawable().apply {
             cornerRadius = radius + dp(3)
             setStroke(dp(2), focusFill)
             alpha = 0
         }
-        frame.foreground = android.graphics.drawable.InsetDrawable(ring, -dp(5))
+        val sheen = Sheen(radius)
+        frame.foreground = android.graphics.drawable.LayerDrawable(arrayOf(android.graphics.drawable.InsetDrawable(ring, -dp(5)), sheen))
+        val sweep = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+            startDelay = 120 // once the lift is under way
+            duration = 750
+            interpolator = EASE_OUT
+            addUpdateListener { sheen.progress = it.animatedValue as Float }
+        }
         return { focused ->
             ring.alpha = if (focused) 255 else 0
+            sweep.cancel()
+            sheen.progress = 0f
+            if (focused && android.animation.ValueAnimator.areAnimatorsEnabled()) sweep.start() // not with animations off (reduced motion)
             frame.animate().scaleX(if (focused) lift else 1f).scaleY(if (focused) lift else 1f)
                 .translationZ(if (focused) dp(18).toFloat() else 0f).setDuration(220).setInterpolator(EASE_OUT).start()
         }
@@ -1867,7 +1922,7 @@ class MainActivity : Activity() {
             setPadding(dp(6), dp(6), dp(6), dp(6))
             background = GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat()
-                setColor(if (dark) 0xFF161922.toInt() else 0xFFF7F8FA.toInt())
+                setColor(if (dark) 0xFF161922.toInt() else 0xFFF7F7F8.toInt())
             }
             elevation = dp(8).toFloat()
         }
@@ -2944,7 +2999,7 @@ class MainActivity : Activity() {
         val t = if (open) 1f else 0f
         findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).start()
         findViewById<View>(R.id.railRest).animate().alpha(1 - t).setDuration(240).setInterpolator(EASE_OUT).start() // else it shows through the card
-        findViewById<View>(R.id.railDim).animate().alpha(t * 0.7f).setDuration(240).setInterpolator(EASE_OUT).start()
+        findViewById<View>(R.id.railDim).animate().alpha(t * if (dark) 0.7f else 0.25f).setDuration(240).setInterpolator(EASE_OUT).start()
         railLabels.forEachIndexed { i, l ->
             l.animate().alpha(t).setStartDelay(if (open) i * 20L else 0L).setDuration(240).setInterpolator(EASE_OUT).start()
         }
@@ -3039,6 +3094,7 @@ class MainActivity : Activity() {
     /** Cross-fades the billboard art to [art] (no dip to the wallpaper between cards); [swap] sharpens the same picture in place. */
     private fun showArt(art: Bitmap?, swap: Boolean = false) {
         val wallpaper = findViewById<View>(R.id.wallpaper)
+        updateBackdrop(art ?: wallpaperBmp)
         if (art == null) {
             wallpaper.visibility = View.VISIBLE
             return run { hero.animate().alpha(0f).setDuration(420).setInterpolator(EASE_OUT).start() }
@@ -3173,8 +3229,11 @@ class MainActivity : Activity() {
             v.foreground = ring
             v.clipToOutline = true
         }
-        v.outlineSpotShadowColor = Color.BLACK
-        v.outlineAmbientShadowColor = Color.BLACK
+        // The focus lift's shadow: deep in dark; in light a soft grey one, as black looked like a hole in the page.
+        if (Build.VERSION.SDK_INT >= 28) { // shadow colours are Android 9+; before that, the default grey
+            v.outlineSpotShadowColor = if (dark) Color.BLACK else 0x40000000
+            v.outlineAmbientShadowColor = if (dark) Color.BLACK else 0x26000000
+        }
         v.elevation = 0f
         v.isFocusable = true
         v.isClickable = true
@@ -3258,6 +3317,8 @@ class MainActivity : Activity() {
         // Focus grows a 200 dp item by 6 dp a side, and its ring sits 5 dp past that: 11 dp, so a 20 dp gap keeps
         // the focused item clear of its neighbours.
         const val FOCUS_LIFT = 1.06f
+        const val PANEL_RADIUS = 28 // dp, the settings card
+        const val PANEL_PAD = 14 // dp between the card's edge and its rows
         const val ITEM_GAP = 20
         const val FOCUS_ROOM = 14 // dp round a row's items for the focused one's lift and ring (11 dp)
         const val EAGER_POSTERS = 6 // card pictures loaded per row up front (a screenful); the rest as focus nears
