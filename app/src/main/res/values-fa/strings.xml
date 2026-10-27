@@ -1,16 +1,16 @@
 <!-- Persian. A sentence never starts with a Latin word (Koolest, Wi-Fi): Android takes a paragraph's direction from its
      first strong letter, so it would lay the whole sentence out left to right. Menu paths point left (←). -->
 <resources>
-    <string name="override_desc">هر بار که صفحهٔ اصلی Google TV باز شود، Koolest را باز می‌کند تا دکمهٔ Home به اینجا برسد.</string>
+    <string name="override_desc">هر بار که صفحه‌ی اصلی Google TV باز شود، Koolest را باز می‌کند تا دکمه‌ی Home به اینجا برسد.</string>
 
     <!-- Home screen -->
     <string name="settings_title">تنظیمات Koolest</string>
-    <string name="all_apps">همهٔ برنامه‌ها</string>
+    <string name="all_apps">همه‌ی برنامه‌ها</string>
     <string name="cd_network">تنظیمات شبکه</string>
     <string name="cd_settings">تنظیمات</string>
     <string name="search">جستجو</string>
     <string name="home">خانه</string>
-    <string name="row_continue">ادامهٔ تماشا</string>
+    <string name="row_continue">ادامه‌ی تماشا</string>
     <string name="row_apps">برنامه‌ها</string>
     <string name="row_consoles">کنسول‌ها و ورودی‌ها</string>
     <string name="feels">دمای احساسی %s</string>
@@ -22,10 +22,10 @@
     <string name="unlock_to_edit">باز کردن قفل برای ویرایش…</string>
     <string name="move">جابه‌جایی</string>
     <string name="remove_from_row">برداشتن از ردیف</string>
-    <string name="removed_from_row">از ردیف برداشته شد. هنوز در «همهٔ برنامه‌ها» هست.</string>
+    <string name="removed_from_row">از ردیف برداشته شد. هنوز در «همه‌ی برنامه‌ها» هست.</string>
     <string name="app_info">اطلاعات برنامه</string>
     <string name="hide_from_home">پنهان کردن از خانه</string>
-    <string name="hidden_from_home">از صفحهٔ خانه پنهان شد</string>
+    <string name="hidden_from_home">از صفحه‌ی خانه پنهان شد</string>
     <string name="open_app">باز کردن برنامه</string>
     <string name="turn_apps_row_on">اول ردیف برنامه‌ها را روشن کنید</string>
     <string name="moving_hint">جابه‌جایی:  ▶ ◀ حرکت  ·  OK گذاشتن</string>
@@ -41,7 +41,7 @@
     <!-- Settings groups -->
     <string name="look">ظاهر</string>
     <string name="look_hint">زبان، پوسته، تصویر زمینه</string>
-    <string name="home_screen">صفحهٔ خانه</string>
+    <string name="home_screen">صفحه‌ی خانه</string>
     <string name="home_screen_hint">ردیف‌ها، برنامه‌ها</string>
     <string name="continue_hint">فیلم‌ها و سریال‌ها</string>
     <string name="weather">آب‌وهوا</string>
@@ -49,7 +49,7 @@
     <string name="screensaver">محافظ صفحه</string>
     <string name="screensaver_hint">گالری، ساعت، آب‌وهوا</string>
     <string name="this_tv">این تلویزیون</string>
-    <string name="this_tv_hint">دکمهٔ خانه، به‌روزرسانی</string>
+    <string name="this_tv_hint">دکمه‌ی خانه، به‌روزرسانی</string>
 
     <!-- Settings rows and their values -->
     <string name="language">زبان</string>
@@ -59,8 +59,8 @@
     <string name="light">روشن</string>
     <string name="dark">تیره</string>
     <string name="auto">خودکار</string>
-    <string name="light_wallpaper">تصویر زمینهٔ روشن</string>
-    <string name="dark_wallpaper">تصویر زمینهٔ تیره</string>
+    <string name="light_wallpaper">تصویر زمینه‌ی روشن</string>
+    <string name="dark_wallpaper">تصویر زمینه‌ی تیره</string>
     <string name="soften_photos">نرم کردن عکس‌ها</string>
     <string name="photo_changes">تعویض عکس</string>
     <string name="app_order">ترتیب برنامه‌ها</string>
@@ -89,8 +89,8 @@
     <string name="gallery">گالری</string>
     <string name="preview">پیش‌نمایش</string>
     <string name="when_it_starts">زمان شروع</string>
-    <string name="home_button">دکمهٔ خانه</string>
-    <string name="default_home">خانهٔ پیش‌فرض</string>
+    <string name="home_button">دکمه‌ی خانه</string>
+    <string name="default_home">خانه‌ی پیش‌فرض</string>
     <string name="yes">بله</string>
     <string name="set">تنظیم</string>
     <string name="updates">به‌روزرسانی</string>
@@ -143,7 +143,7 @@
     <string name="adb_allow">اگر تلویزیون پرسید، «همیشه اجازه بده» را تیک بزنید و «اجازه» را انتخاب کنید</string>
     <string name="adb_denied">تلویزیون اجازه نداد. دوباره امتحان کنید و «اجازه» را انتخاب کنید.</string>
     <string name="tv_didnt_allow">تلویزیون اجازه نداد. دوباره امتحان کنید.</string>
-    <string name="adb_help">این کار از راه اشکال‌زدایی شبکهٔ تلویزیون انجام می‌شود که خاموش است.\n\n۱. تنظیمات ← سیستم ← درباره: روی «ساخت سیستم‌عامل Android TV» هفت بار OK را بزنید.\n۲. تنظیمات ← سیستم ← گزینه‌های برنامه‌نویس: «اشکال‌زدایی USB» و اگر بود «اشکال‌زدایی شبکه» را روشن کنید.\n۳. برگردید و «دوباره امتحان کنید» را انتخاب کنید.\n\nبعد از آن می‌توانید اشکال‌زدایی را دوباره خاموش کنید؛ تغییر می‌ماند.</string>
+    <string name="adb_help">این کار از راه اشکال‌زدایی شبکه‌ی تلویزیون انجام می‌شود که خاموش است.\n\n۱. تنظیمات ← سیستم ← درباره: روی «ساخت سیستم‌عامل Android TV» هفت بار OK را بزنید.\n۲. تنظیمات ← سیستم ← گزینه‌های برنامه‌نویس: «اشکال‌زدایی USB» و اگر بود «اشکال‌زدایی شبکه» را روشن کنید.\n۳. برگردید و «دوباره امتحان کنید» را انتخاب کنید.\n\nبعد از آن می‌توانید اشکال‌زدایی را دوباره خاموش کنید؛ تغییر می‌ماند.</string>
     <string name="turn_on_debugging">روشن کردن اشکال‌زدایی</string>
     <string name="open_dev_options">باز کردن گزینه‌های برنامه‌نویس</string>
     <string name="try_again">دوباره امتحان کنید</string>
@@ -158,8 +158,8 @@
     <string name="add_from_phone">افزودن از گوشی…</string>
     <string name="choose_from_tv">انتخاب پوشه‌ای روی این تلویزیون…</string>
     <string name="remove_photo_more">حذف یک عکس…</string>
-    <string name="light_wallpaper_title">تصویر زمینهٔ حالت روشن</string>
-    <string name="dark_wallpaper_title">تصویر زمینهٔ حالت تیره</string>
+    <string name="light_wallpaper_title">تصویر زمینه‌ی حالت روشن</string>
+    <string name="dark_wallpaper_title">تصویر زمینه‌ی حالت تیره</string>
     <string name="folder_photo_changes">تعویض عکس‌های پوشه</string>
     <string name="every_minute">هر دقیقه</string>
     <string name="every_n_min">هر %d دقیقه</string>
@@ -180,19 +180,19 @@
     <string name="need_network">اول تلویزیون را به Wi-Fi یا اترنت وصل کنید</string>
     <string name="waiting_photo">در انتظار عکس…</string>
     <string name="added_photo">اضافه شد: «%s». یکی دیگر بفرستید یا «تمام» را بزنید.</string>
-    <string name="upload_failed">صفحهٔ بارگذاری باز نشد</string>
+    <string name="upload_failed">صفحه‌ی بارگذاری باز نشد</string>
     <string name="scan_hint">با گوشی اسکن کنید. گوشی باید روی Wi-Fi همین تلویزیون باشد.</string>
     <string name="add_from_your_phone">افزودن از گوشی شما</string>
 
     <!-- PIN lock -->
     <string name="enter_pin">رمز را وارد کنید</string>
-    <string name="too_many_tries">تلاش‌ها زیاد شد. %d ثانیهٔ دیگر دوباره امتحان کنید.</string>
+    <string name="too_many_tries">تلاش‌ها زیاد شد. %d ثانیه‌ی دیگر دوباره امتحان کنید.</string>
     <string name="wrong_pin">رمز اشتباه است</string>
     <string name="choose_pin">یک رمز انتخاب کنید</string>
     <string name="enter_again">دوباره وارد کنید</string>
     <string name="pins_mismatch">رمزها یکی نبودند. دوباره انتخاب کنید.</string>
-    <string name="layout_locked">چیدمان قفل شد. حالا تنظیمات Koolest و تغییرات صفحهٔ خانه رمز می‌خواهند.</string>
-    <string name="pin_keys_hint">▲ ▼ تغییر  ·  ▶ ◀ حرکت  ·  OK تأیید. دکمه‌های عددی هم کار می‌کنند.</string>
+    <string name="layout_locked">چیدمان قفل شد. حالا تنظیمات Koolest و تغییرات صفحه‌ی خانه رمز می‌خواهند.</string>
+    <string name="pin_keys_hint">▲ ▼ تغییر  ·  ▶ ◀ حرکت  ·  OK تایید. دکمه‌های عددی هم کار می‌کنند.</string>
     <string name="pin_forgot">فراموش کردید؟ پاک کردن داده‌های Koolest در تنظیمات Android ← برنامه‌ها آن را برمی‌دارد و همه‌چیز را از نو می‌کند.</string>
 
     <!-- Screensaver -->
@@ -200,7 +200,7 @@
     <string name="gallery_paintings">نقاشی‌های گالری</string>
     <string name="your_photos">عکس‌های شما</string>
     <string name="choose_gallery_here">اینجا «Gallery» را به‌عنوان محافظ صفحه انتخاب کنید</string>
-    <string name="no_notification_page">این تلویزیون صفحهٔ دسترسی به اعلان‌ها ندارد</string>
+    <string name="no_notification_page">این تلویزیون صفحه‌ی دسترسی به اعلان‌ها ندارد</string>
     <string name="n_min">%d دقیقه</string>
     <string name="n_h">%d ساعت</string>
     <string name="n_h_min">%1$d ساعت و %2$d دقیقه</string>
@@ -212,14 +212,14 @@
     <string name="cant_start_screensaver">این تلویزیون نمی‌تواند محافظ صفحه را همین حالا اجرا کند</string>
 
     <!-- Updates -->
-    <string name="update_available">نسخهٔ %s از Koolest آمده است. در تنظیمات Koolest به‌روزش کنید.</string>
+    <string name="update_available">نسخه‌ی %s از Koolest آمده است. در تنظیمات Koolest به‌روزش کنید.</string>
     <string name="update_check_failed">بررسی به‌روزرسانی انجام نشد. اتصال را بررسی کنید.</string>
-    <string name="up_to_date">نسخهٔ Koolest به‌روز است</string>
+    <string name="up_to_date">نسخه‌ی Koolest به‌روز است</string>
     <string name="allow_installs">در فهرست بعدی Koolest را روشن کنید، سپس دوباره «به‌روزرسانی» را بزنید</string>
     <string name="no_settings_page">این تلویزیون تنظیماتش را باز نکرد</string>
-    <string name="clear_defaults_hint">خانهٔ پیش‌فرض اکنون %1$s است: «پاک کردن پیش‌فرض‌ها» را بزنید، سپس دکمهٔ خانه را بزنید و Koolest را انتخاب کنید</string>
-    <string name="pick_home_hint">گزینهٔ Koolest و سپس «همیشه» را انتخاب کنید</string>
-    <string name="home_outranked">لانچر خود این تلویزیون همیشه زودتر دکمهٔ خانه را می‌گیرد: به‌جای آن «دکمهٔ خانه» را روشن کنید</string>
+    <string name="clear_defaults_hint">خانه‌ی پیش‌فرض اکنون %1$s است: «پاک کردن پیش‌فرض‌ها» را بزنید، سپس دکمه‌ی خانه را بزنید و Koolest را انتخاب کنید</string>
+    <string name="pick_home_hint">گزینه‌ی Koolest و سپس «همیشه» را انتخاب کنید</string>
+    <string name="home_outranked">لانچر خود این تلویزیون همیشه زودتر دکمه‌ی خانه را می‌گیرد: به‌جای آن «دکمه‌ی خانه» را روشن کنید</string>
     <string name="update_download_failed">دانلود به‌روزرسانی انجام نشد. اتصال را بررسی کنید و دوباره امتحان کنید.</string>
     <string name="update_install_failed">نصب به‌روزرسانی انجام نشد</string>
 
@@ -231,7 +231,7 @@
     <string name="no_places">جایی به نام «%s» پیدا نشد.</string>
 
     <!-- Continue watching -->
-    <string name="no_watch_sources">هیچ برنامهٔ نصب‌شده‌ای از «ادامهٔ تماشا» پشتیبانی نمی‌کند</string>
+    <string name="no_watch_sources">هیچ برنامه‌ی نصب‌شده‌ای از «ادامه‌ی تماشا» پشتیبانی نمی‌کند</string>
     <!-- Between parts of a caption. Not "·": beside Persian digits it reads as a zero (۰). The right-to-left mark
          keeps "۲°، Montreal" from joining into one left-to-right run. -->
     <string name="sep">"،\u200F "</string>

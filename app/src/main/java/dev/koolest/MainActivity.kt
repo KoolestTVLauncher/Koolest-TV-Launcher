@@ -13,6 +13,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -1574,6 +1575,7 @@ class MainActivity : Activity() {
      */
     private fun loadApps(): List<App> {
         val pm = packageManager
+        val ownLanguage = prefs.getString("lang", "").isNullOrEmpty()
         return listOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)
             .flatMap { cat -> pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(cat), 0).map { cat to it.activityInfo } }
             .filter { (_, a) -> a.packageName != packageName && a.packageName !in SETTINGS_APPS }
@@ -1581,13 +1583,27 @@ class MainActivity : Activity() {
             .map { (cat, a) ->
                 App(
                     a.packageName,
-                    a.loadLabel(pm).toString(),
+                    ((if (ownLanguage) null else labelIn(a)) ?: a.loadLabel(pm)).toString(),
                     Intent(Intent.ACTION_MAIN).addCategory(cat)
                         .setComponent(ComponentName(a.packageName, a.name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     a.loadIcon(pm),
                     a.loadBanner(pm),
                 )
             } + consoleInputs()
+    }
+
+    /**
+     * An app's name in Koolest's language, set apart from the TV's: Android looks names up in the TV's language.
+     * Null when the app gives no translatable name.
+     */
+    private fun labelIn(a: ActivityInfo): CharSequence? {
+        val res = if (a.nonLocalizedLabel != null) 0 else if (a.labelRes != 0) a.labelRes else a.applicationInfo.labelRes
+        if (res == 0) return null
+        return try {
+            createPackageContext(a.packageName, 0).createConfigurationContext(resources.configuration).getText(res)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /**
@@ -1600,14 +1616,18 @@ class MainActivity : Activity() {
         // A port with a named device on it shows as that device; an empty or unnamed port still gets a tile ("HDMI 2").
         (devices + hdmi.filter { port -> port.parentId == null && devices.none { it.parentId == port.id } })
             .map { input ->
-                val label = input.loadLabel(this).toString()
+                val name = input.loadLabel(this).toString()
+                // A name given in the TV's input settings wins. The TV's own port names ("HDMI 2") get this language's
+                // digits; a device's own name ("PlayStation 5") stays as it is.
+                val custom = input.loadCustomLabel(this)?.toString()?.takeIf { it.isNotBlank() }
+                val label = custom ?: if (input.parentId == null) name.replace(Regex("\\d+")) { digits(it.value) } else name
                 val port = input.parentId ?: input.id
                 App(
                     HDMI + port,
                     label,
                     Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(port))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    getDrawable(deviceLogo(label).res)!!,
+                    getDrawable(deviceLogo(custom ?: name).res)!!,
                 )
             }
             .distinctBy { it.pkg }
