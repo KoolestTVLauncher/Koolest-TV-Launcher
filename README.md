@@ -3,13 +3,13 @@
 <h1 align="center">Koolest TV Launcher</h1>
 
 <p align="center">
-  A fast, ad-free home screen for Android TV and Google TV, in the look of Glass design, iOS style app.
+  A fast, ad-free home screen for Android TV and Google TV on any brand, in the look of Glass design, iOS style app. In English, French and Persian.
 </p>
 
 <p align="center">
   <a href="https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/KoolestTVLauncher/Koolest-TV-Launcher?label=release"></a>
-  <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3ddc84">
-  <img alt="APK size" src="https://img.shields.io/badge/APK-0.7%20MB-blue">
+  <img alt="Android 8 to 16" src="https://img.shields.io/badge/Android-8%20to%2016-3ddc84">
+  <img alt="APK size" src="https://img.shields.io/badge/APK-0.8%20MB-blue">
   <a href="LICENSE"><img alt="GPL-3.0 License" src="https://img.shields.io/badge/license-GPL--3.0-blue"></a>
 </p>
 
@@ -32,10 +32,12 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **Liquid Glass design, iOS 26 style.** The menu, the top bar and settings are glass edged with light; settings opens as a floating card from its button while the home screen blurs behind it, and a focused poster catches a sweep of light as on Apple TV. Light mode is a soft white that doesn't glare in a dark room, with glass panes lifted on soft shadows.
 - **A taskbar menu.** Search, Home, your pinned apps and consoles, then All apps, in three groups. Add, remove and reorder the pins in settings.
 - **All apps, sorted your way.** Home order, A–Z, most used, recently used or recently installed, picked from an iOS-style segmented control.
+- **English, French and Persian.** Persian lays the whole home screen out right to left. Follow the TV's language or pick one in **Settings → Look → Language**; app names and inputs follow it too, using each app's own translation and the names you gave your inputs in the TV's settings.
+- **Any Android TV brand.** Google TV and Android TV from any maker, Android 8 to Android 16. Koolest works around whichever launcher the TV ships, not only Google TV's.
 - **Motion.** Focused cards grow and lift, rows glide into place and the background crossfades to the focused item's art. A row starts over from its first item each time you come back to it.
 - **Simple settings.** Six groups: Look, Home screen, Continue watching, Weather, Screensaver and This TV.
-- **Home button support on Google TV.** The Home button opens Koolest even where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
-- **Setup without a computer.** **Keep Home working** and **Only launcher** in Settings → This TV do the adb steps from the remote, through the TV's own network debugging. Only launcher switches Google TV's home screen off so Koolest is the only one; switch it off to bring Google TV back.
+- **Home button support on every TV.** The Home button opens Koolest even where the TV's own launcher can't be replaced, as on Google TV and most Android TVs. On Google TV, holding Home still opens the dashboard.
+- **Setup without a computer.** **Keep Home working** and **Only launcher** in Settings → This TV do the adb steps from the remote, through the TV's own network debugging. Only launcher switches the TV's own home screen off (whichever one the TV ships) so Koolest is the only one; switch it off to bring it back.
 - **Now playing in the top bar.** While music plays, the cover, title and artist sit in the top capsule, like a Live Activity in the Dynamic Island (Settings → Home screen → Now playing).
 - **Persian (Shamsi) date in the top bar**, beside the other date or instead of it (Settings → Home screen → Top bar date).
 - **Rows your way.** Turn any row off, or move it up or down (Settings → Home screen → Rows). Items sliding off a row fade out as they pass under the menu.
@@ -65,7 +67,7 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 
 ## Requirements
 
-- Android TV or Google TV running **Android 8.0 (Oreo) or newer**
+- Android TV or Google TV running **Android 8.0 (Oreo) to Android 16**, from any brand
 - A way to sideload an APK: the *Downloader* app, a USB drive with a file manager, or `adb`
 
 ## Installation
@@ -86,7 +88,7 @@ In **Koolest settings → This TV**:
 | Setting | What to do |
 |---|---|
 | **Home button** | Press OK. In the Accessibility screen that opens, select **Koolest: Home button** and turn it on. |
-| **Default home** | Press OK and choose **Koolest TV Launcher** in the dialog. (Google TV keeps its own launcher as the default, which is what the Home button setting works around.) |
+| **Default home** | Press OK and choose **Koolest TV Launcher** in the dialog (on Android 8 and 9, press Home and pick Koolest with **Always**). The row says whether Home really lands on Koolest. On Google TV and many Android TVs, the TV's own launcher always gets Home first whatever the default; Koolest tells you so, and the Home button setting works around it. |
 
 Allow the **TV listings** permission when asked; the content rows and Continue watching need it.
 
@@ -105,18 +107,18 @@ adb shell pm grant dev.koolest android.permission.WRITE_SECURE_SETTINGS
 adb shell appops set dev.koolest APP_AUTO_START allow   # TCL TVs
 ```
 
-Android only starts the Home button service when its setting changes. After a reboot, an update, or the TV closing Koolest in the background (TCL TVs do this while a console is on), Home would land on Google TV again. With the first permission, Koolest switches its service back on by itself: at boot, after an update, every 15 minutes and whenever it opens. It also lets Koolest set the Gallery screensaver. The second line is for TCL TVs, whose own "auto start" guard otherwise stops Android from starting the service and from telling Koolest the TV has booted.
+Android only starts the Home button service when its setting changes. After a reboot, an update, or the TV closing Koolest in the background (TCL TVs do this while a console is on), Home would land on the TV's own launcher again. With the first permission, Koolest switches its service back on by itself: at boot, after an update, every 15 minutes and whenever it opens. It also lets Koolest set the Gallery screensaver. The second line is for TCL TVs, whose own "auto start" guard otherwise stops Android from starting the service and from telling Koolest the TV has booted.
 
 ### Optional: make Koolest the only launcher (adb)
 
-On Google TV, the system launcher always outranks Koolest as the default home. To have Koolest be the only one, turn off Google TV's launcher and its setup screen, which otherwise takes over Home. On the TV, switch on **Settings → This TV → Only launcher** (same debugging steps as above; switch it off to undo), or from a computer:
+On Google TV and most Android TVs, the TV's own launcher always outranks Koolest as the default home. To have Koolest be the only one, turn off every other home screen. On the TV, switch on **Settings → This TV → Only launcher** (same debugging steps as above; switch it off to undo): it finds whichever launchers the TV has and turns them off. From a computer, on Google TV that's the launcher and its setup screen, which otherwise takes over Home:
 
 ```sh
 adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
 adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
 ```
 
-Wait about 15 seconds before rebooting, or Android may not have saved the change yet. Nothing is uninstalled. Holding Home no longer opens the Google TV dashboard, and its quick-settings panel and profiles go away with it; the full Settings app still works. To undo, run the same lines with `pm enable <package>`. A factory reset or a system update may turn Google TV back on.
+Wait about 15 seconds before rebooting, or Android may not have saved the change yet. Nothing is uninstalled. Holding Home no longer opens the Google TV dashboard, and its quick-settings panel and profiles go away with it; the full Settings app still works. To undo, run the same lines with `pm enable <package>`. On other brands, `adb shell cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME` lists the home screens to turn off; leave `com.android.tv.settings` on, it's Android's fallback home. A factory reset or a system update may turn the TV's launcher back on.
 
 ## Using Koolest
 
@@ -129,6 +131,7 @@ Wait about 15 seconds before rebooting, or Android may not have saved the change
 | Choose which apps feed Continue watching | **Settings → Continue watching → Apps** |
 | Sort All apps | Open **All apps** and pick a sort at the top |
 | Change theme or wallpaper | **Settings → Look** |
+| Change the language | **Settings → Look → Language** (English, Français, فارسی, or the TV's) |
 | Lock the layout with a PIN | **Settings → This TV → PIN lock** |
 | Back on the home screen | From deep in a row, back to its first item; again, to the menu; again, back to the rows |
 | Open the Google TV dashboard | Hold the **Home** button (not if Google TV is [turned off](#optional-make-koolest-the-only-launcher-adb)) |
@@ -137,7 +140,7 @@ Wait about 15 seconds before rebooting, or Android may not have saved the change
 
 | Problem | Fix |
 |---|---|
-| Home opens Google TV after a reboot, an update or a console session | Run the two `adb` lines under [Recommended](#recommended-keep-the-home-button-working-adb), then switch **Home button** off and on in **Settings → This TV**. |
+| Home opens the TV's own launcher after a reboot, an update or a console session | Run the two `adb` lines under [Recommended](#recommended-keep-the-home-button-working-adb), then switch **Home button** off and on in **Settings → This TV**. |
 | Home button setting won't turn on (Android 13+) | **Settings → Apps → Koolest TV Launcher → ⋮ → Allow restricted settings**, then try again. |
 | Rows or Continue watching are empty | Allow the **TV listings** permission. Then see the notes below: an app only shows up if it reports to the TV. |
 | Screensaver won't switch | Grant `WRITE_SECURE_SETTINGS` over `adb` (above); Android doesn't let apps set the screensaver otherwise. |
