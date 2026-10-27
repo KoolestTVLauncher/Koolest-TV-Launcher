@@ -47,17 +47,23 @@ internal fun weatherIcon(code: Int, day: Boolean) = when (code) {
 }
 
 /** WMO weather codes, as Open-Meteo reports them. */
-internal fun weatherWord(code: Int) = when (code) {
-    0 -> "Clear"
-    1, 2 -> "Partly cloudy"
-    3 -> "Cloudy"
-    45, 48 -> "Fog"
-    in 51..57 -> "Drizzle"
-    in 61..67, in 80..82 -> "Rain"
-    in 71..77, 85, 86 -> "Snow"
-    in 95..99 -> "Thunderstorm"
-    else -> ""
-}
+internal fun weatherWord(c: Context, code: Int) = when (code) {
+    0 -> R.string.wx_clear
+    1, 2 -> R.string.wx_partly
+    3 -> R.string.wx_cloudy
+    45, 48 -> R.string.wx_fog
+    in 51..57 -> R.string.wx_drizzle
+    in 61..67, in 80..82 -> R.string.wx_rain
+    in 71..77, 85, 86 -> R.string.wx_snow
+    in 95..99 -> R.string.wx_storm
+    else -> null
+}?.let(c::getString).orEmpty()
+
+/**
+ * "-3°" in the language's digits, embedded left to right so in a Persian line the minus and ° stay where they are in
+ * English. Embedding, not isolating: the TCL's canvas text (the screensaver) ignored isolates.
+ */
+internal fun degrees(n: Int) = "\u202A%d°\u202C".format(n)
 
 /** Where the weather is for: the city picked in settings, or the IP's (re-checked every 6 hours). */
 internal fun locate(prefs: SharedPreferences) {
@@ -334,7 +340,7 @@ internal class GlassInfo(private val context: Context) {
         val cur = f.getJSONObject("current")
         val daily = f.getJSONObject("daily")
         val unitF = prefs.getString("weather", "c") == "f"
-        fun deg(v: Double) = "${(if (unitF) v * 9 / 5 + 32 else v).roundToInt()}°"
+        fun deg(v: Double) = degrees((if (unitF) v * 9 / 5 + 32 else v).roundToInt())
         g.panel(c, card, 36f)
         val l = card.left
         val t = card.top
@@ -346,10 +352,11 @@ internal class GlassInfo(private val context: Context) {
         line(c, temp, l + 102, t + 88, 70f, medium, 255)
         text.textSize = 70f
         val tx = l + 102 + text.measureText(temp) + 20
-        line(c, weatherWord(code), tx, t + 48, 30f, medium, 255)
-        line(c, "Feels ${deg(cur.getDouble("apparent_temperature"))}  ·  H ${deg(daily.getJSONArray("temperature_2m_max").getDouble(0))}" +
-            "  L ${deg(daily.getJSONArray("temperature_2m_min").getDouble(0))}", tx, t + 84, 26f, medium, 230)
-        prefs.getString("geo_city", null)?.let { line(c, it, tx, t + 116, 24f, regular, SECONDARY) }
+        val room = card.right - 24 - tx // a longer language, or city, shrinks to fit rather than leave the card
+        line(c, weatherWord(context, code), tx, t + 48, 30f, medium, 255, maxW = room)
+        line(c, context.getString(R.string.ss_feels_range, deg(cur.getDouble("apparent_temperature")),
+            deg(daily.getJSONArray("temperature_2m_max").getDouble(0)), deg(daily.getJSONArray("temperature_2m_min").getDouble(0))), tx, t + 84, 26f, medium, 230, maxW = room)
+        prefs.getString("geo_city", null)?.let { line(c, it, tx, t + 116, 24f, regular, SECONDARY, maxW = room) }
         fill.color = 0x26FFFFFF
         c.drawRect(l + 24, t + 136, card.right - 24, t + 137.5f, fill)
 
@@ -397,7 +404,8 @@ internal class GlassInfo(private val context: Context) {
         fun at(t: Long, pattern: String) = java.text.SimpleDateFormat(pattern, Locale.getDefault()).apply { timeZone = zone }.format(Date(t * 1000))
         val daily = f.getJSONObject("daily")
         when (which) {
-            // Next hours: the hour under way (the forecast can be half an hour old), then five more.
+            // Next hours: the hour under way (the forecast can be half an hour old), then five more. Persian hours
+            // go by the 24-hour clock: "۶بعدازظهر" doesn't fit a column.
             0 -> {
                 val hourly = f.getJSONObject("hourly")
                 val hours = hourly.getJSONArray("time")
@@ -406,11 +414,11 @@ internal class GlassInfo(private val context: Context) {
                 for (i in 0 until minOf(6, hours.length() - first)) {
                     val k = first + i
                     val cx = a.left + 24 + col * i + col / 2
-                    line(c, if (i == 0) "Now" else at(hours.getLong(k), if (h24) "H" else "ha"), cx, a.top + 40, 26f, medium, SECONDARY, align = Paint.Align.CENTER)
+                    line(c, if (i == 0) context.getString(R.string.now) else at(hours.getLong(k), if (h24 || Locale.getDefault().language == "fa") "H" else "ha"), cx, a.top + 40, 26f, medium, SECONDARY, align = Paint.Align.CENTER)
                     icon(c, weatherIcon(hourly.getJSONArray("weather_code").getInt(k), hourly.getJSONArray("is_day").getInt(k) == 1), cx - 26, a.top + 54, 52f)
                     line(c, deg(hourly.getJSONArray("temperature_2m").getDouble(k)), cx, a.top + 146, 32f, medium, 255, align = Paint.Align.CENTER)
                     val rain = hourly.getJSONArray("precipitation_probability").optInt(k, 0)
-                    if (rain >= 10) line(c, "$rain%", cx, a.top + 176, 24f, medium, 255, align = Paint.Align.CENTER, colour = RAIN)
+                    if (rain >= 10) line(c, "%d%%".format(rain), cx, a.top + 176, 24f, medium, 255, align = Paint.Align.CENTER, colour = RAIN)
                 }
             }
             // Five days: name, sky, low, the day's range on the week's scale, high.
@@ -422,7 +430,8 @@ internal class GlassInfo(private val context: Context) {
                 val span = ((0 until n).maxOf { highs.getDouble(it) } - lo).coerceAtLeast(1.0)
                 for (i in 0 until n) {
                     val y = a.top + 36 + i * 35f
-                    line(c, if (i == 0) "Today" else at(daily.getJSONArray("time").getLong(i), "EEE"), a.left + 24, y, 26f, medium, 255)
+                    line(c, if (i == 0) context.getString(R.string.today) else at(daily.getJSONArray("time").getLong(i), "EEE"), a.left + 24, y, 26f, medium, 255,
+                        maxW = 86f) // up to the icon: Persian has no short weekdays, French has "Aujourd’hui"
                     icon(c, weatherIcon(daily.getJSONArray("weather_code").getInt(i), true), a.left + 114, y - 27, 34f)
                     line(c, deg(lows.getDouble(i)), a.left + 222, y, 26f, medium, SECONDARY, align = Paint.Align.RIGHT)
                     val bar = RectF(a.left + 240, y - 12, a.right - 72, y - 6)
@@ -445,15 +454,16 @@ internal class GlassInfo(private val context: Context) {
                 val kmh = cur.getDouble("wind_speed_10m")
                 val uv = daily.getJSONArray("uv_index_max").getDouble(0)
                 val nowS = System.currentTimeMillis() / 1000
-                val sun = listOf("Sunrise" to daily.getJSONArray("sunrise"), "Sunset" to daily.getJSONArray("sunset"))
+                val sun = listOf(context.getString(R.string.sunrise) to daily.getJSONArray("sunrise"), context.getString(R.string.sunset) to daily.getJSONArray("sunset"))
                     .flatMap { (name, times) -> (0 until times.length()).map { name to times.getLong(it) } }
                     .filter { it.second > nowS }.minByOrNull { it.second }
                 val items = listOfNotNull(
-                    "Humidity" to "${cur.getInt("relative_humidity_2m")}%",
-                    "Wind ${compass(cur.getDouble("wind_direction_10m"))}" to (if (unitF) "${(kmh / 1.609).roundToInt()} mph" else "${kmh.roundToInt()} km/h"),
-                    "Rain today" to "${daily.getJSONArray("precipitation_probability_max").optInt(0, 0)}%",
-                    "UV · ${uvWord(uv)}" to "${uv.roundToInt()}",
-                    if (f.has("aqi")) "Air · ${aqiWord(f.getInt("aqi"))}" to "${f.getInt("aqi")}" else null,
+                    context.getString(R.string.humidity) to "%d%%".format(cur.getInt("relative_humidity_2m")),
+                    context.getString(R.string.wind, compass(cur.getDouble("wind_direction_10m"))) to
+                        (if (unitF) context.getString(R.string.mph, (kmh / 1.609).roundToInt()) else context.getString(R.string.kmh, kmh.roundToInt())),
+                    context.getString(R.string.rain_today) to "%d%%".format(daily.getJSONArray("precipitation_probability_max").optInt(0, 0)),
+                    context.getString(R.string.uv, uvWord(uv)) to "%d".format(uv.roundToInt()),
+                    if (f.has("aqi")) context.getString(R.string.air, aqiWord(f.getInt("aqi"))) to "%d".format(f.getInt("aqi")) else null,
                     sun?.let { (name, time) -> name to at(time, if (h24) "H:mm" else "h:mm a") },
                 )
                 val col = (a.width() - 24) / 3
@@ -547,9 +557,10 @@ internal class GlassInfo(private val context: Context) {
     }
 
     private fun line(c: Canvas, s: String, x: Float, y: Float, size: Float, face: Typeface, alpha: Int,
-                     align: Paint.Align = Paint.Align.LEFT, colour: Int = Color.WHITE) {
+                     align: Paint.Align = Paint.Align.LEFT, colour: Int = Color.WHITE, maxW: Float = Float.MAX_VALUE) {
         text.typeface = face
         text.textSize = size
+        text.measureText(s).let { if (it > maxW) text.textSize = size * maxW / it }
         text.textAlign = align
         text.color = colour
         text.alpha = (alpha * mul).toInt()
@@ -564,24 +575,24 @@ internal class GlassInfo(private val context: Context) {
         d.draw(c)
     }
 
-    private fun compass(deg: Double) = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")[((deg + 22.5) / 45).toInt() % 8]
+    private fun compass(deg: Double) = context.resources.getStringArray(R.array.compass)[((deg + 22.5) / 45).toInt() % 8]
 
-    private fun uvWord(uv: Double) = when {
-        uv < 3 -> "Low"
-        uv < 6 -> "Moderate"
-        uv < 8 -> "High"
-        uv < 11 -> "Very high"
-        else -> "Extreme"
-    }
+    private fun uvWord(uv: Double) = context.getString(when {
+        uv < 3 -> R.string.uv_low
+        uv < 6 -> R.string.moderate
+        uv < 8 -> R.string.uv_high
+        uv < 11 -> R.string.uv_very_high
+        else -> R.string.uv_extreme
+    })
 
     /** US AQI bands. */
-    private fun aqiWord(aqi: Int) = when {
-        aqi <= 50 -> "Good"
-        aqi <= 100 -> "Moderate"
-        aqi <= 150 -> "Poor"
-        aqi <= 200 -> "Unhealthy"
-        else -> "Hazardous"
-    }
+    private fun aqiWord(aqi: Int) = context.getString(when {
+        aqi <= 50 -> R.string.aqi_good
+        aqi <= 100 -> R.string.moderate
+        aqi <= 150 -> R.string.aqi_poor
+        aqi <= 200 -> R.string.aqi_unhealthy
+        else -> R.string.aqi_hazardous
+    })
 
     private companion object {
         const val CARD_W = 560f

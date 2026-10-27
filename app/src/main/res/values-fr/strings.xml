@@ -1,0 +1,282 @@
+<resources>
+    <string name="override_desc">Ouvre Koolest chaque fois que l’écran d’accueil de Google TV s’affiche, pour que le bouton Accueil mène ici.</string>
+
+    <!-- Home screen -->
+    <string name="settings_title">Réglages Koolest</string>
+    <string name="all_apps">Toutes les applis</string>
+    <string name="cd_network">Réglages réseau</string>
+    <string name="cd_settings">Paramètres</string>
+    <string name="search">Rechercher</string>
+    <string name="home">Accueil</string>
+    <string name="row_continue">Continuer à regarder</string>
+    <string name="row_apps">Applis</string>
+    <string name="row_consoles">Consoles et entrées</string>
+    <string name="feels">Ressenti %s</string>
+    <string name="tip_move">Astuce : maintenez OK sur une appli pour réorganiser la rangée</string>
+    <string name="no_search">La recherche n’est pas disponible sur ce téléviseur</string>
+
+    <!-- Hold menus and editing the apps row -->
+    <string name="open">Ouvrir</string>
+    <string name="unlock_to_edit">Déverrouiller pour modifier…</string>
+    <string name="move">Déplacer</string>
+    <string name="remove_from_row">Retirer de la rangée</string>
+    <string name="removed_from_row">Retirée de la rangée. Elle reste dans Toutes les applis.</string>
+    <string name="app_info">Infos sur l’appli</string>
+    <string name="hide_from_home">Masquer de l’accueil</string>
+    <string name="hidden_from_home">Masqué de l’écran d’accueil</string>
+    <string name="open_app">Ouvrir l’appli</string>
+    <string name="turn_apps_row_on">Activez d’abord la rangée Applis</string>
+    <string name="moving_hint">Déplacement :  ◀ ▶ déplacer  ·  OK poser</string>
+    <string name="editing_hint">Rangée d’applis :  OK prendre / poser  ·  ◀ ▶ déplacer  ·  Retour terminer</string>
+
+    <!-- All apps sort -->
+    <string name="sort_home">Ordre de l’accueil</string>
+    <string name="sort_az">A–Z</string>
+    <string name="most_used">Les plus utilisées</string>
+    <string name="sort_recent">Utilisées récemment</string>
+    <string name="sort_installed">Installées récemment</string>
+
+    <!-- Settings groups -->
+    <string name="look">Apparence</string>
+    <string name="look_hint">Langue, thème, fond d’écran</string>
+    <string name="home_screen">Écran d’accueil</string>
+    <string name="home_screen_hint">Rangées, applis</string>
+    <string name="continue_hint">Séries et films</string>
+    <string name="weather">Météo</string>
+    <string name="weather_hint">Unités, lieu</string>
+    <string name="screensaver">Économiseur d’écran</string>
+    <string name="screensaver_hint">Galerie, horloge, météo</string>
+    <string name="this_tv">Ce téléviseur</string>
+    <string name="this_tv_hint">Bouton Accueil, mises à jour</string>
+
+    <!-- Settings rows and their values -->
+    <string name="language">Langue</string>
+    <string name="tv_language">Comme le téléviseur</string>
+    <string name="rearrange_apps">Réorganiser les applis</string>
+    <string name="theme">Thème</string>
+    <string name="light">Clair</string>
+    <string name="dark">Sombre</string>
+    <string name="auto">Auto</string>
+    <string name="light_wallpaper">Fond d’écran clair</string>
+    <string name="dark_wallpaper">Fond d’écran sombre</string>
+    <string name="soften_photos">Adoucir les photos</string>
+    <string name="photo_changes">Changement de photo</string>
+    <string name="app_order">Ordre des applis</string>
+    <string name="your_order">Votre ordre</string>
+    <string name="apps_shown">Applis affichées</string>
+    <string name="all">Toutes</string>
+    <string name="n_of_m">%1$d sur %2$d</string>
+    <string name="app_names">Noms des applis</string>
+    <string name="on_focus">À la sélection</string>
+    <string name="always">Toujours</string>
+    <string name="never">Jamais</string>
+    <string name="logo_colours">Couleur des logos</string>
+    <string name="colour">Couleur</string>
+    <string name="plain">Uni</string>
+    <string name="hidden_shows">Contenus masqués</string>
+    <string name="none">Aucun</string>
+    <string name="show_n">Afficher %d</string>
+    <plurals name="n_off">
+        <item quantity="one">%d désactivée</item>
+        <item quantity="many">%d désactivées</item>
+        <item quantity="other">%d désactivées</item>
+    </plurals>
+    <string name="units">Unités</string>
+    <string name="location">Lieu</string>
+    <string name="automatic">Automatique</string>
+    <string name="downloading">Téléchargement…</string>
+    <string name="gallery">Galerie</string>
+    <string name="preview">Aperçu</string>
+    <string name="when_it_starts">Quand il démarre</string>
+    <string name="home_button">Bouton Accueil</string>
+    <string name="default_home">Accueil par défaut</string>
+    <string name="yes">Oui</string>
+    <string name="set">Définir</string>
+    <string name="updates">Mises à jour</string>
+    <string name="updating">Mise à jour…</string>
+    <string name="checking">Vérification…</string>
+    <string name="get_version">Obtenir la %s</string>
+    <string name="version_latest">%s, à jour</string>
+    <string name="pin_lock">Verrouillage par code</string>
+    <string name="menu_apps">Applis du menu</string>
+    <plurals name="n_apps">
+        <item quantity="one">%d appli</item>
+        <item quantity="many">%d applis</item>
+        <item quantity="other">%d applis</item>
+    </plurals>
+    <string name="rows">Rangées</string>
+    <string name="all_on">Toutes activées</string>
+    <string name="keep_home_working">Garder l’accueil actif</string>
+    <string name="done">Terminé</string>
+    <string name="set_up">Configurer</string>
+    <string name="only_launcher">Seul lanceur</string>
+    <string name="dates">Dates</string>
+    <string name="gregorian">Grégorienne</string>
+    <string name="both_separate">Les deux, séparées</string>
+    <string name="both_one_tile">Les deux, une tuile</string>
+    <string name="persian">Persane</string>
+    <string name="both">Les deux</string>
+    <string name="music">Musique</string>
+    <string name="now_playing">En cours de lecture</string>
+    <string name="starts_after">Démarre après</string>
+    <string name="tv_sleeps_after">Veille du téléviseur après</string>
+    <string name="top_bar_date">Date de la barre du haut</string>
+    <string name="on">Activée</string>
+    <string name="off">Désactivée</string>
+    <string name="show">Afficher</string>
+    <string name="shown">Affichée</string>
+    <string name="hidden">Masquée</string>
+    <string name="apps_in_row">Applis de la rangée</string>
+    <string name="move_or_remove">Déplacer ou retirer</string>
+    <string name="add_an_app">Ajouter une appli…</string>
+    <string name="move_up">Monter</string>
+    <string name="move_down">Descendre</string>
+    <string name="remove_from_menu">Retirer du menu</string>
+    <string name="add_to_menu">Ajouter au menu</string>
+
+    <!-- Home button and the adb shortcuts -->
+    <string name="home_off_hint">Désactivez « Koolest: Home button » dans Paramètres → Système → Accessibilité</string>
+    <string name="home_on_hint">Activez « Koolest: Home button » dans Paramètres → Système → Accessibilité</string>
+    <string name="adb_setup_failed">La configuration n’a pas abouti. Réessayez.</string>
+    <string name="only_launcher_already">Koolest est déjà le seul lanceur</string>
+    <string name="only_launcher_failed">Le téléviseur n’a pas désactivé son lanceur. Réessayez.</string>
+    <string name="adb_allow">Si le téléviseur le demande, cochez « Toujours autoriser » et choisissez Autoriser</string>
+    <string name="adb_denied">Le téléviseur ne l’a pas autorisé. Réessayez et choisissez Autoriser.</string>
+    <string name="tv_didnt_allow">Le téléviseur ne l’a pas autorisé. Réessayez.</string>
+    <string name="adb_help">Koolest passe par le débogage réseau du téléviseur, qui est désactivé.\n\n1. Paramètres → Système → À propos : appuyez 7 fois sur OK sur « Build de l’OS Android TV ».\n2. Paramètres → Système → Options pour les développeurs : activez le débogage USB, et le débogage réseau s’il est proposé.\n3. Revenez et choisissez Réessayer.\n\nVous pouvez ensuite désactiver le débogage ; le changement reste.</string>
+    <string name="turn_on_debugging">Activer le débogage</string>
+    <string name="open_dev_options">Ouvrir les options pour les développeurs</string>
+    <string name="try_again">Réessayer</string>
+
+    <!-- Wallpapers -->
+    <string name="wp_pure_black">Noir pur</string>
+    <string name="wp_soft_white">Blanc doux</string>
+    <string name="wp_rockies_day">Rocheuses (jour)</string>
+    <string name="wp_rockies_dusk">Rocheuses (soir)</string>
+    <string name="wp_unsplash">Photos Unsplash</string>
+    <string name="folder_name">Dossier : %s</string>
+    <string name="add_from_phone">Ajouter depuis le téléphone…</string>
+    <string name="choose_from_tv">Choisir un dossier sur ce téléviseur…</string>
+    <string name="remove_photo_more">Supprimer une photo…</string>
+    <string name="light_wallpaper_title">Fond d’écran du mode clair</string>
+    <string name="dark_wallpaper_title">Fond d’écran du mode sombre</string>
+    <string name="folder_photo_changes">Changement des photos du dossier</string>
+    <string name="every_minute">Chaque minute</string>
+    <string name="every_n_min">Toutes les %d min</string>
+    <string name="every_hour">Chaque heure</string>
+    <string name="every_day">Chaque jour</string>
+    <string name="photos">Photos</string>
+    <string name="need_photos">Koolest a besoin d’accéder aux photos pour afficher vos dossiers</string>
+    <string name="no_photos">Aucune photo trouvée. Copiez-en sur le téléviseur ou branchez une clé USB avec des photos.</string>
+    <plurals name="n_photos">
+        <item quantity="one">%d photo</item>
+        <item quantity="many">%d photos</item>
+        <item quantity="other">%d photos</item>
+    </plurals>
+    <string name="choose_folder">Choisir un dossier</string>
+    <string name="remove_photo">Supprimer une photo</string>
+    <string name="delete_q">Supprimer « %s » ?</string>
+    <string name="cancel">Annuler</string>
+    <string name="delete">Supprimer</string>
+    <string name="need_network">Connectez d’abord le téléviseur au Wi-Fi ou à l’Ethernet</string>
+    <string name="waiting_photo">En attente d’une photo…</string>
+    <string name="added_photo">« %s » ajoutée. Envoyez-en une autre ou appuyez sur Terminé.</string>
+    <string name="upload_failed">Impossible de lancer la page d’envoi</string>
+    <string name="scan_hint">Scannez avec votre téléphone. Il doit être sur le Wi-Fi du téléviseur.</string>
+    <string name="add_from_your_phone">Ajouter depuis votre téléphone</string>
+
+    <!-- PIN lock -->
+    <string name="enter_pin">Saisissez le code</string>
+    <string name="too_many_tries">Trop d’essais. Réessayez dans %d s.</string>
+    <string name="wrong_pin">Code incorrect</string>
+    <string name="choose_pin">Choisissez un code</string>
+    <string name="enter_again">Saisissez-le à nouveau</string>
+    <string name="pins_mismatch">Les codes ne correspondent pas. Choisissez-en un à nouveau.</string>
+    <string name="layout_locked">Disposition verrouillée. Les réglages Koolest et les changements de l’accueil demandent maintenant le code.</string>
+    <string name="pin_keys_hint">▲ ▼ changer  ·  ◀ ▶ déplacer  ·  OK valider. Les touches numériques marchent aussi.</string>
+    <string name="pin_forgot">Oublié ? Effacer les données de Koolest dans Paramètres Android → Applis le supprime, et réinitialise tout.</string>
+
+    <!-- Screensaver -->
+    <string name="system_default">Par défaut du système</string>
+    <string name="gallery_paintings">Tableaux de la Galerie</string>
+    <string name="your_photos">Vos photos</string>
+    <string name="choose_gallery_here">Choisissez « Gallery » comme économiseur d’écran ici</string>
+    <string name="no_notification_page">Ce téléviseur n’a pas de page d’accès aux notifications</string>
+    <string name="n_min">%d min</string>
+    <string name="n_h">%d h</string>
+    <string name="n_h_min">%1$d h %2$d min</string>
+    <string name="screensaver_starts_after">L’économiseur démarre après</string>
+    <string name="setup_keep_home_first">Configurez d’abord « Garder l’accueil actif » dans Ce téléviseur</string>
+    <string name="no_allow_page">Ce téléviseur n’a pas de page pour l’autoriser</string>
+    <string name="downloading_paintings">Téléchargement des tableaux de la Galerie (%s)…</string>
+    <string name="paintings_failed">Impossible de télécharger les tableaux. Vérifiez la connexion et réessayez.</string>
+    <string name="cant_start_screensaver">Ce téléviseur ne peut pas lancer l’économiseur à la demande</string>
+
+    <!-- Updates -->
+    <string name="update_available">Koolest %s est disponible. Mettez-le à jour dans les réglages Koolest.</string>
+    <string name="update_check_failed">Impossible de rechercher les mises à jour. Vérifiez la connexion.</string>
+    <string name="up_to_date">Koolest est à jour</string>
+    <string name="allow_installs">Activez Koolest dans la liste suivante, puis appuyez de nouveau sur Mises à jour</string>
+    <string name="no_settings_page">Ce téléviseur n’a pas ouvert ses paramètres</string>
+    <string name="clear_defaults_hint">%1$s est l’accueil par défaut : choisissez « Effacer les valeurs par défaut », puis appuyez sur Accueil et choisissez Koolest</string>
+    <string name="pick_home_hint">Choisissez Koolest, puis « Toujours »</string>
+    <string name="home_outranked">Le lanceur de ce téléviseur reçoit toujours Accueil en premier : activez plutôt Bouton Accueil</string>
+    <string name="update_download_failed">Impossible de télécharger la mise à jour. Vérifiez la connexion et réessayez.</string>
+    <string name="update_install_failed">La mise à jour n’a pas pu s’installer</string>
+
+    <!-- Weather location -->
+    <string name="city_hint">Tapez une ville, puis Rechercher</string>
+    <string name="weather_location">Lieu de la météo</string>
+    <string name="searching">Recherche…</string>
+    <string name="search_failed">Recherche impossible. Vérifiez la connexion et réessayez.</string>
+    <string name="no_places">Aucun lieu nommé « %s ».</string>
+
+    <!-- Continue watching -->
+    <string name="no_watch_sources">Aucune appli installée ne prend en charge Continuer à regarder</string>
+    <string name="sep">" · "</string>
+    <string name="season_episode">S%1$s · É%2$s</string>
+    <string name="time_left_h">%1$d h %2$d min restantes</string>
+    <string name="time_left_min">%d min restantes</string>
+    <string name="almost_done">Presque fini</string>
+
+    <!-- Weather words (WMO codes) and the screensaver's weather card -->
+    <string name="wx_clear">Dégagé</string>
+    <string name="wx_partly">Partiellement nuageux</string>
+    <string name="wx_cloudy">Nuageux</string>
+    <string name="wx_fog">Brouillard</string>
+    <string name="wx_drizzle">Bruine</string>
+    <string name="wx_rain">Pluie</string>
+    <string name="wx_snow">Neige</string>
+    <string name="wx_storm">Orage</string>
+    <string name="ss_feels_range">Ressenti %1$s  ·  Max. %2$s  Min. %3$s</string>
+    <string name="now">Maint.</string>
+    <string name="today">Auj.</string>
+    <string name="humidity">Humidité</string>
+    <string name="wind">Vent %s</string>
+    <string name="rain_today">Pluie auj.</string>
+    <string name="uv">UV · %s</string>
+    <string name="air">Air · %s</string>
+    <string name="sunrise">Lever du soleil</string>
+    <string name="sunset">Coucher du soleil</string>
+    <string name="kmh">%d km/h</string>
+    <string name="mph">%d mi/h</string>
+    <string-array name="compass">
+        <item>N</item>
+        <item>NE</item>
+        <item>E</item>
+        <item>SE</item>
+        <item>S</item>
+        <item>SO</item>
+        <item>O</item>
+        <item>NO</item>
+    </string-array>
+    <string name="uv_low">Faible</string>
+    <string name="moderate">Modéré</string>
+    <string name="uv_high">Élevé</string>
+    <string name="uv_very_high">Très élevé</string>
+    <string name="uv_extreme">Extrême</string>
+    <string name="aqi_good">Bon</string>
+    <string name="aqi_poor">Médiocre</string>
+    <string name="aqi_unhealthy">Mauvais</string>
+    <string name="aqi_hazardous">Dangereux</string>
+</resources>

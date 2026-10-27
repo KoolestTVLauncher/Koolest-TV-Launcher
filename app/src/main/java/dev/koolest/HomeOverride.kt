@@ -17,12 +17,17 @@ import android.view.accessibility.AccessibilityEvent
 /**
  * Google TV's launcher has to stay enabled (disabling it boot-loops the TV), so we take the Home key before
  * the system sees it and open our home directly; Google TV never flashes up. Holding Home still opens the
- * Google TV dashboard. Covering Google TV whenever it shows stays as the fallback for anything else that
- * opens it (e.g. Back out of the last app).
+ * Google TV dashboard. Covering the TV's own launcher whenever it shows stays as the fallback for anything else
+ * that opens it (e.g. Back out of the last app): Google TV's, Android TV's, or whatever this brand ships.
  */
 class HomeOverride : AccessibilityService() {
+    private var stock = emptySet<String>()
+
     override fun onServiceConnected() {
         running = this
+        stock = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+            .map { it.activityInfo.packageName }.toSet() - packageName - NOT_LAUNCHERS
+        serviceInfo = serviceInfo.apply { packageNames = stock.toTypedArray() } // events from those apps only
     }
 
     // Not a sign the user turned it off: a force-stop (TCL's background manager) unbinds it too. Koolest's own
@@ -42,7 +47,7 @@ class HomeOverride : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
-        if (e.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && e.packageName == GOOGLE_TV &&
+        if (e.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && e.packageName in stock &&
             e.className?.contains("dashboard", ignoreCase = true) != true
         ) goHome()
     }
@@ -55,7 +60,8 @@ class HomeOverride : AccessibilityService() {
         /** The bound service, so Koolest's switch can turn it off without any permission. */
         var running: HomeOverride? = null
             private set
-        private const val GOOGLE_TV = "com.google.android.apps.tv.launcherx"
+        /** Home apps that aren't launchers: Settings' stand-in while the TV starts up. */
+        private val NOT_LAUNCHERS = setOf("com.android.settings", "com.android.tv.settings")
         private const val LONG_PRESS_MS = 500L
         private const val KEEP_JOB = 1
 

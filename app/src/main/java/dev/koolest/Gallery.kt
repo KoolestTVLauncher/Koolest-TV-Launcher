@@ -15,6 +15,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import java.io.File
 import java.io.IOException
+import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
@@ -55,7 +56,7 @@ private val DARK = listOf(
 )
 
 internal const val PAINTINGS_URL = "https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/download/gallery-1/"
-internal const val PAINTINGS_MB = "9.1 MB"
+internal const val PAINTINGS_BYTES = 9_100_000L // shown with Formatter, in the screen's language
 internal val PAINTING_FILES = (LIGHT + DARK).map { "${it.file}.jpg" }
 internal fun paintingsDir(c: Context) = File(c.filesDir, "paintings")
 internal fun paintingsReady(c: Context) = PAINTING_FILES.all { File(paintingsDir(c), it).exists() }
@@ -68,10 +69,13 @@ internal fun paintingsReady(c: Context) = PAINTING_FILES.all { File(paintingsDir
 class GalleryDream : DreamService() {
     private var show: GalleryShow? = null
 
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(localized(base))
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         isInteractive = true // we handle keys ourselves (see dispatchKeyEvent)
         isFullscreen = true
+        Locale.setDefault(resources.configuration.locales[0]) // Android puts the TV's back when it binds the dream
         show = GalleryShow(this).also { setContentView(it.view) }
     }
 

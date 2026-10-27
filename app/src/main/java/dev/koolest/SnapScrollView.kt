@@ -13,6 +13,18 @@ import android.widget.HorizontalScrollView
  */
 class SnapScrollView(context: Context, attrs: AttributeSet?) : HorizontalScrollView(context, attrs) {
     override fun computeScrollDeltaToGetChildRectOnScreen(rect: Rect) = 0
+
+    /**
+     * Right to left a track starts scrolled to its far end, but Android only puts it there on the first layout. Cards
+     * arrive a few at a time, so keep the same distance from that end as the strip grows, or it would show its last cards.
+     */
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val fromStart = range() - scrollX
+        super.onLayout(changed, l, t, r, b)
+        if (layoutDirection == LAYOUT_DIRECTION_RTL) scrollTo(range() - fromStart, scrollY)
+    }
+
+    private fun range() = ((getChildAt(0)?.width ?: 0) - (width - paddingLeft - paddingRight)).coerceAtLeast(0)
 }
 
 /**

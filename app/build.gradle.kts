@@ -13,8 +13,8 @@ android {
         applicationId = "dev.koolest"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.4.0"
+        versionCode = 14
+        versionName = "2.5.0"
     }
 
     // Release key lives outside the repo; keystore.properties (git-ignored) points at it. Without that file
@@ -35,6 +35,11 @@ android {
     productFlavors {
         create("sideload") { dimension = "store" }
         create("play") { dimension = "store" }
+    }
+
+    // Every language in every install: the in-app language setting can pick one the TV itself isn't set to.
+    bundle {
+        language { enableSplit = false }
     }
 
     buildTypes {

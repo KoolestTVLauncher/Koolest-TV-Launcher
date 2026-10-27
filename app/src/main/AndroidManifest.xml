@@ -34,6 +34,16 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
         </intent>
+        <!-- The TV's own launcher(s), which the Home service covers whenever they show. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+        <!-- Phone apps installed on the TV, which Android TV's own launcher leaves out. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
         <!-- Finds the browsers, to keep their open tabs out of Continue watching. -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -46,6 +56,8 @@
         android:label="Koolest TV Launcher"
         android:banner="@drawable/banner"
         android:icon="@drawable/banner"
+        android:supportsRtl="true"
+        android:enableOnBackInvokedCallback="false"
         android:usesCleartextTraffic="true"
         android:theme="@style/Koolest">
 

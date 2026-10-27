@@ -206,7 +206,7 @@
                 android:id="@+id/wifi"
                 android:layout_width="34dp"
                 android:layout_height="34dp"
-                android:contentDescription="Network settings"
+                android:contentDescription="@string/cd_network"
                 android:focusable="true"
                 android:padding="8dp"
                 android:src="@drawable/rail_wifi" />
@@ -216,7 +216,7 @@
                 android:layout_width="34dp"
                 android:layout_height="34dp"
                 android:layout_marginStart="4dp"
-                android:contentDescription="Settings"
+                android:contentDescription="@string/cd_settings"
                 android:focusable="true"
                 android:padding="8dp"
                 android:src="@drawable/rail_gear" />
@@ -226,7 +226,7 @@
                 android:layout_width="34dp"
                 android:layout_height="34dp"
                 android:layout_marginStart="4dp"
-                android:contentDescription="Koolest settings"
+                android:contentDescription="@string/settings_title"
                 android:focusable="true"
                 android:padding="8dp"
                 android:src="@drawable/rail_tune" />
@@ -282,6 +282,7 @@
                 android:ellipsize="end"
                 android:lineSpacingMultiplier="1.3"
                 android:maxLines="3"
+                android:textAlignment="viewStart"
                 android:textSize="14sp"
                 android:visibility="gone" />
         </LinearLayout>
@@ -336,14 +337,14 @@
                 android:id="@+id/railRest"
                 android:layout_width="52dp"
                 android:layout_height="match_parent"
-                android:layout_gravity="center_vertical"
+                android:layout_gravity="center_vertical|start"
                 android:layout_marginStart="16dp" />
 
             <View
                 android:id="@+id/railPanel"
                 android:layout_width="160dp"
                 android:layout_height="match_parent"
-                android:layout_gravity="center_vertical"
+                android:layout_gravity="center_vertical|start"
                 android:layout_marginStart="16dp"
                 android:alpha="0" />
 
@@ -383,7 +384,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:text="All apps"
+                android:text="@string/all_apps"
                 android:textSize="30sp"
                 android:textStyle="bold" />
 
@@ -414,6 +415,7 @@
         android:layout_height="match_parent"
         android:background="#73000000"
         android:clickable="true"
+        android:focusable="false"
         android:visibility="gone">
 
         <LinearLayout
@@ -434,7 +436,8 @@
                 android:layout_height="wrap_content"
                 android:textStyle="bold"
                 android:paddingStart="14dp"
-                android:text="Koolest settings"
+                android:paddingEnd="14dp"
+                android:text="@string/settings_title"
                 android:textSize="20sp" />
 
             <!-- Scrolls once the rows outgrow the screen; focus moving down scrolls it along. -->

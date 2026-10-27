@@ -1,3 +1,281 @@
 <resources>
     <string name="override_desc">Opens Koolest whenever the Google TV home screen appears, so the Home button lands here.</string>
+
+    <!-- Home screen -->
+    <string name="settings_title">Koolest settings</string>
+    <string name="all_apps">All apps</string>
+    <string name="cd_network">Network settings</string>
+    <string name="cd_settings">Settings</string>
+    <string name="search">Search</string>
+    <string name="home">Home</string>
+    <string name="row_continue">Continue watching</string>
+    <string name="row_apps">Apps</string>
+    <string name="row_consoles">Consoles &amp; inputs</string>
+    <string name="feels">Feels %s</string>
+    <string name="tip_move">Tip: hold OK on an app to rearrange the row</string>
+    <string name="no_search">Search isn\'t available on this TV</string>
+
+    <!-- Hold menus and editing the apps row -->
+    <string name="open">Open</string>
+    <string name="unlock_to_edit">Unlock to edit…</string>
+    <string name="move">Move</string>
+    <string name="remove_from_row">Remove from row</string>
+    <string name="removed_from_row">Removed from the row. It\'s still in All apps.</string>
+    <string name="app_info">App info</string>
+    <string name="hide_from_home">Hide from home</string>
+    <string name="hidden_from_home">Hidden from the home screen</string>
+    <string name="open_app">Open app</string>
+    <string name="turn_apps_row_on">Turn the Apps row on first</string>
+    <string name="moving_hint">Moving:  ◀ ▶ move  ·  OK place</string>
+    <string name="editing_hint">Editing apps row:  OK pick up / drop  ·  ◀ ▶ move  ·  Back done</string>
+
+    <!-- All apps sort -->
+    <string name="sort_home">Home order</string>
+    <string name="sort_az">A–Z</string>
+    <string name="most_used">Most used</string>
+    <string name="sort_recent">Recently used</string>
+    <string name="sort_installed">Recently installed</string>
+
+    <!-- Settings groups -->
+    <string name="look">Look</string>
+    <string name="look_hint">Language, theme, wallpaper</string>
+    <string name="home_screen">Home screen</string>
+    <string name="home_screen_hint">Rows, apps</string>
+    <string name="continue_hint">Shows</string>
+    <string name="weather">Weather</string>
+    <string name="weather_hint">Units, place</string>
+    <string name="screensaver">Screensaver</string>
+    <string name="screensaver_hint">Gallery, clock, weather</string>
+    <string name="this_tv">This TV</string>
+    <string name="this_tv_hint">Home button, updates</string>
+
+    <!-- Settings rows and their values -->
+    <string name="language">Language</string>
+    <string name="tv_language">Same as the TV</string>
+    <string name="rearrange_apps">Rearrange apps</string>
+    <string name="theme">Theme</string>
+    <string name="light">Light</string>
+    <string name="dark">Dark</string>
+    <string name="auto">Auto</string>
+    <string name="light_wallpaper">Light wallpaper</string>
+    <string name="dark_wallpaper">Dark wallpaper</string>
+    <string name="soften_photos">Soften photos</string>
+    <string name="photo_changes">Photo changes</string>
+    <string name="app_order">App order</string>
+    <string name="your_order">Your order</string>
+    <string name="apps_shown">Apps shown</string>
+    <string name="all">All</string>
+    <string name="n_of_m">%1$d of %2$d</string>
+    <string name="app_names">App names</string>
+    <string name="on_focus">On focus</string>
+    <string name="always">Always</string>
+    <string name="never">Never</string>
+    <string name="logo_colours">Logo colours</string>
+    <string name="colour">Colour</string>
+    <string name="plain">Plain</string>
+    <string name="hidden_shows">Hidden shows</string>
+    <string name="none">None</string>
+    <string name="show_n">Show %d</string>
+    <plurals name="n_off">
+        <item quantity="one">%d off</item>
+        <item quantity="other">%d off</item>
+    </plurals>
+    <string name="units">Units</string>
+    <string name="location">Location</string>
+    <string name="automatic">Automatic</string>
+    <string name="downloading">Downloading…</string>
+    <string name="gallery">Gallery</string>
+    <string name="preview">Preview</string>
+    <string name="when_it_starts">When it starts</string>
+    <string name="home_button">Home button</string>
+    <string name="default_home">Default home</string>
+    <string name="yes">Yes</string>
+    <string name="set">Set</string>
+    <string name="updates">Updates</string>
+    <string name="updating">Updating…</string>
+    <string name="checking">Checking…</string>
+    <string name="get_version">Get %s</string>
+    <string name="version_latest">%s, latest</string>
+    <string name="pin_lock">PIN lock</string>
+    <string name="menu_apps">Menu apps</string>
+    <plurals name="n_apps">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <string name="rows">Rows</string>
+    <string name="all_on">All on</string>
+    <string name="keep_home_working">Keep Home working</string>
+    <string name="done">Done</string>
+    <string name="set_up">Set up</string>
+    <string name="only_launcher">Only launcher</string>
+    <string name="dates">Dates</string>
+    <string name="gregorian">Gregorian</string>
+    <string name="both_separate">Both, separate</string>
+    <string name="both_one_tile">Both, one tile</string>
+    <string name="persian">Persian</string>
+    <string name="both">Both</string>
+    <string name="music">Music</string>
+    <string name="now_playing">Now playing</string>
+    <string name="starts_after">Starts after</string>
+    <string name="tv_sleeps_after">TV sleeps after</string>
+    <string name="top_bar_date">Top bar date</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="show">Show</string>
+    <string name="shown">Shown</string>
+    <string name="hidden">Hidden</string>
+    <string name="apps_in_row">Apps in row</string>
+    <string name="move_or_remove">Move or remove</string>
+    <string name="add_an_app">Add an app…</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="remove_from_menu">Remove from menu</string>
+    <string name="add_to_menu">Add to menu</string>
+
+    <!-- Home button and the adb shortcuts -->
+    <string name="home_off_hint">Turn off \"Koolest: Home button\" in Settings → System → Accessibility</string>
+    <string name="home_on_hint">Turn on \"Koolest: Home button\" in Settings → System → Accessibility</string>
+    <string name="adb_setup_failed">Setup didn\'t finish. Try again.</string>
+    <string name="only_launcher_already">Koolest is already the only launcher</string>
+    <string name="only_launcher_failed">The TV didn\'t switch its launcher off. Try again.</string>
+    <string name="adb_allow">If the TV asks, tick \"Always allow\" and choose Allow</string>
+    <string name="adb_denied">The TV didn\'t allow it. Try again and choose Allow.</string>
+    <string name="tv_didnt_allow">The TV didn\'t allow it. Try again.</string>
+    <string name="adb_help">Koolest does this through the TV\'s network debugging, which is off.\n\n1. Settings → System → About: press OK on \"Android TV OS build\" 7 times.\n2. Settings → System → Developer options: turn on USB debugging, and Network debugging if it\'s listed.\n3. Come back and choose Try again.\n\nYou can switch debugging off again afterwards; the change stays.</string>
+    <string name="turn_on_debugging">Turn on debugging</string>
+    <string name="open_dev_options">Open Developer options</string>
+    <string name="try_again">Try again</string>
+
+    <!-- Wallpapers -->
+    <string name="wp_pure_black">Pure black</string>
+    <string name="wp_soft_white">Soft white</string>
+    <string name="wp_rockies_day">Rockies (day)</string>
+    <string name="wp_rockies_dusk">Rockies (dusk)</string>
+    <string name="wp_unsplash">Unsplash photos</string>
+    <string name="folder_name">Folder: %s</string>
+    <string name="add_from_phone">Add from phone…</string>
+    <string name="choose_from_tv">Choose a folder on this TV…</string>
+    <string name="remove_photo_more">Remove a photo…</string>
+    <string name="light_wallpaper_title">Light mode wallpaper</string>
+    <string name="dark_wallpaper_title">Dark mode wallpaper</string>
+    <string name="folder_photo_changes">Folder photo changes</string>
+    <string name="every_minute">Every minute</string>
+    <string name="every_n_min">Every %d min</string>
+    <string name="every_hour">Every hour</string>
+    <string name="every_day">Every day</string>
+    <string name="photos">Photos</string>
+    <string name="need_photos">Koolest needs access to photos to show your folders</string>
+    <string name="no_photos">No photos found. Copy some to the TV or plug in a USB drive with photos.</string>
+    <plurals name="n_photos">
+        <item quantity="one">%d photo</item>
+        <item quantity="other">%d photos</item>
+    </plurals>
+    <string name="choose_folder">Choose a folder</string>
+    <string name="remove_photo">Remove a photo</string>
+    <string name="delete_q">Delete \"%s\"?</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="need_network">Connect the TV to Wi-Fi or Ethernet first</string>
+    <string name="waiting_photo">Waiting for a photo…</string>
+    <string name="added_photo">Added \"%s\". Send another, or press Done.</string>
+    <string name="upload_failed">Couldn\'t start the upload page</string>
+    <string name="scan_hint">Scan with your phone. It must be on the TV\'s Wi-Fi.</string>
+    <string name="add_from_your_phone">Add from your phone</string>
+
+    <!-- PIN lock -->
+    <string name="enter_pin">Enter PIN</string>
+    <string name="too_many_tries">Too many tries. Try again in %d s.</string>
+    <string name="wrong_pin">Wrong PIN</string>
+    <string name="choose_pin">Choose a PIN</string>
+    <string name="enter_again">Enter it again</string>
+    <string name="pins_mismatch">Those PINs didn\'t match. Choose one again.</string>
+    <string name="layout_locked">Layout locked. Koolest settings and home screen changes now need the PIN.</string>
+    <string name="pin_keys_hint">▲ ▼ change  ·  ◀ ▶ move  ·  OK enter. Number keys work too.</string>
+    <string name="pin_forgot">Forgot it? Clearing Koolest\'s data in Android Settings → Apps removes it, and resets everything.</string>
+
+    <!-- Screensaver -->
+    <string name="system_default">System default</string>
+    <string name="gallery_paintings">Gallery paintings</string>
+    <string name="your_photos">Your photos</string>
+    <string name="choose_gallery_here">Choose \"Gallery\" as the screensaver here</string>
+    <string name="no_notification_page">This TV has no notification access page</string>
+    <string name="n_min">%d min</string>
+    <string name="n_h">%d h</string>
+    <string name="n_h_min">%1$d h %2$d min</string>
+    <string name="screensaver_starts_after">Screensaver starts after</string>
+    <string name="setup_keep_home_first">Set up \"Keep Home working\" in This TV first</string>
+    <string name="no_allow_page">This TV has no page to allow it</string>
+    <string name="downloading_paintings">Downloading Gallery paintings (%s)…</string>
+    <string name="paintings_failed">Couldn\'t download the paintings. Check the connection and try again.</string>
+    <string name="cant_start_screensaver">This TV can\'t start the screensaver on demand</string>
+
+    <!-- Updates -->
+    <string name="update_available">Koolest %s is available. Update it in Koolest settings.</string>
+    <string name="update_check_failed">Couldn\'t check for updates. Check the connection.</string>
+    <string name="up_to_date">Koolest is up to date</string>
+    <string name="allow_installs">Turn on Koolest in the next list, then press Updates again</string>
+    <string name="no_settings_page">This TV didn’t open its settings</string>
+    <!-- Android 9 and older: no way to ask for Home directly. %1$s: the launcher that has it now. -->
+    <string name="clear_defaults_hint">%1$s is the default home: choose “Clear defaults”, then press Home and pick Koolest</string>
+    <string name="pick_home_hint">Pick Koolest, then “Always”</string>
+    <string name="home_outranked">This TV’s own launcher always gets Home first: switch on Home button instead</string>
+    <string name="update_download_failed">Couldn\'t download the update. Check the connection and try again.</string>
+    <string name="update_install_failed">Update failed to install</string>
+
+    <!-- Weather location -->
+    <string name="city_hint">Type a city, then Search</string>
+    <string name="weather_location">Weather location</string>
+    <string name="searching">Searching…</string>
+    <string name="search_failed">Couldn\'t search. Check the connection and try again.</string>
+    <string name="no_places">No places called \"%s\".</string>
+
+    <!-- Continue watching -->
+    <string name="no_watch_sources">No installed apps support Continue watching</string>
+    <!-- Between parts of a caption ("S1 E5 · 23 min left"). -->
+    <string name="sep">" · "</string>
+    <string name="season_episode">S%1$s · E%2$s</string>
+    <string name="time_left_h">%1$d hr %2$d min left</string>
+    <string name="time_left_min">%d min left</string>
+    <string name="almost_done">Almost done</string>
+
+    <!-- Weather words (WMO codes) and the screensaver's weather card -->
+    <string name="wx_clear">Clear</string>
+    <string name="wx_partly">Partly cloudy</string>
+    <string name="wx_cloudy">Cloudy</string>
+    <string name="wx_fog">Fog</string>
+    <string name="wx_drizzle">Drizzle</string>
+    <string name="wx_rain">Rain</string>
+    <string name="wx_snow">Snow</string>
+    <string name="wx_storm">Thunderstorm</string>
+    <string name="ss_feels_range">Feels %1$s  ·  H %2$s  L %3$s</string>
+    <string name="now">Now</string>
+    <string name="today">Today</string>
+    <string name="humidity">Humidity</string>
+    <string name="wind">Wind %s</string>
+    <string name="rain_today">Rain today</string>
+    <string name="uv">UV · %s</string>
+    <string name="air">Air · %s</string>
+    <string name="sunrise">Sunrise</string>
+    <string name="sunset">Sunset</string>
+    <string name="kmh">%d km/h</string>
+    <string name="mph">%d mph</string>
+    <string-array name="compass">
+        <item>N</item>
+        <item>NE</item>
+        <item>E</item>
+        <item>SE</item>
+        <item>S</item>
+        <item>SW</item>
+        <item>W</item>
+        <item>NW</item>
+    </string-array>
+    <string name="uv_low">Low</string>
+    <string name="moderate">Moderate</string>
+    <string name="uv_high">High</string>
+    <string name="uv_very_high">Very high</string>
+    <string name="uv_extreme">Extreme</string>
+    <string name="aqi_good">Good</string>
+    <string name="aqi_poor">Poor</string>
+    <string name="aqi_unhealthy">Unhealthy</string>
+    <string name="aqi_hazardous">Hazardous</string>
 </resources>
