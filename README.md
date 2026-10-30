@@ -198,6 +198,10 @@ The APK is written to `app/build/outputs/apk/sideload/release/`. There are two f
 - **Wallpaper:** "Canada" by Thomas Curryer, via [Unsplash](https://unsplash.com/@tawc20).
 - **Changing wallpapers:** photos by Unsplash photographers, served by [Lorem Picsum](https://picsum.photos).
 
+## Support
+
+Koolest is free, with no ads and no tracking, and stays that way. If it makes your TV nicer to use, you can support its development through [GitHub Sponsors](https://github.com/sponsors/benymaxparsa) or [Buy Me a Coffee](https://buymeacoffee.com/parsakamalipour). Starring the repo and telling a friend help just as much.
+
 ## License
 
 Copyright (C) 2026 aradhyas8 (Plume Launcher)
