@@ -25,8 +25,8 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 
 ## Highlights
 
-- **30nama TV layout.** A menu on the left edge, a large billboard for whatever is focused, and rows of landscape cards below it, set in Vazirmatn with a white focus ring.
-- **Rows, top to bottom:** Continue watching, Apps, Consoles & inputs, 30nama, YouTube and Spotify, then a row for every other app that publishes to the TV's home screen (Netflix, Prime Video, Tubi, Apple TV, Twitch…). Rows with nothing in them don't show, and any row can be turned off.
+- **A TV-first layout.** A menu on the left edge, a large billboard for whatever is focused, and rows of landscape cards below it, set in Vazirmatn with a white focus ring.
+- **Rows, top to bottom:** Continue watching, Apps, Consoles & inputs, YouTube and Spotify, then a row for every other app that publishes to the TV's home screen (Netflix, Prime Video, Tubi, Apple TV, Twitch…). Rows with nothing in them don't show, and any row can be turned off.
 - **Continue watching that works.** Everything apps report as partway watched, from Android TV's Watch Next list and apps' own "Continue watching" channels. The apps you use most come first, and browsers' open tabs stay out.
 - **Consoles and inputs.** Devices that name themselves over HDMI-CEC get a tile with their own mark: PlayStation 3/4/5, Xbox, Switch, Steam Deck, Apple TV, Shield, Chromecast and more. Selecting one switches the TV to that input.
 - **Liquid Glass design, iOS 26 style.** The menu, the top bar and settings are glass edged with light; settings opens as a floating card from its button while the home screen blurs behind it, and a focused poster catches a sweep of light as on Apple TV. Light mode is a soft white that doesn't glare in a dark room, with glass panes lifted on soft shadows.
@@ -191,7 +191,6 @@ The APK is written to `app/build/outputs/apk/sideload/release/`. There are two f
 ## Credits
 
 - Based on [Plume Launcher](https://github.com/aradhyas8/Plume_Launcher) by aradhyas8 (GPL-3.0).
-- Design language from the 30nama TV app.
 - **Font:** [Vazirmatn](https://github.com/rastikerdar/vazirmatn) by Saber Rastikerdar (SIL Open Font License 1.1).
 - **Logos:** [Simple Icons](https://simpleicons.org) (CC0) and [Material Symbols](https://fonts.google.com/icons) (Apache 2.0). All trademarks belong to their respective owners.
 - **Screensaver paintings** (public domain, via Wikimedia Commons; files in [`screensaver/`](screensaver)): Frederic Edwin Church, Ivan Shishkin, Jasper Francis Cropsey, Martin Johnson Heade, Albert Bierstadt, Thomas Moran, Thomas Cole, Sanford Robinson Gifford, John Frederick Kensett, William Bradford and Arkhip Kuindzhi.

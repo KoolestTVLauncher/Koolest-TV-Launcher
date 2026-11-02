@@ -6,7 +6,7 @@ Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT
 
 ## What Koolest is
 
-Koolest is a fast, ad-free home screen for Android TV and Google TV in the 30nama TV look. Every change is weighed against these principles:
+Koolest is a fast, ad-free home screen for Android TV and Google TV with a glass, TV-first look. Every change is weighed against these principles:
 
 - **Small and light.** A 0.7 MB APK, no third-party libraries (AndroidX included), no extra background services.
 - **What you use, not what we push.** Rows show your apps, your consoles and what apps report as partway watched. Nothing is sponsored or recommended.
