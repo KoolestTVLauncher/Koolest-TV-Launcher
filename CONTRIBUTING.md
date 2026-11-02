@@ -27,12 +27,15 @@ Not sure if an idea fits? Open a feature request first and ask. That's much chea
 
 ## Before you start
 
-- **Bug fixes:** go ahead and open a pull request. Link the issue if there is one.
+- **Open an issue first, for every pull request.** Use the [bug report or feature request form](../../issues/new/choose), then say in the issue that you'd like to work on it and wait for a reply. Pull requests with no linked issue may be closed, however good the code is.
+  - Bug fixes: the issue can be the bug report itself; a maintainer will confirm it so you know the fix is wanted.
+  - Features: the issue is where we agree it fits Koolest before any code is written.
+  - Typos and wording fixes in the docs don't need an issue.
 - **Looking for something to pick up?** See the [good first issue](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) and [help wanted](../../issues?q=is%3Aopen+label%3A%22help+wanted%22) labels.
-- **Features:** open a [feature request](../../issues/new/choose) first and wait for a reply. Pull requests for features that weren't discussed may be closed.
 
 ## Pull requests
 
+- **Link the issue** with `Closes #123` in the description.
 - **One change per pull request.** A bug fix and a new setting are two pull requests.
 - **Keep the diff small.** Match the style of the code around your change. Don't reformat or reorganise code you aren't changing.
 - **Test on a real TV** (or an Android TV emulator if you have no TV) and say which device and Android version you used. Run `./gradlew testSideloadDebugUnitTest testPlayDebugUnitTest`.
