@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only, and no secrets are used: the release key never reaches CI. Without keystore.properties the
+# release build is signed with a throwaway debug key and is only used to check that the build works.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Unit tests, both flavors
+        run: ./gradlew testSideloadDebugUnitTest testPlayDebugUnitTest
+      - name: Release build (R8, resources shrinking)
+        run: ./gradlew assembleSideloadRelease assemblePlayRelease

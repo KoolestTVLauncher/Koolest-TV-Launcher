@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # The Android Gradle plugin and the Gradle wrapper. Koolest has no library dependencies on purpose.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      build-tooling:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
