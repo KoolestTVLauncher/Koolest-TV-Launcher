@@ -13,4 +13,5 @@
 - [ ] It adds no third-party libraries, background services or new permissions.
 - [ ] Anything new that goes online is optional and off by default.
 - [ ] I matched the style of the surrounding code and didn't reformat unrelated code.
+- [ ] I added a line to CHANGELOG.md under Unreleased, if users would notice the change.
 - [ ] APK size before and after, if resources were added:
