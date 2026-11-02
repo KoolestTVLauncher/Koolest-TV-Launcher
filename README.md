@@ -10,6 +10,7 @@
   <a href="https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/KoolestTVLauncher/Koolest-TV-Launcher?label=release"></a>
   <img alt="Android 8 to 16" src="https://img.shields.io/badge/Android-8%20to%2016-3ddc84">
   <img alt="APK size" src="https://img.shields.io/badge/APK-0.8%20MB-blue">
+  <a href="https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/KoolestTVLauncher/Koolest-TV-Launcher/ci.yml?branch=main&label=CI"></a>
   <a href="LICENSE"><img alt="GPL-3.0 License" src="https://img.shields.io/badge/license-GPL--3.0-blue"></a>
 </p>
 

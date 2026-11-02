@@ -38,7 +38,7 @@ Not sure if an idea fits? Open a feature request first and ask. That's much chea
 - **Link the issue** with `Closes #123` in the description.
 - **One change per pull request.** A bug fix and a new setting are two pull requests.
 - **Keep the diff small.** Match the style of the code around your change. Don't reformat or reorganise code you aren't changing.
-- **Test on a real TV** (or an Android TV emulator if you have no TV) and say which device and Android version you used. Run `./gradlew testSideloadDebugUnitTest testPlayDebugUnitTest`.
+- **Test on a real TV** (or an Android TV emulator if you have no TV) and say which device and Android version you used. Run `./gradlew testSideloadDebugUnitTest testPlayDebugUnitTest`; the same tests run on every pull request as the **CI** check, which has to pass before merging.
 - **Mention size changes.** If your change adds resources or code, give the APK size before and after.
 - **Add a line to [CHANGELOG.md](CHANGELOG.md)** under *Unreleased* for anything a user would notice.
 - **No new permissions** without discussing them in an issue first.
