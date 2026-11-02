@@ -2,6 +2,8 @@
 
 Thanks for wanting to help. Koolest is a small project with one maintainer, so this page explains what fits, what doesn't, and how to send a change that can be merged quickly.
 
+Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Security problems go through [private reporting](SECURITY.md), not a public issue. Questions are welcome in [Discussions](../../discussions).
+
 ## What Koolest is
 
 Koolest is a fast, ad-free home screen for Android TV and Google TV in the 30nama TV look. Every change is weighed against these principles:
@@ -25,15 +27,20 @@ Not sure if an idea fits? Open a feature request first and ask. That's much chea
 
 ## Before you start
 
-- **Bug fixes:** go ahead and open a pull request. Link the issue if there is one.
-- **Features:** open a [feature request](../../issues/new/choose) first and wait for a reply. Pull requests for features that weren't discussed may be closed.
+- **Open an issue first, for every pull request.** Use the [bug report or feature request form](../../issues/new/choose), then say in the issue that you'd like to work on it and wait for a reply. Pull requests with no linked issue may be closed, however good the code is.
+  - Bug fixes: the issue can be the bug report itself; a maintainer will confirm it so you know the fix is wanted.
+  - Features: the issue is where we agree it fits Koolest before any code is written.
+  - Typos and wording fixes in the docs don't need an issue.
+- **Looking for something to pick up?** See the [good first issue](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) and [help wanted](../../issues?q=is%3Aopen+label%3A%22help+wanted%22) labels.
 
 ## Pull requests
 
+- **Link the issue** with `Closes #123` in the description.
 - **One change per pull request.** A bug fix and a new setting are two pull requests.
 - **Keep the diff small.** Match the style of the code around your change. Don't reformat or reorganise code you aren't changing.
 - **Test on a real TV** (or an Android TV emulator if you have no TV) and say which device and Android version you used. Run `./gradlew testSideloadDebugUnitTest testPlayDebugUnitTest`.
 - **Mention size changes.** If your change adds resources or code, give the APK size before and after.
+- **Add a line to [CHANGELOG.md](CHANGELOG.md)** under *Unreleased* for anything a user would notice.
 - **No new permissions** without discussing them in an issue first.
 
 By sending a pull request you agree that your contribution is licensed under the project's [GPL-3.0 licence](LICENSE).

@@ -3,3 +3,9 @@ contact_links:
   - name: Troubleshooting
     url: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher#troubleshooting
     about: Fixes for the Home button, Continue Watching and the screensaver.
+  - name: Ask a question or share an idea
+    url: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/discussions
+    about: Setup help, "does it work on my TV?" and open-ended ideas.
+  - name: Report a security problem
+    url: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/security/advisories/new
+    about: Privately, please. Don't open a public issue.
