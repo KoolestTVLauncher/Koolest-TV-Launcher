@@ -635,6 +635,12 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == UPDATE_STATUS) return installStatus(intent)
+        intent.getStringExtra(REMOTE_ACTION)?.let { a -> return RemoteKeys.decode(a).firstOrNull()?.let { runKeyAction(it) } ?: Unit }
+        backToRows()
+    }
+
+    /** Close whatever is open (editing, settings, All apps) and focus the first row. */
+    private fun backToRows() {
         if (editing) endEdit()
         if (settingsScrim.visibility == View.VISIBLE) closeLauncherSettings()
         if (allApps.visibility == View.VISIBLE) closeAllApps()
@@ -1936,6 +1942,7 @@ class MainActivity : Activity() {
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
         val confirm = e.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || e.keyCode == KeyEvent.KEYCODE_ENTER ||
             e.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+        remoteKey(e)?.let { return it }
         // The remote's Menu button opens the same menu as holding OK.
         if (e.keyCode == KeyEvent.KEYCODE_MENU && !editing && settingsScrim.visibility != View.VISIBLE && currentFocus != null) {
             if (e.action == KeyEvent.ACTION_UP) currentFocus?.let { onHold(it) }
@@ -2024,6 +2031,51 @@ class MainActivity : Activity() {
         v.cancelLongPress()
         v.isPressed = false
         onHold(v)
+    }
+
+    // ---------- remote buttons ----------
+    // Learned from what the remote sends (thousands of remotes, no lists); see RemoteKeys and Settings → This TV.
+
+    private fun keyMaps() = RemoteKeys.decode(prefs.getString("remote_keys", null))
+    private fun saveKeyMaps(m: List<KeyMap>) = prefs.edit().putString("remote_keys", RemoteKeys.encode(m)).apply()
+    private fun seenKeys() = prefs.getString("remote_seen", "")!!.split(',').mapNotNull { it.toIntOrNull() }
+
+    /** Remembers a button the remote has sent, newest first, so it's listed under Remote buttons. */
+    private fun noteKey(id: Int) {
+        val seen = seenKeys()
+        if (seen.firstOrNull() == id) return
+        prefs.edit().putString("remote_seen", (listOf(id) + (seen - id)).take(30).joinToString(",")).apply()
+    }
+
+    /** Set by the learn page: the next button goes here instead of doing anything. */
+    private var learning: ((Int) -> Unit)? = null
+
+    /** A non-core button: learn it, run its mapping, or null to carry on as before (no mapping, or "TV decides"). */
+    private fun remoteKey(e: KeyEvent): Boolean? {
+        if (RemoteKeys.isCore(e.keyCode) || currentFocus === pinBox || currentFocus is EditText) return null
+        val id = RemoteKeys.id(e.keyCode, e.scanCode)
+        if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) noteKey(id)
+        learning?.let { learn ->
+            if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) learn(id)
+            return true
+        }
+        val m = keyMaps().firstOrNull { it.id == id } ?: return null
+        if (m.action == RemoteKeys.TV || m.action == RemoteKeys.APP && apps.none { it.pkg == m.arg }) return null // app since uninstalled
+        if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) runKeyAction(m)
+        return true
+    }
+
+    private fun runKeyAction(m: KeyMap) {
+        when (m.action) {
+            RemoteKeys.APP -> apps.firstOrNull { it.pkg == m.arg }?.let { launch(it) }
+            RemoteKeys.MENU -> currentFocus?.let { onHold(it) }
+            RemoteKeys.ALL_APPS -> if (allApps.visibility != View.VISIBLE) { backToRows(); openAllApps() }
+            RemoteKeys.HOME -> backToRows()
+            RemoteKeys.SEARCH -> search()
+            RemoteKeys.SETTINGS -> if (settingsScrim.visibility != View.VISIBLE) unlock { openLauncherSettings() }
+            RemoteKeys.SCREENSAVER -> testScreensaver()
+            RemoteKeys.ANDROID_SETTINGS -> openSettings(Settings.ACTION_SETTINGS)
+        }
     }
 
     /** What holding OK does depends on what's focused. */
@@ -3713,6 +3765,8 @@ class MainActivity : Activity() {
         const val SLEEP_TIMEOUT = "sleep_timeout" // Settings.Secure, hidden: how long the screensaver runs before the TV sleeps
         const val SCREENSAVER_ROW = 15
         const val HOME_BUTTON_ROW = 18
+        /** Intent extra: an encoded KeyMap the Home button service hands over for Koolest to run. */
+        const val REMOTE_ACTION = "remote_action"
         const val DEFAULT_HOME_ROW = 19
         const val UPDATE_ROW = 20
         const val LOCK_ROW = 21
