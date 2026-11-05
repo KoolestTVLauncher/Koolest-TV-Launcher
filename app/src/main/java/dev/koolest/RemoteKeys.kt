@@ -1,0 +1,73 @@
+package dev.koolest
+
+/**
+ * What a remote button does, by key id (see [RemoteKeys.id]). Buttons are learned from what the remote sends:
+ * there are thousands of remotes, so nothing here knows any brand's keys.
+ */
+data class KeyMap(val id: Int, val action: String, val arg: String = "", val everywhere: Boolean = false, val name: String = "")
+
+/** Plain Kotlin (no Android classes) so it's unit tested on the JVM. */
+object RemoteKeys {
+    const val APP = "app"
+    const val MENU = "menu"
+    const val ALL_APPS = "all_apps"
+    const val HOME = "home"
+    const val SEARCH = "search"
+    const val SETTINGS = "settings"
+    const val SCREENSAVER = "screensaver"
+    const val ANDROID_SETTINGS = "android_settings"
+    const val TV = "tv" // let the TV handle it
+    const val NONE = "none" // swallow it
+    val ACTIONS = setOf(APP, MENU, ALL_APPS, HOME, SEARCH, SETTINGS, SCREENSAVER, ANDROID_SETTINGS, TV, NONE)
+
+    /** Ids for keys Android has no key code for (KEYCODE_UNKNOWN): this plus the scan code. */
+    const val UNKNOWN_BASE = 1_000_000
+    /** Linux KEY_UNKNOWN: every unmapped HID usage arrives with it, so such buttons can't be told apart. */
+    const val GENERIC_SCAN = 240
+
+    /**
+     * Never remapped: moving around, OK, Back, Home, Power, Volume, Mute. A safety rule, not a remote list.
+     * D-pad 19-23, Enter 66, Numpad Enter 160, Back 4, Home 3, Power 26, Volume 24/25, Volume mute 164, Mute 91.
+     */
+    private val CORE = setOf(19, 20, 21, 22, 23, 66, 160, 4, 3, 26, 24, 25, 164, 91)
+
+    fun isCore(keyCode: Int) = keyCode in CORE
+
+    fun id(keyCode: Int, scanCode: Int) = if (keyCode != 0) keyCode else UNKNOWN_BASE + scanCode
+
+    /** Runs on a clean release only; downs and repeats are swallowed, so holding a button fires it once. */
+    fun fires(action: Int, repeatCount: Int, canceled: Boolean) = action == 1 && !canceled && repeatCount == 0
+
+    /** "KEYCODE_PROG_RED" -> "Prog red"; null for codes Android has no name for (keyCodeToString gives digits). */
+    fun readable(raw: String): String? {
+        if (!raw.startsWith("KEYCODE_")) return null
+        return raw.removePrefix("KEYCODE_").lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+    }
+
+    fun encode(maps: List<KeyMap>) = maps.joinToString("\n") {
+        listOf(it.id.toString(), it.action, esc(it.arg), it.everywhere.toString(), esc(it.name)).joinToString("\t")
+    }
+
+    fun decode(s: String?): List<KeyMap> = s.orEmpty().split('\n').mapNotNull { line ->
+        val f = line.split('\t')
+        val id = f[0].toIntOrNull() ?: return@mapNotNull null
+        val action = f.getOrNull(1)?.takeIf { it in ACTIONS } ?: return@mapNotNull null
+        KeyMap(id, action, unesc(f.getOrElse(2) { "" }), f.getOrNull(3) == "true", unesc(f.getOrElse(4) { "" }))
+    }
+
+    private fun esc(s: String) = s.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+
+    private fun unesc(s: String) = buildString {
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            if (c == '\\' && i + 1 < s.length) {
+                append(when (s[i + 1]) { 't' -> '\t'; 'n' -> '\n'; else -> s[i + 1] })
+                i += 2
+            } else {
+                append(c)
+                i++
+            }
+        }
+    }
+}
