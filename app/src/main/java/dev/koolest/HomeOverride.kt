@@ -38,10 +38,42 @@ class HomeOverride : AccessibilityService() {
     }
 
     override fun onKeyEvent(e: KeyEvent): Boolean {
-        if (e.keyCode != KeyEvent.KEYCODE_HOME) return false
+        if (e.keyCode != KeyEvent.KEYCODE_HOME) return remoteKey(e)
         // Decided on release, by how long it was held: this TV's remote doesn't reliably send key repeats.
         if (e.action == KeyEvent.ACTION_UP && !e.isCanceled) {
             if (e.eventTime - e.downTime < LONG_PRESS_MS) goHome() else performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+        }
+        return true
+    }
+
+    /**
+     * Remote buttons set to work Everywhere (Settings → This TV → Remote buttons). Anything else goes on untouched:
+     * outside Koolest only buttons someone chose are changed. Koolest actions are handed to Koolest to run.
+     */
+    private fun remoteKey(e: KeyEvent): Boolean {
+        if (RemoteKeys.isCore(e.keyCode)) return false
+        val id = RemoteKeys.id(e.keyCode, e.scanCode)
+        learning?.let { learn ->
+            if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) learn(id)
+            return true
+        }
+        val prefs = getSharedPreferences("home", MODE_PRIVATE)
+        val m = RemoteKeys.decode(prefs.getString("remote_keys", null)).firstOrNull { it.id == id && it.everywhere } ?: return false
+        val start = when (m.action) {
+            RemoteKeys.TV, RemoteKeys.MENU -> return false // the item menu only exists in Koolest
+            RemoteKeys.NONE -> return true
+            RemoteKeys.APP -> (packageManager.getLeanbackLaunchIntentForPackage(m.arg) ?: packageManager.getLaunchIntentForPackage(m.arg))
+                ?: return false // uninstalled: the TV decides again
+            RemoteKeys.ANDROID_SETTINGS -> Intent(Settings.ACTION_SETTINGS)
+            else -> Intent(this, MainActivity::class.java).putExtra(RemoteKeys.EXTRA, true)
+        }
+        if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) {
+            if (start.component?.className == MainActivity::class.java.name) RemoteKeys.pending = m
+            try {
+                startActivity(start.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (x: Exception) {
+                // nothing to open it with on this TV
+            }
         }
         return true
     }
@@ -60,6 +92,8 @@ class HomeOverride : AccessibilityService() {
         /** The bound service, so Koolest's switch can turn it off without any permission. */
         var running: HomeOverride? = null
             private set
+        /** Set by Koolest's learn page: the next non-core button goes here, from any app. */
+        var learning: ((Int) -> Unit)? = null
         /** Home apps that aren't launchers: Settings' stand-in while the TV starts up. */
         private val NOT_LAUNCHERS = setOf("com.android.settings", "com.android.tv.settings")
         private const val LONG_PRESS_MS = 500L

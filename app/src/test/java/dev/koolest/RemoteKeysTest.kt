@@ -49,4 +49,11 @@ class RemoteKeysTest {
         assertFalse(RemoteKeys.fires(0, 3, false))
         assertFalse(RemoteKeys.fires(1, 0, true))
     }
+
+    @Test fun pendingIsTakenOnce() {
+        assertNull(RemoteKeys.takePending())
+        RemoteKeys.pending = KeyMap(184, RemoteKeys.ALL_APPS)
+        assertEquals(KeyMap(184, RemoteKeys.ALL_APPS), RemoteKeys.takePending())
+        assertNull(RemoteKeys.takePending())
+    }
 }
