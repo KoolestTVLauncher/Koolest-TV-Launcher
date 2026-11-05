@@ -1263,6 +1263,7 @@ class MainActivity : Activity() {
                 renderSettings(BAR_DATES_ROW)
             },
             Triple(s(R.string.language), LANGUAGES[prefs.getString("lang", "")] ?: s(R.string.tv_language)) { pickLanguage() },
+            Triple(s(R.string.remote_buttons), "") { remoteButtons() },
         )
         val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
         showPage(s(name), picks.map { rows[it] }, picks.indexOf(focus), back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.first == name }) })
@@ -2054,7 +2055,13 @@ class MainActivity : Activity() {
 
     /** A non-core button: learn it, run its mapping, or null to carry on as before (no mapping, or "TV decides"). */
     private fun remoteKey(e: KeyEvent): Boolean? {
-        if (RemoteKeys.isCore(e.keyCode) || currentFocus === pinBox || currentFocus is EditText) return null
+        if (RemoteKeys.isCore(e.keyCode)) {
+            if (learning != null && e.keyCode != KeyEvent.KEYCODE_BACK && e.action == KeyEvent.ACTION_UP) {
+                Toast.makeText(this, R.string.remote_core, Toast.LENGTH_SHORT).show()
+            }
+            return null
+        }
+        if (currentFocus === pinBox || currentFocus is EditText) return null
         val id = RemoteKeys.id(e.keyCode, e.scanCode)
         if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) noteKey(id)
         learning?.let { learn ->
@@ -2062,7 +2069,8 @@ class MainActivity : Activity() {
             return true
         }
         val m = keyMaps().firstOrNull { it.id == id } ?: return null
-        if (m.action == RemoteKeys.TV || m.action == RemoteKeys.APP && apps.none { it.pkg == m.arg }) return null // app since uninstalled
+        if (m.action == RemoteKeys.TV) return super.dispatchKeyEvent(e) // chosen: skip Koolest's own use (Menu's item menu)
+        if (m.action == RemoteKeys.APP && apps.none { it.pkg == m.arg }) return null // app since uninstalled
         if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) runKeyAction(m)
         return true
     }
@@ -2078,6 +2086,166 @@ class MainActivity : Activity() {
             RemoteKeys.SCREENSAVER -> testScreensaver()
             RemoteKeys.ANDROID_SETTINGS -> openSettings(Settings.ACTION_SETTINGS)
         }
+    }
+
+    // Settings → This TV → Remote buttons: the buttons this remote has sent, newest first, and Add a button.
+
+    private fun keyName(id: Int, m: KeyMap? = keyMaps().firstOrNull { it.id == id }) = m?.name?.takeIf { it.isNotEmpty() }
+        ?: (if (id < RemoteKeys.UNKNOWN_BASE) RemoteKeys.readable(KeyEvent.keyCodeToString(id)) else null)
+        ?: getString(R.string.remote_button_n, id)
+
+    private fun actionLabel(a: String) = getString(when (a) {
+        RemoteKeys.APP -> R.string.remote_an_app
+        RemoteKeys.MENU -> R.string.remote_menu
+        RemoteKeys.ALL_APPS -> R.string.all_apps
+        RemoteKeys.HOME -> R.string.remote_home
+        RemoteKeys.SEARCH -> R.string.search
+        RemoteKeys.SETTINGS -> R.string.settings_title
+        RemoteKeys.SCREENSAVER -> R.string.screensaver
+        RemoteKeys.ANDROID_SETTINGS -> R.string.remote_android_settings
+        RemoteKeys.NONE -> R.string.remote_none
+        else -> R.string.remote_tv
+    })
+
+    /** Before anyone sets it: Android's Menu key opens the item menu (#13), anything else is the TV's. */
+    private fun defaultAction(id: Int) = if (id == KeyEvent.KEYCODE_MENU) RemoteKeys.MENU else RemoteKeys.TV
+
+    /** What a button does, as its row's value; an app by its name. */
+    private fun actionName(id: Int, m: KeyMap?) = when {
+        m == null -> actionLabel(defaultAction(id))
+        m.action == RemoteKeys.APP -> apps.firstOrNull { it.pkg == m.arg }?.label ?: getString(R.string.not_installed)
+        else -> actionLabel(m.action)
+    }
+
+    private fun setKey(id: Int, change: (KeyMap) -> KeyMap) {
+        val maps = keyMaps()
+        saveKeyMaps(maps.filter { it.id != id } + change(maps.firstOrNull { it.id == id } ?: KeyMap(id, defaultAction(id))))
+    }
+
+    private fun remoteIds() = (seenKeys() + keyMaps().map { it.id }).distinct()
+
+    private fun remoteButtons(focus: Int = 0) {
+        val maps = keyMaps()
+        showPage(getString(R.string.remote_buttons), listOf(page(getString(R.string.remote_add)) { learnKey() }) + remoteIds().map { id ->
+            val m = maps.firstOrNull { it.id == id }
+            val value = when {
+                m?.everywhere == true && !homeServiceOn() -> getString(R.string.remote_needs_service)
+                m?.everywhere == true -> actionName(id, m) + " · " + getString(R.string.remote_everywhere)
+                else -> actionName(id, m)
+            }
+            page(keyName(id, m), value) { remoteKeyPage(id) }
+        }, focus) { renderSettings(REMOTE_ROW) }
+    }
+
+    private fun remoteKeyPage(id: Int, focus: Int = 0) {
+        val m = keyMaps().firstOrNull { it.id == id }
+        val where = m != null && m.action != RemoteKeys.TV && m.action != RemoteKeys.MENU // the item menu only exists in Koolest
+        val generic = id == RemoteKeys.UNKNOWN_BASE + RemoteKeys.GENERIC_SCAN
+        showPage(keyName(id, m), listOfNotNull(
+            page(getString(R.string.remote_does), actionName(id, m)) { pickKeyAction(id) },
+            if (!where) null else page(getString(R.string.remote_where), getString(when {
+                m!!.everywhere && !homeServiceOn() -> R.string.remote_needs_service
+                m.everywhere -> R.string.remote_everywhere
+                else -> R.string.remote_only_koolest
+            })) {
+                setKey(id) { it.copy(everywhere = !it.everywhere) }
+                remoteKeyPage(id, 1)
+            },
+            page(getString(R.string.remote_rename), m?.name.orEmpty()) { renameKey(id) },
+            page(getString(R.string.remote_forget)) {
+                saveKeyMaps(keyMaps().filter { it.id != id })
+                prefs.edit().putString("remote_seen", (seenKeys() - id).joinToString(",")).apply()
+                remoteButtons()
+            },
+        ), focus, top = if (generic) label(getString(R.string.remote_generic), 12f).apply {
+            alpha = 0.6f
+            maxLines = 3
+            textDirection = View.TEXT_DIRECTION_LOCALE
+            setPaddingRelative(dp(14), dp(4), dp(14), dp(8))
+        } else null) { remoteButtons(remoteIds().indexOf(id) + 1) }
+    }
+
+    private fun pickKeyAction(id: Int) {
+        val now = keyMaps().firstOrNull { it.id == id }?.action ?: defaultAction(id)
+        val choices = listOf(RemoteKeys.TV, RemoteKeys.APP, RemoteKeys.MENU, RemoteKeys.ALL_APPS, RemoteKeys.HOME, RemoteKeys.SEARCH,
+            RemoteKeys.SETTINGS, RemoteKeys.SCREENSAVER, RemoteKeys.ANDROID_SETTINGS, RemoteKeys.NONE)
+        showPage(getString(R.string.remote_does), choices.map { a ->
+            page(actionLabel(a), if (a == now) CHOSEN else "") {
+                if (a == RemoteKeys.APP) return@page pickKeyApp(id)
+                setKey(id) { it.copy(action = a, arg = "", everywhere = it.everywhere && a != RemoteKeys.MENU && a != RemoteKeys.TV) }
+                remoteKeyPage(id)
+            }
+        }, choices.indexOf(now)) { remoteKeyPage(id) }
+    }
+
+    private fun pickKeyApp(id: Int) {
+        showPage(getString(R.string.remote_an_app), apps.sortedBy { it.label.lowercase() }.map { a ->
+            page(a.label) {
+                setKey(id) { it.copy(action = RemoteKeys.APP, arg = a.pkg) }
+                remoteKeyPage(id)
+            }
+        }) { pickKeyAction(id) }
+    }
+
+    /** Waits 10 s for a button, in Koolest or (with the Home button service on) wherever Android sends it first. */
+    private fun learnKey() {
+        val text = label(getString(R.string.remote_press), 16f).apply {
+            maxLines = 4
+            textDirection = View.TEXT_DIRECTION_LOCALE // Persian text that starts with "Koolest" is still right to left
+            setPaddingRelative(dp(14), dp(12), dp(14), dp(12))
+        }
+        showPage(getString(R.string.remote_add), emptyList(), top = text) { remoteButtons() }
+        val stop = {
+            learning = null
+            HomeOverride.learning = null
+        }
+        val timeout = Runnable {
+            stop()
+            text.text = getString(R.string.remote_not_received)
+        }
+        val got: (Int) -> Unit = { id ->
+            ui.post {
+                if (learning != null) {
+                    ui.removeCallbacks(timeout)
+                    stop()
+                    noteKey(id)
+                    remoteKeyPage(id)
+                }
+            }
+        }
+        learning = got
+        HomeOverride.learning = got
+        ui.postDelayed(timeout, 10_000)
+        pageExit = {
+            ui.removeCallbacks(timeout)
+            stop()
+        }
+    }
+
+    private fun renameKey(id: Int) {
+        val field = EditText(this).apply {
+            setText(keyMaps().firstOrNull { it.id == id }?.name.orEmpty())
+            setSelection(text.length)
+            hint = keyName(id, null)
+            textSize = 14f
+            setTextColor(fg)
+            setHintTextColor(Color.argb(120, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            isSingleLine = true
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            imeOptions = EditorInfo.IME_ACTION_DONE
+            setPadding(dp(14), 0, dp(14), 0)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(8).toFloat()
+                setStroke(dp(1), Color.argb(80, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            }
+            setOnEditorActionListener { v, _, _ ->
+                setKey(id) { it.copy(name = v.text.toString().trim()) }
+                remoteKeyPage(id)
+                true
+            }
+        }
+        showPage(getString(R.string.remote_rename), emptyList(), top = field) { remoteKeyPage(id) }
+        field.requestFocus()
     }
 
     /** What holding OK does depends on what's focused. */
@@ -3751,9 +3919,10 @@ class MainActivity : Activity() {
             Triple(R.string.weather, R.string.weather_hint, listOf(12, 13, 14)),
             Triple(R.string.screensaver, R.string.screensaver_hint, listOf(15, DATES_ROW, MUSIC_ROW, 16, START_ROW, SLEEP_ROW, 17)),
             Triple(R.string.this_tv, R.string.this_tv_hint,
-                if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
+                if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, REMOTE_ROW, 20) else listOf(18, 19, 21, REMOTE_ROW, 20)),
         )
         const val LANG_ROW = 32
+        const val REMOTE_ROW = 33
         /** Each language by its own name; "" (the TV's language) is added in front where they're listed. */
         val LANGUAGES = linkedMapOf("en" to "English", "fr" to "Français", "fa" to "فارسی")
         const val ADB_SETUP_ROW = 24
@@ -3785,7 +3954,7 @@ class MainActivity : Activity() {
             R.string.units to R.drawable.ic_s_thermo, R.string.location to R.drawable.ic_s_place, R.string.automatic to R.drawable.ic_s_place,
             R.string.preview to R.drawable.ic_s_play, R.string.dates to R.drawable.ic_s_text, R.string.music to R.drawable.ic_s_music, R.string.now_playing to R.drawable.ic_s_music, R.string.top_bar_date to R.drawable.ic_s_text,
             R.string.starts_after to R.drawable.ic_s_timer, R.string.tv_sleeps_after to R.drawable.ic_s_timer, R.string.move_up to R.drawable.ic_s_move, R.string.move_down to R.drawable.ic_s_move, R.string.when_it_starts to R.drawable.ic_s_timer, R.string.home_button to R.drawable.rail_home,
-            R.string.default_home to R.drawable.ic_s_tv, R.string.pin_lock to R.drawable.ic_s_lock, R.string.updates to R.drawable.ic_s_update,
+            R.string.default_home to R.drawable.ic_s_tv, R.string.pin_lock to R.drawable.ic_s_lock, R.string.remote_buttons to R.drawable.ic_s_tv, R.string.updates to R.drawable.ic_s_update,
             R.string.keep_home_working to R.drawable.rail_home, R.string.only_launcher to R.drawable.ic_s_tv,
             R.string.open_dev_options to R.drawable.ic_s_tv, R.string.try_again to R.drawable.ic_s_update,
         )

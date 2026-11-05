@@ -281,4 +281,27 @@
     <string name="aqi_poor">Poor</string>
     <string name="aqi_unhealthy">Unhealthy</string>
     <string name="aqi_hazardous">Hazardous</string>
+
+    <!-- Remote buttons (Settings → This TV) -->
+    <string name="remote_buttons">Remote buttons</string>
+    <string name="remote_add">Add a button</string>
+    <string name="remote_press">Press the button you want to set</string>
+    <string name="remote_not_received">Koolest didn\'t get that button. Your TV probably keeps it for itself.</string>
+    <string name="remote_core">This button can\'t be changed</string>
+    <string name="remote_generic">This remote sends the same signal for several buttons, so Koolest can\'t tell them apart.</string>
+    <string name="remote_tv">TV decides</string>
+    <string name="remote_none">Nothing</string>
+    <string name="remote_an_app">Open an app…</string>
+    <string name="remote_menu">App menu</string>
+    <string name="remote_home">Koolest home</string>
+    <string name="remote_android_settings">Android settings</string>
+    <string name="remote_does">What it does</string>
+    <string name="remote_where">Where</string>
+    <string name="remote_only_koolest">Only in Koolest</string>
+    <string name="remote_everywhere">Everywhere</string>
+    <string name="remote_needs_service">Turn on \"Koolest: Home button\" to use it everywhere</string>
+    <string name="remote_rename">Rename</string>
+    <string name="remote_forget">Forget this button</string>
+    <string name="remote_button_n">Button %1$d</string>
+    <string name="not_installed">Not installed</string>
 </resources>
