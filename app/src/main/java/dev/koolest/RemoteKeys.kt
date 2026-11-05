@@ -20,6 +20,16 @@ object RemoteKeys {
     const val NONE = "none" // swallow it
     val ACTIONS = setOf(APP, MENU, ALL_APPS, HOME, SEARCH, SETTINGS, SCREENSAVER, ANDROID_SETTINGS, TV, NONE)
 
+    /**
+     * The Home button service hands a Koolest action over in memory (same process), with only a flag in the intent:
+     * Koolest's screen is exported, so other apps could send it any extra. A flag with nothing pending does nothing.
+     */
+    const val EXTRA = "remote_action"
+    @Volatile var pending: KeyMap? = null
+
+    /** The action the service just handed over, once. */
+    fun takePending(): KeyMap? = pending.also { pending = null }
+
     /** Ids for keys Android has no key code for (KEYCODE_UNKNOWN): this plus the scan code. */
     const val UNKNOWN_BASE = 1_000_000
     /** Linux KEY_UNKNOWN: every unmapped HID usage arrives with it, so such buttons can't be told apart. */

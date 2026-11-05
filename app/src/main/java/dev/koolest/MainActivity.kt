@@ -349,6 +349,8 @@ class MainActivity : Activity() {
             prefs.edit().putBoolean("setup_shown", true).apply()
             ui.post { openLauncherSettings(focus = HOME_BUTTON_ROW) }
         }
+        // Started by the Home button service to run a remote button's Koolest action (see onNewIntent).
+        if (intent.getBooleanExtra(RemoteKeys.EXTRA, false)) RemoteKeys.takePending()?.let { ui.post { runKeyAction(it) } }
 
         registerReceiver(packageReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
@@ -635,7 +637,7 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == UPDATE_STATUS) return installStatus(intent)
-        intent.getStringExtra(REMOTE_ACTION)?.let { a -> return RemoteKeys.decode(a).firstOrNull()?.let { runKeyAction(it) } ?: Unit }
+        if (intent.getBooleanExtra(RemoteKeys.EXTRA, false)) return RemoteKeys.takePending()?.let { runKeyAction(it) } ?: Unit
         backToRows()
     }
 
@@ -3765,8 +3767,6 @@ class MainActivity : Activity() {
         const val SLEEP_TIMEOUT = "sleep_timeout" // Settings.Secure, hidden: how long the screensaver runs before the TV sleeps
         const val SCREENSAVER_ROW = 15
         const val HOME_BUTTON_ROW = 18
-        /** Intent extra: an encoded KeyMap the Home button service hands over for Koolest to run. */
-        const val REMOTE_ACTION = "remote_action"
         const val DEFAULT_HOME_ROW = 19
         const val UPDATE_ROW = 20
         const val LOCK_ROW = 21
