@@ -1,5 +1,5 @@
 <resources>
-    <string name="override_desc">Opens Koolest whenever the Google TV home screen appears, so the Home button lands here.</string>
+    <string name="override_desc">Opens Koolest whenever the Google TV home screen appears, so the Home button lands here. It also runs the remote buttons you set to work everywhere (Koolest settings → This TV → Remote buttons); other buttons pass through untouched.</string>
 
     <!-- Home screen -->
     <string name="settings_title">Koolest settings</string>

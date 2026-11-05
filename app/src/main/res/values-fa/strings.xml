@@ -1,7 +1,7 @@
 <!-- Persian. A sentence never starts with a Latin word (Koolest, Wi-Fi): Android takes a paragraph's direction from its
      first strong letter, so it would lay the whole sentence out left to right. Menu paths point left (←). -->
 <resources>
-    <string name="override_desc">هر بار که صفحه‌ی اصلی Google TV باز شود، Koolest را باز می‌کند تا دکمه‌ی Home به اینجا برسد.</string>
+    <string name="override_desc">هر بار که صفحه‌ی اصلی Google TV باز شود، Koolest را باز می‌کند تا دکمه‌ی Home به اینجا برسد. دکمه‌های ریموت را هم که برای کار در همه‌جا تنظیم کرده‌اید اجرا می‌کند (تنظیمات Koolest ← این تلویزیون ← دکمه‌های ریموت)؛ بقیه‌ی دکمه‌ها بدون تغییر عبور می‌کنند.</string>
 
     <!-- Home screen -->
     <string name="settings_title">تنظیمات Koolest</string>
@@ -292,12 +292,12 @@
     <string name="remote_core">این دکمه قابل تغییر نیست</string>
     <string name="remote_generic">این ریموت برای چند دکمه یک سیگنال می‌فرستد و Koolest نمی‌تواند آن‌ها را از هم تشخیص دهد.</string>
     <string name="remote_tv">به عهده‌ی تلویزیون</string>
-    <string name="remote_none">هیچ</string>
+    <string name="remote_none">هیچ کاری</string>
     <string name="remote_an_app">باز کردن برنامه…</string>
     <string name="remote_menu">منوی برنامه</string>
     <string name="remote_home">خانه‌ی Koolest</string>
     <string name="remote_android_settings">تنظیمات اندروید</string>
-    <string name="remote_does">کارش</string>
+    <string name="remote_does">عملکرد</string>
     <string name="remote_where">کجا</string>
     <string name="remote_only_koolest">فقط در Koolest</string>
     <string name="remote_everywhere">همه‌جا</string>
