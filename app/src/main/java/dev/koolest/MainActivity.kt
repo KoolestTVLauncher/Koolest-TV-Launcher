@@ -1937,7 +1937,7 @@ class MainActivity : Activity() {
         val confirm = e.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || e.keyCode == KeyEvent.KEYCODE_ENTER ||
             e.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
         // The remote's Menu button opens the same menu as holding OK.
-        if (e.keyCode == KeyEvent.KEYCODE_MENU && !editing && currentFocus != null) {
+        if (e.keyCode == KeyEvent.KEYCODE_MENU && !editing && settingsScrim.visibility != View.VISIBLE && currentFocus != null) {
             if (e.action == KeyEvent.ACTION_UP) currentFocus?.let { onHold(it) }
             return true
         }
