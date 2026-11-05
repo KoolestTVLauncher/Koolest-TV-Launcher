@@ -2078,7 +2078,7 @@ class MainActivity : Activity() {
     private fun runKeyAction(m: KeyMap) {
         when (m.action) {
             RemoteKeys.APP -> apps.firstOrNull { it.pkg == m.arg }?.let { launch(it) }
-            RemoteKeys.MENU -> currentFocus?.let { onHold(it) }
+            RemoteKeys.MENU -> if (!editing && settingsScrim.visibility != View.VISIBLE) currentFocus?.let { onHold(it) }
             RemoteKeys.ALL_APPS -> if (allApps.visibility != View.VISIBLE) { backToRows(); openAllApps() }
             RemoteKeys.HOME -> backToRows()
             RemoteKeys.SEARCH -> search()

@@ -1,5 +1,5 @@
 <resources>
-    <string name="override_desc">Ouvre Koolest chaque fois que l’écran d’accueil de Google TV s’affiche, pour que le bouton Accueil mène ici.</string>
+    <string name="override_desc">Ouvre Koolest chaque fois que l’écran d’accueil de Google TV s’affiche, pour que le bouton Accueil mène ici. Fait aussi fonctionner les boutons de la télécommande réglés pour agir partout (Réglages Koolest → Ce téléviseur → Boutons de la télécommande) ; les autres boutons passent sans changement.</string>
 
     <!-- Home screen -->
     <string name="settings_title">Réglages Koolest</string>
