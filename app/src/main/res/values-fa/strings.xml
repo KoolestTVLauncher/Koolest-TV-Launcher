@@ -283,4 +283,27 @@
     <string name="aqi_poor">نامناسب</string>
     <string name="aqi_unhealthy">ناسالم</string>
     <string name="aqi_hazardous">خطرناک</string>
+
+    <!-- Remote buttons (Settings → This TV) -->
+    <string name="remote_buttons">دکمه‌های ریموت</string>
+    <string name="remote_add">افزودن دکمه</string>
+    <string name="remote_press">دکمه‌ای را که می‌خواهید تنظیم کنید فشار دهید</string>
+    <string name="remote_not_received">Koolest این دکمه را دریافت نکرد. احتمالا تلویزیون خودش از آن استفاده می‌کند.</string>
+    <string name="remote_core">این دکمه قابل تغییر نیست</string>
+    <string name="remote_generic">این ریموت برای چند دکمه یک سیگنال می‌فرستد و Koolest نمی‌تواند آن‌ها را از هم تشخیص دهد.</string>
+    <string name="remote_tv">به عهده‌ی تلویزیون</string>
+    <string name="remote_none">هیچ</string>
+    <string name="remote_an_app">باز کردن برنامه…</string>
+    <string name="remote_menu">منوی برنامه</string>
+    <string name="remote_home">خانه‌ی Koolest</string>
+    <string name="remote_android_settings">تنظیمات اندروید</string>
+    <string name="remote_does">کارش</string>
+    <string name="remote_where">کجا</string>
+    <string name="remote_only_koolest">فقط در Koolest</string>
+    <string name="remote_everywhere">همه‌جا</string>
+    <string name="remote_needs_service">برای استفاده در همه‌جا، «Koolest: Home button» را روشن کنید</string>
+    <string name="remote_rename">تغییر نام</string>
+    <string name="remote_forget">فراموش کردن این دکمه</string>
+    <string name="remote_button_n">دکمه‌ی %1$d</string>
+    <string name="not_installed">نصب نیست</string>
 </resources>
