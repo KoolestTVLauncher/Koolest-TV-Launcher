@@ -127,7 +127,8 @@ Wait about 15 seconds before rebooting, or Android may not have saved the change
 |---|---|
 | Turn home rows on or off | **Settings → Home screen → Rows** |
 | Pin, remove or reorder apps in the menu | **Settings → Home screen → Menu apps** |
-| Rearrange the Apps row | Hold **OK** on an app, or **Settings → Home screen → Rearrange apps** |
+| Rearrange the Apps row | Hold **OK** (or press **Menu**) on an app, or **Settings → Home screen → Rearrange apps** |
+| App info, uninstall, add to the row or the menu | Hold **OK** or press **Menu** on an app, on the home screen or in All apps |
 | Hide a Continue watching item | Hold **OK** on its card |
 | Choose which apps feed Continue watching | **Settings → Continue watching → Apps** |
 | Sort All apps | Open **All apps** and pick a sort at the top |

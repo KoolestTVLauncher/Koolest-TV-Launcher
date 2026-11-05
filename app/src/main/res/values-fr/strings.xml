@@ -22,6 +22,9 @@
     <string name="remove_from_row">Retirer de la rangée</string>
     <string name="removed_from_row">Retirée de la rangée. Elle reste dans Toutes les applis.</string>
     <string name="app_info">Infos sur l’appli</string>
+    <string name="uninstall">Désinstaller</string>
+    <string name="first_in_row">Mettre en tête de rangée</string>
+    <string name="added_to_menu">Ajoutée au menu</string>
     <string name="hide_from_home">Masquer de l’accueil</string>
     <string name="hidden_from_home">Masqué de l’écran d’accueil</string>
     <string name="open_app">Ouvrir l’appli</string>

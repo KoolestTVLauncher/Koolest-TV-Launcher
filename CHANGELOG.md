@@ -4,6 +4,10 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 
 ## [Unreleased]
 
+- The remote's Menu button opens the app menu, the same one as holding OK.
+- All apps has an app menu too: put first in row, add to the menu, App info, Uninstall.
+- Uninstall in the home row's app menu.
+
 ## [2.5.1] - 2026-10-27
 
 - App names follow Koolest's language, from each app's own translations.

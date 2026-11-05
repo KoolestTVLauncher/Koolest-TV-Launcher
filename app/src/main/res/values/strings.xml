@@ -22,6 +22,9 @@
     <string name="remove_from_row">Remove from row</string>
     <string name="removed_from_row">Removed from the row. It\'s still in All apps.</string>
     <string name="app_info">App info</string>
+    <string name="uninstall">Uninstall</string>
+    <string name="first_in_row">Put first in row</string>
+    <string name="added_to_menu">Added to the menu</string>
     <string name="hide_from_home">Hide from home</string>
     <string name="hidden_from_home">Hidden from the home screen</string>
     <string name="open_app">Open app</string>
