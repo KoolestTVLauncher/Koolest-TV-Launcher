@@ -300,13 +300,13 @@
     <string name="remote_does">عملکرد</string>
     <string name="remote_where">کجا کار کند</string>
     <string name="remote_only_koolest">فقط در Koolest</string>
-    <string name="remote_everywhere">همه‌جا، در همه‌ی برنامه‌ها</string>
+    <string name="remote_everywhere">همه‌جا</string>
     <string name="remote_needs_service">برای استفاده در همه‌جا، «Koolest: Home button» را روشن کنید</string>
     <string name="remote_rename">تغییر نام</string>
     <string name="remote_forget">فراموش کردن این دکمه</string>
     <string name="remote_button_n">دکمه‌ی %1$d</string>
     <string name="not_installed">نصب نیست</string>
-    <string name="remote_hint">انتخاب کار دکمه‌های ریموت</string>
+    <string name="remote_hint">کار دکمه‌ها</string>
     <string name="remote_empty">به یکی از دکمه‌های ریموت کار تازه‌ای بدهید: «افزودن دکمه» را بزنید و بعد همان دکمه را فشار دهید.</string>
     <string name="remote_name_title">نام این دکمه</string>
     <string name="remote_name_why">تلویزیون نمی‌گوید این کدام دکمه است. اسمی رویش بگذارید که بشناسید، مثلا همان چیزی که روی دکمه نوشته شده.</string>
