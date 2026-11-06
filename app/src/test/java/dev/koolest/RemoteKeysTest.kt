@@ -91,7 +91,8 @@ class RemoteKeysTest {
         val maps = listOf(rakuten, ambilight)
         assertEquals(ambilight, RemoteKeys.find(maps, 249, 186))
         assertEquals(rakuten, RemoteKeys.find(maps, 249, 472))
-        assertEquals(rakuten, RemoteKeys.find(maps, 249, 9)) // another remote: same key code still works
+        assertNull(RemoteKeys.find(listOf(rakuten), 249, 186)) // Ambilight not set: doesn't fire Rakuten
+        assertEquals(rakuten, RemoteKeys.find(maps, 249, 0)) // no scan code (HDMI-CEC): the key code answers
         assertEquals(KeyMap(183, RemoteKeys.APP, "x"), RemoteKeys.find(listOf(KeyMap(183, RemoteKeys.APP, "x")), 183, 77)) // set up before
         assertNull(RemoteKeys.find(listOf(KeyMap(1_000_240, RemoteKeys.NONE)), 0, 241)) // unknown keys match exactly
     }

@@ -81,12 +81,18 @@ object RemoteKeys {
     }
 
     /**
-     * The setting for a press: the exact button first, else one with the same key code (set up before scan codes
-     * were kept, or on another remote), so a second remote still works. KEYCODE_UNKNOWN keys only match exactly.
+     * The setting for a press: the exact button first, else one set up by key code alone (before scan codes were
+     * kept). A press with a scan code never takes another button's setting: an unset Ambilight mustn't fire the set
+     * Rakuten. A press without one (HDMI-CEC, some virtual remotes) can't be told apart, so any button with that key
+     * code answers. KEYCODE_UNKNOWN keys only match exactly.
      */
     fun find(maps: List<KeyMap>, keyCode: Int, scanCode: Int): KeyMap? {
         val exact = id(keyCode, scanCode)
-        return maps.firstOrNull { it.id == exact } ?: if (keyCode == 0) null else maps.firstOrNull { keyCode(it.id) == keyCode }
+        return maps.firstOrNull { it.id == exact } ?: when {
+            keyCode == 0 -> null
+            exact == keyCode -> maps.firstOrNull { keyCode(it.id) == keyCode } // no scan code to go by
+            else -> maps.firstOrNull { it.id == keyCode }
+        }
     }
 
     /** A button set up by key code alone, learned again: its setting moves to the full id instead of showing twice. */
