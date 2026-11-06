@@ -320,11 +320,11 @@
     <string name="version">Version</string>
     <string name="made_by">Créé par</string>
     <string name="whats_new">Nouveautés</string>
-    <string name="whats_new_in">Nouveautés de la %s</string>
+    <string name="whats_new_in">Nouveautés de la version %s</string>
     <string name="support_koolest">Soutenir Koolest</string>
     <string name="scan_with_phone">Scannez avec votre téléphone</string>
     <string name="website">Site web</string>
     <string name="source_code">Code source</string>
     <string name="license">Licence</string>
-    <string name="whats_new_notes">• Le bouton Menu de la télécommande ouvre le menu de l’appli. Toutes les applis en a un aussi, avec Désinstaller.\n• Boutons de la télécommande (Réglages Koolest → Boutons de la télécommande) : apprenez à Koolest n’importe quel bouton et choisissez ce qu’il fait.\n• Continuer à regarder : choisissez combien de contenus chaque appli affiche.\n• Home arrête une vidéo qui jouait encore derrière l’écran d’accueil. La musique continue.\n• La musique jouée sur le téléviseur lui-même le garde allumé.\n• Aperçu lance l’économiseur Galerie, même sur les téléviseurs qui ignorent la demande.</string>
+    <string name="whats_new_notes">• Le bouton Menu de la télécommande ouvre le menu de l’appli. Toutes les applis en ont un aussi, avec Désinstaller.\n• Boutons de la télécommande (Réglages Koolest → Boutons de la télécommande) : apprenez à Koolest n’importe quel bouton et choisissez ce qu’il fait.\n• Continuer à regarder : choisissez combien de contenus chaque appli affiche.\n• Home arrête une vidéo qui jouait encore derrière l’écran d’accueil. La musique continue.\n• La musique jouée sur le téléviseur lui-même le garde allumé.\n• Aperçu lance l’économiseur Galerie, même sur les téléviseurs qui ignorent la demande.</string>
 </resources>

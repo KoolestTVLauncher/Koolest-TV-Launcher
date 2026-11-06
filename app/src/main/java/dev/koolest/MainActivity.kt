@@ -1340,24 +1340,25 @@ class MainActivity : Activity() {
         showPage(title, listOf(page(getString(R.string.done), action = back)), top = box, back = back)
     }
 
-    /** This version's notes, bundled and translated. [back] null: shown on its own after an update, so Done closes the panel. */
+    /** This version's notes, bundled and translated. [back] null: shown on its own after an update, so Done or Back marks them read and closes the panel. */
     private fun whatsNew(back: (() -> Unit)?) {
+        val close = back ?: { prefs.edit().putString("seen_version", myVersion()).apply(); closeLauncherSettings() }
         val notes = label(getString(R.string.whats_new_notes), 14f).apply {
             maxLines = 30
             setLineSpacing(0f, 1.25f)
             setPadding(dp(8), dp(4), dp(8), dp(12))
         }
-        showPage(getString(R.string.whats_new_in, myVersion()), listOf(page(getString(R.string.done)) { back?.invoke() ?: closeLauncherSettings() }), top = notes, back = back)
+        showPage(getString(R.string.whats_new_in, myVersion()), listOf(page(getString(R.string.done), action = close)), top = notes, back = close)
     }
 
-    /** After an update (not a fresh install), What's new opens once. */
+    /** After an update (not a fresh install), What's new opens until it's closed with Done or Back (Home closing it doesn't count). */
     private fun whatsNewOnce() {
         val ver = myVersion()
         val seen = prefs.getString("seen_version", null)
         if (seen == ver) return
         val updated = seen != null || prefs.getBoolean("setup_shown", false) || homeServiceOn() // users from before this key
-        prefs.edit().putString("seen_version", ver).apply()
         if (updated && getString(R.string.whats_new_notes).isNotBlank()) ui.post { showPanel(); whatsNew(back = null) }
+        else prefs.edit().putString("seen_version", ver).apply()
     }
 
     // Pages inside the settings panel (wallpaper list, app toggles…) instead of system dialogs, so they
