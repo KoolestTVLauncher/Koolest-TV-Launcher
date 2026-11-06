@@ -24,6 +24,9 @@
     <string name="remove_from_row">برداشتن از ردیف</string>
     <string name="removed_from_row">از ردیف برداشته شد. هنوز در «همه‌ی برنامه‌ها» هست.</string>
     <string name="app_info">اطلاعات برنامه</string>
+    <string name="uninstall">حذف برنامه</string>
+    <string name="first_in_row">گذاشتن اول ردیف</string>
+    <string name="added_to_menu">به منو اضافه شد</string>
     <string name="hide_from_home">پنهان کردن از خانه</string>
     <string name="hidden_from_home">از صفحه‌ی خانه پنهان شد</string>
     <string name="open_app">باز کردن برنامه</string>

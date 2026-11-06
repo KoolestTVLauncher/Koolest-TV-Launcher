@@ -14,6 +14,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -1935,6 +1936,11 @@ class MainActivity : Activity() {
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
         val confirm = e.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || e.keyCode == KeyEvent.KEYCODE_ENTER ||
             e.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+        // The remote's Menu button opens the same menu as holding OK.
+        if (e.keyCode == KeyEvent.KEYCODE_MENU && !editing && settingsScrim.visibility != View.VISIBLE && currentFocus != null) {
+            if (e.action == KeyEvent.ACTION_UP) currentFocus?.let { onHold(it) }
+            return true
+        }
         if (confirm) {
             if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) holdFired = false
             if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0) {
@@ -2024,18 +2030,13 @@ class MainActivity : Activity() {
     private fun onHold(v: View) {
         val tag = v.tag as? String
         when {
-            allApps.visibility == View.VISIBLE && tag != null -> unlock { // grid: pin to the front of the row (unhiding it)
-                prefs.edit().putStringSet("row_hidden", rowHiddenSet() - tag).apply()
-                saveOrder(listOf(tag) + sortedApps().map { it.pkg }.filter { it != tag })
-                closeAllApps()
-                appRow.getChildAt(0)?.requestFocus() // show the app just pinned
-            }
+            allApps.visibility == View.VISIBLE && tag != null -> gridMenu(v, tag)
             v.parent === appRow || v.parent === consoleRow -> appMenu(v)
             v.getTag(R.id.watchRow) is Prog -> watchMenu(v, v.getTag(R.id.watchRow) as Prog)
         }
     }
 
-    /** Hold OK on a row app: Move (OK places it), Remove from row (stays in All apps), App info. Locked: Open only. */
+    /** Hold OK (or Menu) on a row app: Move (OK places it), Remove from row (stays in All apps), App info, Uninstall. Locked: Open only. */
     private fun appMenu(v: View) {
         val pkg = v.tag as String
         if (locked()) return holdMenu(v, listOf(
@@ -2052,11 +2053,43 @@ class MainActivity : Activity() {
                 (row.getChildAt(minOf(i, row.childCount - 1)) ?: firstRowEntry())?.requestFocus()
                 Toast.makeText(this, R.string.removed_from_row, Toast.LENGTH_SHORT).show()
             },
-            if (pkg.startsWith(HDMI)) null else getString(R.string.app_info) to {
-                openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", pkg, null))
-            },
-        ))
+        ) + appItems(pkg))
     }
+
+    /** Hold OK in All apps: first in the row (unhiding it), add to the menu, App info, Uninstall. Locked: Open only. */
+    private fun gridMenu(v: View, pkg: String) {
+        if (locked()) return holdMenu(v, listOf(
+            getString(R.string.open) to { v.performClick(); Unit },
+            getString(R.string.unlock_to_edit) to { unlock { v.requestFocus(); gridMenu(v, pkg) } },
+        ))
+        holdMenu(v, listOfNotNull(
+            getString(R.string.first_in_row) to {
+                prefs.edit().putStringSet("row_hidden", rowHiddenSet() - pkg).apply()
+                saveOrder(listOf(pkg) + sortedApps().map { it.pkg }.filter { it != pkg })
+                closeAllApps()
+                appRow.getChildAt(0)?.requestFocus() // show the app just pinned
+                Unit
+            },
+            if (pkg in railApps()) null else getString(R.string.add_to_menu) to {
+                saveRailApps(railApps() + pkg)
+                Toast.makeText(this, R.string.added_to_menu, Toast.LENGTH_SHORT).show()
+            },
+        ) + appItems(pkg))
+    }
+
+    /** App info, and Uninstall for apps that can be uninstalled; nothing for a console. */
+    private fun appItems(pkg: String): List<Pair<String, () -> Unit>> = if (pkg.startsWith(HDMI)) emptyList() else listOfNotNull(
+        getString(R.string.app_info) to {
+            openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", pkg, null))
+        },
+        if (runCatching { packageManager.getApplicationInfo(pkg, 0).flags and ApplicationInfo.FLAG_SYSTEM != 0 }.getOrDefault(true)) null
+        else getString(R.string.uninstall) to {
+            // The system asks to confirm; PACKAGE_REMOVED then refreshes the rows.
+            if (!tryStart(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", pkg, null)))) {
+                openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", pkg, null))
+            }
+        },
+    )
 
     /** Hold OK on a Continue Watching card: hide the show, or open its app rather than the episode. */
     private fun watchMenu(v: View, p: Prog) {
