@@ -28,7 +28,7 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 
 - **A TV-first layout.** A menu on the left edge, a large billboard for whatever is focused, and rows of landscape cards below it, set in Vazirmatn with a white focus ring.
 - **Rows, top to bottom:** Continue watching, Apps, Consoles & inputs, YouTube and Spotify, then a row for every other app that publishes to the TV's home screen (Netflix, Prime Video, Tubi, Apple TV, Twitch…). Rows with nothing in them don't show, and any row can be turned off.
-- **Continue watching that works.** Everything apps report as partway watched, from Android TV's Watch Next list and apps' own "Continue watching" channels. The apps you use most come first, and browsers' open tabs stay out.
+- **Continue watching that works.** Everything apps report as partway watched, from Android TV's Watch Next list and apps' own "Continue watching" channels. The apps you use most come first, each with 5, 10 or 15 shows (Settings → Continue watching → Shows per app), and browsers' open tabs stay out.
 - **Consoles and inputs.** Devices that name themselves over HDMI-CEC get a tile with their own mark: PlayStation 3/4/5, Xbox, Switch, Steam Deck, Apple TV, Shield, Chromecast and more. Selecting one switches the TV to that input.
 - **Liquid Glass design, iOS 26 style.** The menu, the top bar and settings are glass edged with light; settings opens as a floating card from its button while the home screen blurs behind it, and a focused poster catches a sweep of light as on Apple TV. Light mode is a soft white that doesn't glare in a dark room, with glass panes lifted on soft shadows.
 - **A taskbar menu.** Search, Home, your pinned apps and consoles, then All apps, in three groups. Add, remove and reorder the pins in settings.
@@ -36,7 +36,10 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **English, French and Persian.** Persian lays the whole home screen out right to left. Follow the TV's language or pick one in **Settings → Look → Language**; app names and inputs follow it too, using each app's own translation and the names you gave your inputs in the TV's settings.
 - **Any Android TV brand.** Google TV and Android TV from any maker, Android 8 to Android 16. Koolest works around whichever launcher the TV ships, not only Google TV's.
 - **Motion.** Focused cards grow and lift, rows glide into place and the background crossfades to the focused item's art. A row starts over from its first item each time you come back to it.
-- **Simple settings.** Six groups: Look, Home screen, Continue watching, Weather, Screensaver and This TV.
+- **Simple settings.** Short groups: Look, Home screen, Continue watching, Weather, Screensaver, This TV, Remote buttons and About.
+- **Remote buttons.** Press any button on any remote and Koolest learns it; then choose what it does: open an app, All apps, Search, Koolest settings, the screensaver, Android settings or nothing, only in Koolest or in every app. The **Menu** button opens an app's menu, like holding OK.
+- **Video stops when you go Home, music doesn't.** Pressing Home stops a video still playing behind the home screen, and music playing on the TV keeps it awake instead of letting it sleep.
+- **What's new and About.** After an update, Koolest shows what changed, once, in your language. Settings → About has the version, the license, and QR codes to support Koolest, open the website or the source code.
 - **Home button support on every TV.** The Home button opens Koolest even where the TV's own launcher can't be replaced, as on Google TV and most Android TVs. On Google TV, holding Home still opens the dashboard.
 - **Setup without a computer.** **Keep Home working** and **Only launcher** in Settings → This TV do the adb steps from the remote, through the TV's own network debugging. Only launcher switches the TV's own home screen off (whichever one the TV ships) so Koolest is the only one; switch it off to bring it back.
 - **Now playing in the top bar.** While music plays, the cover, title and artist sit in the top capsule, like a Live Activity in the Dynamic Island (Settings → Home screen → Now playing).
@@ -131,10 +134,12 @@ Wait about 15 seconds before rebooting, or Android may not have saved the change
 | App info, uninstall, add to the row or the menu | Hold **OK** or press **Menu** on an app, on the home screen or in All apps |
 | Hide a Continue watching item | Hold **OK** on its card |
 | Choose which apps feed Continue watching | **Settings → Continue watching → Apps** |
+| Show more shows from each app | **Settings → Continue watching → Shows per app** (5, 10 or 15) |
 | Sort All apps | Open **All apps** and pick a sort at the top |
 | Change theme or wallpaper | **Settings → Look** |
 | Change the language | **Settings → Look → Language** (English, Français, فارسی, or the TV's) |
 | Lock the layout with a PIN | **Settings → This TV → PIN lock** |
+| See what's new, or support Koolest | **Settings → About** |
 | Choose what remote buttons do | **Settings → Remote buttons**: choose **Add a button**, then press the button. Any remote works; each button can work only in Koolest or in every app (needs the Home button service). **Reset all buttons** undoes everything |
 | Back on the home screen | From deep in a row, back to its first item; again, to the menu; again, back to the rows |
 | Open the Google TV dashboard | Hold the **Home** button (not if Google TV is [turned off](#optional-make-koolest-the-only-launcher-adb)) |
@@ -206,7 +211,7 @@ Bug reports, fixes and ideas are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md
 
 ## Support
 
-Koolest is free, with no ads and no tracking, and stays that way. If it makes your TV nicer to use, you can support its development through [GitHub Sponsors](https://github.com/sponsors/benymaxparsa) or [Buy Me a Coffee](https://buymeacoffee.com/parsakamalipour). Starring the repo and telling a friend help just as much.
+Koolest is free, with no ads and no tracking, and stays that way. If it makes your TV nicer to use, you can support its development (in the app: **Settings → About → Support Koolest**, a QR code for your phone) through [GitHub Sponsors](https://github.com/sponsors/benymaxparsa) or [Buy Me a Coffee](https://buymeacoffee.com/parsakamalipour). Starring the repo and telling a friend help just as much.
 
 ## License
 
