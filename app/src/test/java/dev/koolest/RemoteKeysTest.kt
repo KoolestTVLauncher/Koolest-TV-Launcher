@@ -56,4 +56,19 @@ class RemoteKeysTest {
         assertEquals(KeyMap(184, RemoteKeys.ALL_APPS), RemoteKeys.takePending())
         assertNull(RemoteKeys.takePending())
     }
+
+    @Test fun everywhereByDefault() {
+        assertTrue(RemoteKeys.everywhereFor(KeyMap(4062, RemoteKeys.TV), RemoteKeys.APP)) // first job
+        assertTrue(RemoteKeys.everywhereFor(KeyMap(82, RemoteKeys.MENU), RemoteKeys.ALL_APPS)) // Menu's default job
+        assertFalse(RemoteKeys.everywhereFor(KeyMap(4062, RemoteKeys.APP, everywhere = false), RemoteKeys.SEARCH)) // chosen: stays
+        assertTrue(RemoteKeys.everywhereFor(KeyMap(4062, RemoteKeys.APP, everywhere = true), RemoteKeys.SEARCH))
+        assertFalse(RemoteKeys.everywhereFor(KeyMap(4062, RemoteKeys.APP, everywhere = true), RemoteKeys.MENU))
+        assertFalse(RemoteKeys.everywhereFor(KeyMap(4062, RemoteKeys.APP, everywhere = true), RemoteKeys.TV))
+    }
+
+    @Test fun digitsStayInKoolest() {
+        assertFalse(RemoteKeys.everywhereFor(KeyMap(12, RemoteKeys.TV), RemoteKeys.APP)) // the 5 key
+        assertFalse(RemoteKeys.canBeEverywhere(148, RemoteKeys.ALL_APPS)) // numpad 4
+        assertTrue(RemoteKeys.canBeEverywhere(183, RemoteKeys.ALL_APPS))
+    }
 }

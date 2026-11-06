@@ -112,6 +112,13 @@
             </intent-filter>
         </service>
 
+        <!-- The Gallery screensaver started by hand, where the TV won't start a screensaver on request. -->
+        <activity
+            android:name=".GalleryActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
         <!-- Never used for notifications: switching it on is what lets the screensaver see what's playing. -->
         <service
             android:name=".MediaListener"

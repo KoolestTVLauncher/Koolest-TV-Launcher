@@ -59,7 +59,7 @@ class HomeOverride : AccessibilityService() {
         }
         inKoolest?.let { return it(e) } // Koolest on screen: it runs Only-in-Koolest and Everywhere buttons alike
         val prefs = getSharedPreferences("home", MODE_PRIVATE)
-        val m = RemoteKeys.decode(prefs.getString("remote_keys", null)).firstOrNull { it.id == id && it.everywhere } ?: return false
+        val m = RemoteKeys.decode(prefs.getString("remote_keys", null)).firstOrNull { it.id == id && it.everywhere && RemoteKeys.canBeEverywhere(id, it.action) } ?: return false
         val start = when (m.action) {
             RemoteKeys.TV, RemoteKeys.MENU -> return false // the item menu only exists in Koolest
             RemoteKeys.NONE -> return true
