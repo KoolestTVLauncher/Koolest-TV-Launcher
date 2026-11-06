@@ -118,12 +118,15 @@ internal fun playingSessions(c: Context): List<android.media.session.MediaContro
  * Music is playing (not video), from what players and apps report (no list of apps; false without notification
  * access): a playing track with an artist or album while no player calls its sound a movie. Spotify reports its
  * music that way; its home-screen previews play with no session playing. Anything a player calls a movie is video,
- * YouTube Music included (it plays through YouTube's video player).
+ * YouTube Music included (it plays through YouTube's video player). Only music the TV itself plays: Spotify
+ * playing on a laptop shows on the TV as a playing (remote) session, but no sound comes out here.
  */
 internal fun musicPlaying(c: Context): Boolean {
     val audio = c.getSystemService(android.media.AudioManager::class.java)
+    if (!audio.isMusicActive) return false // nothing sounds on the TV
     if (audio.activePlaybackConfigurations.any { it.audioAttributes.contentType == android.media.AudioAttributes.CONTENT_TYPE_MOVIE }) return false
     return playingSessions(c).any { s ->
+        if (s.playbackInfo?.playbackType == android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE) return@any false
         val m = s.metadata ?: return@any false
         listOf(MediaMetadata.METADATA_KEY_ARTIST, MediaMetadata.METADATA_KEY_ALBUM, MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
             .any { !m.getString(it).isNullOrEmpty() }
@@ -149,6 +152,27 @@ internal fun quietVideo(c: Context) {
         .build()
     audio.requestAudioFocus(focus)
     audio.abandonAudioFocusRequest(focus)
+}
+
+/**
+ * The TV mustn't fall asleep in the middle of music: the screensaver's sleep timer ("sleep_timeout", Settings →
+ * Screensaver → TV sleeps after) would end it, and a screen-on flag doesn't stop that timer while dreaming. So
+ * while music plays it's set to never, the person's own value kept in "sleep_saved", and put back once the music
+ * stops, Koolest opens, or the TV restarts. Needs the adb-granted WRITE_SECURE_SETTINGS; without it, nothing changes.
+ */
+internal fun keepAwakeForMusic(c: Context, music: Boolean) {
+    if (c.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+    val prefs = c.getSharedPreferences("home", Context.MODE_PRIVATE)
+    val cr = c.contentResolver
+    if (music && !prefs.contains("sleep_saved")) {
+        val now = Settings.Secure.getInt(cr, "sleep_timeout", -1)
+        if (now < 0) return // already never
+        prefs.edit().putInt("sleep_saved", now).commit() // saved before changing it, so it can always be put back
+        Settings.Secure.putInt(cr, "sleep_timeout", -1)
+    } else if (!music && prefs.contains("sleep_saved")) {
+        Settings.Secure.putInt(cr, "sleep_timeout", prefs.getInt("sleep_saved", -1))
+        prefs.edit().remove("sleep_saved").apply()
+    }
 }
 
 internal class Track(val title: String, val artist: String, val art: Bitmap?, val progress: Float?)

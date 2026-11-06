@@ -375,6 +375,7 @@ class MainActivity : Activity() {
         HomeOverride.inKoolest = { e -> remoteKey(e, fromService = true) ?: false }
         Locale.setDefault(resources.configuration.locales[0]) // Android may have put the TV's back meanwhile (see localized)
         quietVideo(this) // back from an app: its video shouldn't keep playing behind the home screen
+        keepAwakeForMusic(this, false) // the screensaver kept the TV awake for music: the person's own sleep timer again
         ensureHomeService()
         if (wantDark() != dark) {
             recreate()
@@ -2780,6 +2781,7 @@ class MainActivity : Activity() {
                 Toast.makeText(this, R.string.setup_keep_home_first, Toast.LENGTH_LONG).show()
                 return false
             }
+            prefs.edit().remove("sleep_saved").apply() // the person's choice wins over one kept aside for music
             return Settings.Secure.putInt(contentResolver, SLEEP_TIMEOUT, ms)
         }
         if (Settings.System.canWrite(this)) return Settings.System.putInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, ms)

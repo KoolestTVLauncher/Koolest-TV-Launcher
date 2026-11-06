@@ -68,6 +68,14 @@ internal fun paintingsReady(c: Context) = PAINTING_FILES.all { File(paintingsDir
  */
 class GalleryDream : DreamService() {
     private var show: GalleryShow? = null
+    private val ui = android.os.Handler(android.os.Looper.getMainLooper())
+    /** Every 30 s: keep the TV awake while music plays (see keepAwakeForMusic). */
+    private val musicCheck = object : Runnable {
+        override fun run() {
+            keepAwakeForMusic(this@GalleryDream, musicPlaying(this@GalleryDream))
+            ui.postDelayed(this, 30_000)
+        }
+    }
 
     override fun attachBaseContext(base: Context) = super.attachBaseContext(localized(base))
 
@@ -77,6 +85,7 @@ class GalleryDream : DreamService() {
         isFullscreen = true
         Locale.setDefault(resources.configuration.locales[0]) // Android puts the TV's back when it binds the dream
         show = GalleryShow(this).also { setContentView(it.view) }
+        ui.post(musicCheck)
     }
 
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
@@ -96,6 +105,8 @@ class GalleryDream : DreamService() {
     }
 
     override fun onDetachedFromWindow() {
+        ui.removeCallbacks(musicCheck)
+        keepAwakeForMusic(this, false) // the person is back (or the TV is going to sleep anyway): their own timer again
         show?.release()
         super.onDetachedFromWindow()
     }
