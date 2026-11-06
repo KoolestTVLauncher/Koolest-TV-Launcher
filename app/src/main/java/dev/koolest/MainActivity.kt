@@ -2168,7 +2168,7 @@ class MainActivity : Activity() {
             RemoteKeys.SEARCH -> search()
             RemoteKeys.SETTINGS -> if (settingsScrim.visibility != View.VISIBLE) unlock { openLauncherSettings() }
             RemoteKeys.SCREENSAVER -> testScreensaver()
-            RemoteKeys.ANDROID_SETTINGS -> openSettings(Settings.ACTION_SETTINGS)
+            RemoteKeys.ANDROID_SETTINGS -> unlock { openSettings(Settings.ACTION_SETTINGS) }
         }
     }
 
