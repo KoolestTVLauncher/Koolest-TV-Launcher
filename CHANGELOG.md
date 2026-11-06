@@ -8,6 +8,10 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 - All apps has an app menu too: put first in row, add to the menu, App info, Uninstall.
 - Uninstall in the home row's app menu.
 - Remote buttons (Settings → Remote buttons): Koolest learns any remote's buttons when you press them and lets you choose what each one does (open an app, All apps, Search, Koolest settings, screensaver, Android settings, nothing), only in Koolest or everywhere. Unnamed buttons are named when added; Reset all buttons undoes everything.
+- Home stops a video still playing behind the home screen; music keeps playing (#23).
+- Music playing on the TV itself keeps the TV awake (#24).
+- Preview starts the Gallery screensaver by hand on TVs that ignore the request (#28).
+- Settings → About: version, maker, license, QR codes to support Koolest and to the website and GitHub. What's new opens once after an update (#31).
 
 ## [2.5.1] - 2026-10-27
 

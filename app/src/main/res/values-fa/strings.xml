@@ -315,4 +315,17 @@
     <string name="remote_reset_why">همه‌ی دکمه‌ها به کار قبلی‌شان برمی‌گردند و دکمه‌هایی که اضافه کرده‌اید از این فهرست حذف می‌شوند.</string>
     <string name="remote_reset_do">بازنشانی</string>
     <string name="remote_reset_keep">دکمه‌ها بمانند</string>
+    <!-- About (#31) -->
+    <string name="about">درباره</string>
+    <string name="about_hint">نسخه، حمایت، پیوندها</string>
+    <string name="version">نسخه</string>
+    <string name="made_by">سازنده</string>
+    <string name="whats_new">تازه‌ها</string>
+    <string name="whats_new_in">تازه‌های نسخه‌ی %s</string>
+    <string name="support_koolest">حمایت از Koolest</string>
+    <string name="scan_with_phone">با گوشی اسکن کنید</string>
+    <string name="website">وب‌سایت</string>
+    <string name="source_code">کد منبع</string>
+    <string name="license">مجوز</string>
+    <string name="whats_new_notes">• دکمه‌ی منوی ریموت، منوی برنامه را باز می‌کند. همه‌ی برنامه‌ها هم منو دارد، با حذف برنامه.\n• دکمه‌های ریموت (تنظیمات Koolest ← دکمه‌های ریموت): هر دکمه‌ای را به Koolest یاد بدهید و کارش را انتخاب کنید.\n• ادامه‌ی تماشا: انتخاب کنید از هر برنامه چند مورد نشان داده شود.\n• با زدن دکمه‌ی Home، ویدیویی که هنوز پشت صفحه‌ی اصلی پخش می‌شد می‌ایستد. موسیقی ادامه پیدا می‌کند.\n• وقتی روی خود تلویزیون موسیقی پخش می‌شود، تلویزیون بیدار می‌ماند.\n• پیش‌نمایش، محافظ صفحه‌ی گالری را حتی در تلویزیون‌هایی که درخواست را نادیده می‌گیرند باز می‌کند.</string>
 </resources>
