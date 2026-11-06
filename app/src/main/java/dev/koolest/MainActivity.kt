@@ -348,7 +348,8 @@ class MainActivity : Activity() {
             // Fresh install: open settings on the Home button row, the one step that has to happen by hand.
             prefs.edit().putBoolean("setup_shown", true).apply()
             ui.post { openLauncherSettings(focus = HOME_BUTTON_ROW) }
-        }
+            prefs.edit().putString("seen_version", myVersion()).apply() // nothing is new on a fresh install
+        } else whatsNewOnce()
         // Started by the Home button service to run a remote button's Koolest action (see onNewIntent).
         if (intent.getBooleanExtra(RemoteKeys.EXTRA, false)) RemoteKeys.takePending()?.let { ui.post { runKeyAction(it) } }
 
@@ -1298,8 +1299,72 @@ class MainActivity : Activity() {
 
     /** The first settings page: a few groups, each a short list. */
     private fun settingsHome(focus: Int = 0) = showPage(getString(R.string.settings_title), SETTINGS_GROUPS.map { (name, hint, picks) ->
-        page(getString(name), getString(hint)) { if (picks.first() == REMOTE_ROW) remoteButtons() else renderSettings(picks.first()) }
+        page(getString(name), getString(hint)) {
+            when (picks.first()) {
+                REMOTE_ROW -> remoteButtons()
+                ABOUT_ROW -> about()
+                else -> renderSettings(picks.first())
+            }
+        }
     }, focus, back = null)
+
+    // ---------- about ----------
+
+    /** Who makes Koolest, its version and licence, and QR codes to support it or find it (a TV can't open links). */
+    private fun about(focus: Int = 0) {
+        val back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.third.first() == ABOUT_ROW }) }
+        fun qr(title: Int, vararg links: Pair<String, String>, at: Int) = { qrPage(getString(title), links.toList()) { about(at) } }
+        showPage(getString(R.string.about), listOf(
+            page(getString(R.string.version), myVersion()) {},
+            page(getString(R.string.made_by), "Parsa Kamalipour") {},
+            page(getString(R.string.whats_new)) { whatsNew { about(2) } },
+            page(getString(R.string.support_koolest), getString(R.string.scan_with_phone),
+                qr(R.string.support_koolest, "GitHub Sponsors" to SPONSORS_URL, "Buy Me a Coffee" to COFFEE_URL, at = 3)),
+            page(getString(R.string.website), SITE_URL.removePrefix("https://"), qr(R.string.website, "" to SITE_URL, at = 4)),
+            page(getString(R.string.source_code), "GitHub", qr(R.string.source_code, "" to "https://github.com/$REPO", at = 5)),
+            page(getString(R.string.license), "GPL-3.0") {},
+        ), focus, back = back)
+    }
+
+    /** QR codes side by side, each with its caption (if any) and address under it. */
+    private fun qrPage(title: String, links: List<Pair<String, String>>, back: () -> Unit) {
+        val box = LinearLayout(this).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(4), 0, dp(12))
+            links.forEach { (name, url) ->
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    setPadding(dp(12), 0, dp(12), 0)
+                    addView(ImageView(this@MainActivity).apply { setImageBitmap(qrBitmap(url, dp(if (links.size > 1) 150 else 200))) })
+                    if (name.isNotEmpty()) addView(label(name, 14f).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) })
+                    addView(label(url.removePrefix("https://"), 12f).apply { gravity = Gravity.CENTER; alpha = 0.6f; maxLines = 2; setPadding(0, dp(4), 0, 0) })
+                }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)) // equal columns, so a long address can't squeeze its neighbour
+            }
+        }
+        showPage(title, listOf(page(getString(R.string.done), action = back)), top = box, back = back)
+    }
+
+    /** This version's notes, bundled and translated. [back] null: shown on its own after an update, so Done or Back marks them read and closes the panel. */
+    private fun whatsNew(back: (() -> Unit)?) {
+        val close = back ?: { prefs.edit().putString("seen_version", myVersion()).apply(); closeLauncherSettings() }
+        val notes = label(getString(R.string.whats_new_notes), 14f).apply {
+            maxLines = 30
+            setLineSpacing(0f, 1.25f)
+            setPadding(dp(8), dp(4), dp(8), dp(12))
+        }
+        showPage(getString(R.string.whats_new_in, myVersion()), listOf(page(getString(R.string.done), action = close)), top = notes, back = close)
+    }
+
+    /** After an update (not a fresh install), What's new opens until it's closed with Done or Back (Home closing it doesn't count). */
+    private fun whatsNewOnce() {
+        val ver = myVersion()
+        val seen = prefs.getString("seen_version", null)
+        if (seen == ver) return
+        val updated = seen != null || prefs.getBoolean("setup_shown", false) || homeServiceOn() // users from before this key
+        if (updated && getString(R.string.whats_new_notes).isNotBlank()) ui.post { showPanel(); whatsNew(back = null) }
+        else prefs.edit().putString("seen_version", ver).apply()
+    }
 
     // Pages inside the settings panel (wallpaper list, app toggles…) instead of system dialogs, so they
     // match Koolest's look. Back goes up one page; from the main list it closes the panel.
@@ -3982,10 +4047,12 @@ class MainActivity : Activity() {
             Triple(R.string.this_tv, R.string.this_tv_hint,
                 if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
             Triple(R.string.remote_buttons, R.string.remote_hint, listOf(REMOTE_ROW)), // opens its own page (settingsHome)
+            Triple(R.string.about, R.string.about_hint, listOf(ABOUT_ROW)), // its own page too, not in renderSettings' list
         )
         const val LANG_ROW = 32
         const val REMOTE_ROW = 33
         const val PER_APP_ROW = 34
+        const val ABOUT_ROW = 100 // never an index into renderSettings' list: settingsHome opens about() instead
         /** Each language by its own name; "" (the TV's language) is added in front where they're listed. */
         val LANGUAGES = linkedMapOf("en" to "English", "fr" to "Français", "fa" to "فارسی")
         const val ADB_SETUP_ROW = 24
@@ -4019,7 +4086,9 @@ class MainActivity : Activity() {
             R.string.starts_after to R.drawable.ic_s_timer, R.string.tv_sleeps_after to R.drawable.ic_s_timer, R.string.move_up to R.drawable.ic_s_move, R.string.move_down to R.drawable.ic_s_move, R.string.when_it_starts to R.drawable.ic_s_timer, R.string.home_button to R.drawable.rail_home,
             R.string.default_home to R.drawable.ic_s_tv, R.string.pin_lock to R.drawable.ic_s_lock, R.string.remote_buttons to R.drawable.ic_s_remote, R.string.updates to R.drawable.ic_s_update,
             R.string.keep_home_working to R.drawable.rail_home, R.string.only_launcher to R.drawable.ic_s_tv,
-            R.string.open_dev_options to R.drawable.ic_s_tv, R.string.try_again to R.drawable.ic_s_update,
+            R.string.open_dev_options to R.drawable.ic_s_tv, R.string.about to R.drawable.ic_s_info, R.string.version to R.drawable.ic_s_info,
+            R.string.made_by to R.drawable.ic_s_heart, R.string.whats_new to R.drawable.ic_s_update, R.string.support_koolest to R.drawable.ic_s_heart,
+            R.string.website to R.drawable.ic_s_tv, R.string.source_code to R.drawable.ic_s_text, R.string.license to R.drawable.ic_s_text, R.string.try_again to R.drawable.ic_s_update,
         )
         // The menu's apps to start with (any not installed are skipped), followed by the consoles (see railApps).
         const val DEFAULT_RAIL = "com.google.android.youtube.tv,com.netflix.ninja,com.amazon.amazonvideo.livingroom,com.spotify.tv.android,com.nama30.tv"
@@ -4051,6 +4120,9 @@ class MainActivity : Activity() {
         /** Minutes between folder photos. */
         val PHOTO_EVERY = listOf(1, 5, 10, 15, 30, 60, 1440)
         const val CHOSEN = "✓"
+        const val SITE_URL = "https://koolesttvlauncher.github.io"
+        const val SPONSORS_URL = "https://github.com/sponsors/benymaxparsa"
+        const val COFFEE_URL = "https://buymeacoffee.com/parsakamalipour"
         const val REPO = "KoolestTVLauncher/Koolest-TV-Launcher" // this repo's releases, which the in-app updater installs
         const val ACCENT = 0xFFF0454A.toInt() // 30nama red: progress, switches on, the current PIN box
         const val UNSPLASH = "online:Unsplash photos" // a new photo every "Photo changes", see onlinePhoto

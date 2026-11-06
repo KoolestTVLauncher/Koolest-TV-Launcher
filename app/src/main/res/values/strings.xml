@@ -315,4 +315,17 @@
     <string name="remote_reset_why">Every button goes back to what it did before, and the buttons you added are removed from this list.</string>
     <string name="remote_reset_do">Reset</string>
     <string name="remote_reset_keep">Keep my buttons</string>
+    <!-- About (#31). whats_new_notes: this version's notes, rewritten each release; empty means don't show. -->
+    <string name="about">About</string>
+    <string name="about_hint">Version, support, links</string>
+    <string name="version">Version</string>
+    <string name="made_by">Made by</string>
+    <string name="whats_new">What\'s new</string>
+    <string name="whats_new_in">What\'s new in %s</string>
+    <string name="support_koolest">Support Koolest</string>
+    <string name="scan_with_phone">Scan with your phone</string>
+    <string name="website">Website</string>
+    <string name="source_code">Source code</string>
+    <string name="license">License</string>
+    <string name="whats_new_notes">• The remote\'s Menu button opens the app menu. All apps has one too, with Uninstall.\n• Remote buttons (Koolest settings → Remote buttons): teach Koolest any button and choose what it does.\n• Continue Watching: choose how many shows each app gets.\n• Home stops a video still playing behind the home screen. Music keeps playing.\n• Music playing on the TV itself keeps the TV awake.\n• Preview starts the Gallery screensaver even on TVs that ignore the request.</string>
 </resources>
