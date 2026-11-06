@@ -115,8 +115,9 @@ internal fun playingSessions(c: Context): List<android.media.session.MediaContro
 }
 
 /**
- * Music is playing (not video), from what players and apps report (no list of apps; false without notification
- * access): a playing track with an artist or album while no player calls its sound a movie. Spotify reports its
+ * Music is playing (not video), from what players and apps report (no list of apps): no player calls its sound a
+ * movie, and either one calls it music or speech (radio, podcasts, audiobooks), or (with notification access) an
+ * audio app's session or a playing track with an artist or album is playing. Spotify reports its
  * music that way; its home-screen previews play with no session playing. Anything a player calls a movie is video,
  * YouTube Music included (it plays through YouTube's video player). Only music the TV itself plays: Spotify
  * playing on a laptop shows on the TV as a playing (remote) session, but no sound comes out here.
@@ -124,9 +125,14 @@ internal fun playingSessions(c: Context): List<android.media.session.MediaContro
 internal fun musicPlaying(c: Context): Boolean {
     val audio = c.getSystemService(android.media.AudioManager::class.java)
     if (!audio.isMusicActive) return false // nothing sounds on the TV
-    if (audio.activePlaybackConfigurations.any { it.audioAttributes.contentType == android.media.AudioAttributes.CONTENT_TYPE_MOVIE }) return false
+    val kinds = audio.activePlaybackConfigurations.map { it.audioAttributes.contentType }
+    if (android.media.AudioAttributes.CONTENT_TYPE_MOVIE in kinds) return false
+    // A player that labels its sound music or speech (radio, podcasts, audiobooks).
+    if (android.media.AudioAttributes.CONTENT_TYPE_MUSIC in kinds || android.media.AudioAttributes.CONTENT_TYPE_SPEECH in kinds) return true
     return playingSessions(c).any { s ->
         if (s.playbackInfo?.playbackType == android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE) return@any false
+        // An app that declares itself an audio app.
+        if (runCatching { c.packageManager.getApplicationInfo(s.packageName, 0).category }.getOrNull() == android.content.pm.ApplicationInfo.CATEGORY_AUDIO) return@any true
         val m = s.metadata ?: return@any false
         listOf(MediaMetadata.METADATA_KEY_ARTIST, MediaMetadata.METADATA_KEY_ALBUM, MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
             .any { !m.getString(it).isNullOrEmpty() }
