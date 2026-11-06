@@ -372,7 +372,7 @@ class MainActivity : Activity() {
         super.onResume()
         // While Koolest is on screen, the Home button service hands every button to it first: past the service, the
         // TV's own handling (TCL's app and menu keys) would run before Koolest saw an Only-in-Koolest button.
-        HomeOverride.inKoolest = { e -> remoteKey(e, fromService = true) ?: false }
+        HomeOverride.inKoolest = keyHook
         Locale.setDefault(resources.configuration.locales[0]) // Android may have put the TV's back meanwhile (see localized)
         ensureHomeService()
         if (wantDark() != dark) {
@@ -417,7 +417,10 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
-        HomeOverride.inKoolest = null
+        if (HomeOverride.inKoolest === keyHook) HomeOverride.inKoolest = null // only our own: another screen may have resumed first
+        // Leaving while waiting for a button: stop, or the next app's first button would be swallowed.
+        learning = null
+        HomeOverride.learning = null
         ui.removeCallbacks(inputPoll)
         ui.removeCallbacks(weatherTick)
         ui.removeCallbacks(themeTick)
@@ -2048,16 +2051,21 @@ class MainActivity : Activity() {
     /** Buttons added with Add a button, newest first. ("remote_seen", from a test build, listed every key pressed: dropped.) */
     private fun seenKeys() = prefs.getString("remote_learned", "")!!.split(',').mapNotNull { it.toIntOrNull() }
 
+    /** Puts a just-added button at the top of the list. */
     private fun noteKey(id: Int) {
         val seen = seenKeys()
         prefs.edit().putString("remote_learned", (listOf(id) + (seen - id)).take(30).joinToString(",")).apply()
     }
 
+    private val keyHook: (KeyEvent) -> Boolean = { e -> remoteKey(e, fromService = true) ?: false }
+
     /** Set by the learn page: the next button goes here instead of doing anything. */
     private var learning: ((Int) -> Unit)? = null
 
-    /** A non-core button: learn it, run its mapping, or null to carry on as before (no mapping, or "TV decides"). */
-    /** [fromService]: the Home button service asking while Koolest is on screen; null there means "pass it on". */
+    /**
+     * A non-core button: learn it, run its mapping, or null to carry on as before (no mapping, or "TV decides").
+     * [fromService]: the Home button service asking while Koolest is on screen; null there means "pass it on".
+     */
     private fun remoteKey(e: KeyEvent, fromService: Boolean = false): Boolean? {
         if (RemoteKeys.isCore(e.keyCode)) {
             if (!fromService && learning != null && e.keyCode != KeyEvent.KEYCODE_BACK && e.action == KeyEvent.ACTION_UP) {
@@ -2164,7 +2172,7 @@ class MainActivity : Activity() {
 
     private fun remoteKeyPage(id: Int, focus: Int = 0) {
         val m = keyMaps().firstOrNull { it.id == id }
-        val where = m != null && m.action != RemoteKeys.TV && m.action != RemoteKeys.MENU // the item menu only exists in Koolest
+        val where = m != null && RemoteKeys.canBeEverywhere(id, m.action)
         val generic = id == RemoteKeys.UNKNOWN_BASE + RemoteKeys.GENERIC_SCAN
         showPage(keyName(id, m), listOfNotNull(
             page(getString(R.string.remote_does), actionName(id, m)) { pickKeyAction(id) },
@@ -2197,22 +2205,16 @@ class MainActivity : Activity() {
         showPage(getString(R.string.remote_does), choices.map { a ->
             page(actionLabel(a), if (a == now) CHOSEN else "") {
                 if (a == RemoteKeys.APP) return@page pickKeyApp(id)
-                setKey(id) { it.copy(action = a, arg = "", everywhere = everywhereFor(it, a)) }
+                setKey(id) { it.copy(action = a, arg = "", everywhere = RemoteKeys.everywhereFor(it, a)) }
                 remoteKeyPage(id)
             }
         }, choices.indexOf(now)) { remoteKeyPage(id) }
     }
 
-    /** A button's first job works everywhere; after that, the person's own choice stays. The item menu is Koolest-only. */
-    private fun everywhereFor(old: KeyMap, action: String) = when (action) {
-        RemoteKeys.MENU, RemoteKeys.TV -> false
-        else -> old.everywhere || old.action == RemoteKeys.TV || old.action == RemoteKeys.MENU
-    }
-
     private fun pickKeyApp(id: Int) {
         showPage(getString(R.string.remote_an_app), apps.sortedBy { it.label.lowercase() }.map { a ->
             page(a.label) {
-                setKey(id) { it.copy(action = RemoteKeys.APP, arg = a.pkg, everywhere = everywhereFor(it, RemoteKeys.APP)) }
+                setKey(id) { it.copy(action = RemoteKeys.APP, arg = a.pkg, everywhere = RemoteKeys.everywhereFor(it, RemoteKeys.APP)) }
                 remoteKeyPage(id)
             }
         }) { pickKeyAction(id) }

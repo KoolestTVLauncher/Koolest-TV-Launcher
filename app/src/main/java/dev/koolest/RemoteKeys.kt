@@ -43,6 +43,16 @@ object RemoteKeys {
 
     fun isCore(keyCode: Int) = keyCode in CORE
 
+    /** 0-9 (7-16) and numpad 0-9 (144-153): people type these in other apps and the PIN pad. */
+    fun isDigit(keyCode: Int) = keyCode in 7..16 || keyCode in 144..153
+
+    /** The item menu only exists in Koolest, "as usual" changes nothing, and digits must stay typeable elsewhere. */
+    fun canBeEverywhere(id: Int, action: String) = action != MENU && action != TV && !isDigit(id)
+
+    /** A button's first job works everywhere; after that, the person's own choice stays. */
+    fun everywhereFor(old: KeyMap, action: String) = canBeEverywhere(old.id, action) &&
+        (old.everywhere || old.action == TV || old.action == MENU)
+
     fun id(keyCode: Int, scanCode: Int) = if (keyCode != 0) keyCode else UNKNOWN_BASE + scanCode
 
     /** Runs on a clean release only; downs and repeats are swallowed, so holding a button fires it once. */
