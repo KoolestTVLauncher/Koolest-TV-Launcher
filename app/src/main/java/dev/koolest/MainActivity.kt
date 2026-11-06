@@ -2848,8 +2848,12 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    /** Starts whichever screensaver is set, through SystemUI's "dream now" entry point. */
+    /**
+     * Starts whichever screensaver is set: Koolest's own Gallery is shown directly (some TVs, the TCL, ignore
+     * SystemUI's "dream now" entry point); another screensaver is asked for through it.
+     */
     private fun testScreensaver() {
+        if (galleryOn()) return startActivity(Intent(this, GalleryActivity::class.java))
         try {
             startActivity(Intent(Intent.ACTION_MAIN).setClassName("com.android.systemui", "com.android.systemui.Somnambulator"))
         } catch (e: Exception) {

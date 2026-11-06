@@ -79,25 +79,60 @@ class GalleryDream : DreamService() {
         show = GalleryShow(this).also { setContentView(it.view) }
     }
 
-    override fun dispatchKeyEvent(e: KeyEvent): Boolean {
-        if (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            if (e.action == KeyEvent.ACTION_DOWN) show?.step(if (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1)
-            return true
-        }
-        if (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            if (e.action == KeyEvent.ACTION_DOWN) show?.info?.flip(if (e.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) 1 else -1)
-            return true
-        }
-        if (e.action == KeyEvent.ACTION_UP) {
-            startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            finish()
-        }
-        return true
+    override fun dispatchKeyEvent(e: KeyEvent) = galleryKey(e, show) {
+        startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        finish()
     }
 
     override fun onDetachedFromWindow() {
         show?.release()
         super.onDetachedFromWindow()
+    }
+}
+
+/** The screensaver's keys: ◀ ▶ step through the pictures, ▲ ▼ through the weather, any other key [leave]s. */
+private fun galleryKey(e: KeyEvent, show: GalleryShow?, leave: () -> Unit): Boolean {
+    if (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+        if (e.action == KeyEvent.ACTION_DOWN) show?.step(if (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1)
+        return true
+    }
+    if (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+        if (e.action == KeyEvent.ACTION_DOWN) show?.info?.flip(if (e.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) 1 else -1)
+        return true
+    }
+    if (e.action == KeyEvent.ACTION_UP) leave()
+    return true
+}
+
+/**
+ * The Gallery screensaver started by hand (Settings → Screensaver → Preview, or a remote button): some TVs (the TCL)
+ * ignore Android's "start the screensaver now", so Koolest shows it itself. Once the TV's own timer runs out, its
+ * real screensaver (this same Gallery) takes over.
+ */
+class GalleryActivity : android.app.Activity() {
+    private var show: GalleryShow? = null
+
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(localized(base))
+
+    override fun onCreate(state: android.os.Bundle?) {
+        super.onCreate(state)
+        Locale.setDefault(resources.configuration.locales[0]) // dates and weather in Koolest's language, as in the dream
+        window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        show = GalleryShow(this).also { setContentView(it.view) }
+    }
+
+    override fun dispatchKeyEvent(e: KeyEvent) = galleryKey(e, show) { finish() }
+
+    override fun onStop() {
+        super.onStop()
+        finish() // gone from screen (Home, the TV's screensaver): don't come back to it
+    }
+
+    override fun onDestroy() {
+        show?.release()
+        show = null
+        super.onDestroy()
     }
 }
 
