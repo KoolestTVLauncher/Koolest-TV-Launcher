@@ -32,6 +32,8 @@ object RemoteKeys {
 
     /** Ids for keys Android has no key code for (KEYCODE_UNKNOWN): this plus the scan code. */
     const val UNKNOWN_BASE = 1_000_000
+    /** Marks an id that holds a scan code too (see [id]): bit 30, so it can't meet plain or [UNKNOWN_BASE] ids. */
+    const val SCAN_FLAG = 1 shl 30
     /** Linux KEY_UNKNOWN: every unmapped HID usage arrives with it, so such buttons can't be told apart. */
     const val GENERIC_SCAN = 240
 
@@ -47,13 +49,52 @@ object RemoteKeys {
     fun isDigit(keyCode: Int) = keyCode in 7..16 || keyCode in 144..153
 
     /** The item menu only exists in Koolest, "as usual" changes nothing, and digits must stay typeable elsewhere. */
-    fun canBeEverywhere(id: Int, action: String) = action != MENU && action != TV && !isDigit(id)
+    fun canBeEverywhere(id: Int, action: String) = action != MENU && action != TV && !isDigit(keyCode(id))
 
     /** A button's first job works everywhere; after that, the person's own choice stays. */
     fun everywhereFor(old: KeyMap, action: String) = canBeEverywhere(old.id, action) &&
         (old.everywhere || old.action == TV || old.action == MENU)
 
-    fun id(keyCode: Int, scanCode: Int) = if (keyCode != 0) keyCode else UNKNOWN_BASE + scanCode
+    /**
+     * A button's id: its key code and scan code together ([SCAN_FLAG] set), so two buttons that send the same key
+     * code (Philips' Rakuten and Ambilight both send 249) are told apart. A plain key code is how buttons were
+     * stored before, and stays for a key with no usable scan code; [UNKNOWN_BASE] + scan code for KEYCODE_UNKNOWN.
+     */
+    fun id(keyCode: Int, scanCode: Int) = when {
+        keyCode == 0 -> UNKNOWN_BASE + scanCode
+        keyCode in 1..0xFFF && scanCode in 1 until (1 shl 18) -> SCAN_FLAG or (scanCode shl 12) or keyCode
+        else -> keyCode
+    }
+
+    /** Android's key code in an id (0 for KEYCODE_UNKNOWN ones). */
+    fun keyCode(id: Int) = when {
+        id and SCAN_FLAG != 0 -> id and 0xFFF
+        id >= UNKNOWN_BASE -> 0
+        else -> id
+    }
+
+    /** The scan code in an id, or 0 for a plain key code. */
+    fun scanCode(id: Int) = when {
+        id and SCAN_FLAG != 0 -> (id ushr 12) and 0x3FFFF
+        id >= UNKNOWN_BASE -> id - UNKNOWN_BASE
+        else -> 0
+    }
+
+    /**
+     * The setting for a press: the exact button first, else one with the same key code (set up before scan codes
+     * were kept, or on another remote), so a second remote still works. KEYCODE_UNKNOWN keys only match exactly.
+     */
+    fun find(maps: List<KeyMap>, keyCode: Int, scanCode: Int): KeyMap? {
+        val exact = id(keyCode, scanCode)
+        return maps.firstOrNull { it.id == exact } ?: if (keyCode == 0) null else maps.firstOrNull { keyCode(it.id) == keyCode }
+    }
+
+    /** A button set up by key code alone, learned again: its setting moves to the full id instead of showing twice. */
+    fun adopt(maps: List<KeyMap>, newId: Int): List<KeyMap> {
+        val k = keyCode(newId)
+        if (newId == k || maps.any { it.id == newId } || maps.any { it.id != k && keyCode(it.id) == k }) return maps
+        return maps.map { if (it.id == k) it.copy(id = newId) else it }
+    }
 
     /** Runs on a clean release only; downs and repeats are swallowed, so holding a button fires it once. */
     fun fires(action: Int, repeatCount: Int, canceled: Boolean) = action == 1 && !canceled && repeatCount == 0

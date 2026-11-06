@@ -2151,7 +2151,7 @@ class MainActivity : Activity() {
             if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) learn(id)
             return true
         }
-        val m = keyMaps().firstOrNull { it.id == id } ?: return null
+        val m = RemoteKeys.find(keyMaps(), e.keyCode, e.scanCode) ?: return null
         if (m.action == RemoteKeys.TV) return if (fromService) null else super.dispatchKeyEvent(e) // chosen: skip Koolest's own use (Menu's item menu)
         if (m.action == RemoteKeys.APP && apps.none { it.pkg == m.arg }) return null // app since uninstalled
         if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) runKeyAction(m)
@@ -2174,8 +2174,13 @@ class MainActivity : Activity() {
     // Settings → This TV → Remote buttons: the buttons this remote has sent, newest first, and Add a button.
 
     private fun keyName(id: Int, m: KeyMap? = keyMaps().firstOrNull { it.id == id }) = m?.name?.takeIf { it.isNotEmpty() }
-        ?: (if (id < RemoteKeys.UNKNOWN_BASE) RemoteKeys.readable(KeyEvent.keyCodeToString(id)) else null)
-        ?: getString(R.string.remote_button_n, id)
+        ?: readableKey(id)?.let { name -> if (sharesKeyCode(id)) "$name · ${RemoteKeys.scanCode(id)}" else name }
+        ?: getString(R.string.remote_button_n, RemoteKeys.keyCode(id).takeIf { it != 0 } ?: id)
+
+    private fun readableKey(id: Int) = RemoteKeys.keyCode(id).takeIf { it != 0 }?.let { RemoteKeys.readable(KeyEvent.keyCodeToString(it)) }
+
+    /** Another listed button sends the same key code (told apart by scan code). */
+    private fun sharesKeyCode(id: Int) = remoteIds().any { it != id && RemoteKeys.keyCode(it) == RemoteKeys.keyCode(id) && RemoteKeys.keyCode(id) != 0 }
 
     private fun actionLabel(a: String) = getString(when (a) {
         RemoteKeys.APP -> R.string.remote_an_app
@@ -2191,7 +2196,7 @@ class MainActivity : Activity() {
     })
 
     /** Before anyone sets it: Android's Menu key opens the item menu (#13), anything else is the TV's. */
-    private fun defaultAction(id: Int) = if (id == KeyEvent.KEYCODE_MENU) RemoteKeys.MENU else RemoteKeys.TV
+    private fun defaultAction(id: Int) = if (RemoteKeys.keyCode(id) == KeyEvent.KEYCODE_MENU) RemoteKeys.MENU else RemoteKeys.TV
 
     /** What a button does, as its row's value; an app by its name. */
     private fun actionName(id: Int, m: KeyMap?) = when {
@@ -2313,9 +2318,13 @@ class MainActivity : Activity() {
                 if (learning != null) {
                     ui.removeCallbacks(timeout)
                     stop()
+                    // Set up by key code alone before: that setting becomes this button's.
+                    val k = RemoteKeys.keyCode(id)
+                    saveKeyMaps(RemoteKeys.adopt(keyMaps(), id))
+                    prefs.edit().putString("remote_learned", seenKeys().filter { it != k || it == id }.joinToString(",")).apply()
                     noteKey(id)
-                    val named = keyMaps().any { it.id == id && it.name.isNotEmpty() } ||
-                        id < RemoteKeys.UNKNOWN_BASE && RemoteKeys.readable(KeyEvent.keyCodeToString(id)) != null
+                    // A second button with the same key code gets asked for a name, so the two can be told apart.
+                    val named = keyMaps().any { it.id == id && it.name.isNotEmpty() } || readableKey(id) != null && !sharesKeyCode(id)
                     if (named) remoteKeyPage(id) else renameKey(id, first = true)
                 }
             }
