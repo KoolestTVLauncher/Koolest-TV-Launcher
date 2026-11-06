@@ -1,7 +1,7 @@
 <!-- Persian. A sentence never starts with a Latin word (Koolest, Wi-Fi): Android takes a paragraph's direction from its
      first strong letter, so it would lay the whole sentence out left to right. Menu paths point left (←). -->
 <resources>
-    <string name="override_desc">هر بار که صفحه‌ی اصلی Google TV باز شود، Koolest را باز می‌کند تا دکمه‌ی Home به اینجا برسد.</string>
+    <string name="override_desc">هر بار که صفحه‌ی اصلی Google TV باز شود، Koolest را باز می‌کند تا دکمه‌ی Home به اینجا برسد. دکمه‌های ریموت را هم که برای کار در همه‌جا تنظیم کرده‌اید اجرا می‌کند (تنظیمات Koolest ← این تلویزیون ← دکمه‌های ریموت)؛ بقیه‌ی دکمه‌ها بدون تغییر عبور می‌کنند.</string>
 
     <!-- Home screen -->
     <string name="settings_title">تنظیمات Koolest</string>
@@ -283,4 +283,36 @@
     <string name="aqi_poor">نامناسب</string>
     <string name="aqi_unhealthy">ناسالم</string>
     <string name="aqi_hazardous">خطرناک</string>
+
+    <!-- Remote buttons (Settings → This TV) -->
+    <string name="remote_buttons">دکمه‌های ریموت</string>
+    <string name="remote_add">افزودن دکمه</string>
+    <string name="remote_press">حالا دکمه‌ی موردنظر را روی ریموت فشار دهید</string>
+    <string name="remote_not_received">Koolest این دکمه را دریافت نکرد. احتمالا تلویزیون خودش از آن استفاده می‌کند.</string>
+    <string name="remote_core">این دکمه قابل تغییر نیست</string>
+    <string name="remote_generic">این ریموت برای چند دکمه یک سیگنال می‌فرستد و Koolest نمی‌تواند آن‌ها را از هم تشخیص دهد.</string>
+    <string name="remote_tv">مثل همیشه</string>
+    <string name="remote_none">هیچ کاری</string>
+    <string name="remote_an_app">باز کردن برنامه…</string>
+    <string name="remote_menu">منوی برنامه</string>
+    <string name="remote_home">خانه‌ی Koolest</string>
+    <string name="remote_android_settings">تنظیمات اندروید</string>
+    <string name="remote_does">عملکرد</string>
+    <string name="remote_where">کجا کار کند</string>
+    <string name="remote_only_koolest">فقط در Koolest</string>
+    <string name="remote_everywhere">همه‌جا</string>
+    <string name="remote_needs_service">برای استفاده در همه‌جا، «Koolest: Home button» را روشن کنید</string>
+    <string name="remote_rename">تغییر نام</string>
+    <string name="remote_forget">فراموش کردن این دکمه</string>
+    <string name="remote_button_n">دکمه‌ی %1$d</string>
+    <string name="not_installed">نصب نیست</string>
+    <string name="remote_hint">کار دکمه‌ها</string>
+    <string name="remote_empty">به یکی از دکمه‌های ریموت کار تازه‌ای بدهید: «افزودن دکمه» را بزنید و بعد همان دکمه را فشار دهید.</string>
+    <string name="remote_name_title">نام این دکمه</string>
+    <string name="remote_name_why">تلویزیون نمی‌گوید این کدام دکمه است. اسمی رویش بگذارید که بشناسید، مثلا همان چیزی که روی دکمه نوشته شده.</string>
+    <string name="remote_name_hint">مثلا Netflix</string>
+    <string name="remote_reset">بازنشانی همه‌ی دکمه‌ها</string>
+    <string name="remote_reset_why">همه‌ی دکمه‌ها به کار قبلی‌شان برمی‌گردند و دکمه‌هایی که اضافه کرده‌اید از این فهرست حذف می‌شوند.</string>
+    <string name="remote_reset_do">بازنشانی</string>
+    <string name="remote_reset_keep">دکمه‌ها بمانند</string>
 </resources>

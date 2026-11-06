@@ -1,5 +1,5 @@
 <resources>
-    <string name="override_desc">Ouvre Koolest chaque fois que l’écran d’accueil de Google TV s’affiche, pour que le bouton Accueil mène ici.</string>
+    <string name="override_desc">Ouvre Koolest chaque fois que l’écran d’accueil de Google TV s’affiche, pour que le bouton Accueil mène ici. Fait aussi fonctionner les boutons de la télécommande réglés pour agir partout (Réglages Koolest → Ce téléviseur → Boutons de la télécommande) ; les autres boutons passent sans changement.</string>
 
     <!-- Home screen -->
     <string name="settings_title">Réglages Koolest</string>
@@ -282,4 +282,36 @@
     <string name="aqi_poor">Médiocre</string>
     <string name="aqi_unhealthy">Mauvais</string>
     <string name="aqi_hazardous">Dangereux</string>
+
+    <!-- Remote buttons (Settings → This TV) -->
+    <string name="remote_buttons">Boutons de la télécommande</string>
+    <string name="remote_add">Ajouter un bouton</string>
+    <string name="remote_press">Appuyez maintenant sur le bouton de la télécommande</string>
+    <string name="remote_not_received">Koolest n’a pas reçu ce bouton. Votre téléviseur le garde sans doute pour lui.</string>
+    <string name="remote_core">Ce bouton ne peut pas être modifié</string>
+    <string name="remote_generic">Cette télécommande envoie le même signal pour plusieurs boutons : Koolest ne peut pas les distinguer.</string>
+    <string name="remote_tv">Comme d’habitude</string>
+    <string name="remote_none">Rien</string>
+    <string name="remote_an_app">Ouvrir une appli…</string>
+    <string name="remote_menu">Menu de l’appli</string>
+    <string name="remote_home">Accueil Koolest</string>
+    <string name="remote_android_settings">Paramètres Android</string>
+    <string name="remote_does">Ce qu’il fait</string>
+    <string name="remote_where">Où il fonctionne</string>
+    <string name="remote_only_koolest">Seulement dans Koolest</string>
+    <string name="remote_everywhere">Partout</string>
+    <string name="remote_needs_service">Activez « Koolest: Home button » pour l’utiliser partout</string>
+    <string name="remote_rename">Renommer</string>
+    <string name="remote_forget">Oublier ce bouton</string>
+    <string name="remote_button_n">Bouton %1$d</string>
+    <string name="not_installed">Non installée</string>
+    <string name="remote_hint">Rôle des boutons</string>
+    <string name="remote_empty">Donnez un nouveau rôle à un bouton de la télécommande : choisissez Ajouter un bouton, puis appuyez sur ce bouton.</string>
+    <string name="remote_name_title">Nommer ce bouton</string>
+    <string name="remote_name_why">Votre téléviseur n’indique pas de quel bouton il s’agit. Donnez-lui un nom facile à reconnaître, comme le mot imprimé dessus.</string>
+    <string name="remote_name_hint">Par exemple : Netflix</string>
+    <string name="remote_reset">Réinitialiser tous les boutons</string>
+    <string name="remote_reset_why">Chaque bouton retrouve son rôle d’origine, et les boutons ajoutés sont retirés de cette liste.</string>
+    <string name="remote_reset_do">Réinitialiser</string>
+    <string name="remote_reset_keep">Garder mes boutons</string>
 </resources>

@@ -349,6 +349,8 @@ class MainActivity : Activity() {
             prefs.edit().putBoolean("setup_shown", true).apply()
             ui.post { openLauncherSettings(focus = HOME_BUTTON_ROW) }
         }
+        // Started by the Home button service to run a remote button's Koolest action (see onNewIntent).
+        if (intent.getBooleanExtra(RemoteKeys.EXTRA, false)) RemoteKeys.takePending()?.let { ui.post { runKeyAction(it) } }
 
         registerReceiver(packageReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
@@ -368,6 +370,9 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // While Koolest is on screen, the Home button service hands every button to it first: past the service, the
+        // TV's own handling (TCL's app and menu keys) would run before Koolest saw an Only-in-Koolest button.
+        HomeOverride.inKoolest = { e -> remoteKey(e, fromService = true) ?: false }
         Locale.setDefault(resources.configuration.locales[0]) // Android may have put the TV's back meanwhile (see localized)
         ensureHomeService()
         if (wantDark() != dark) {
@@ -412,6 +417,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        HomeOverride.inKoolest = null
         ui.removeCallbacks(inputPoll)
         ui.removeCallbacks(weatherTick)
         ui.removeCallbacks(themeTick)
@@ -635,6 +641,12 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == UPDATE_STATUS) return installStatus(intent)
+        if (intent.getBooleanExtra(RemoteKeys.EXTRA, false)) return RemoteKeys.takePending()?.let { runKeyAction(it) } ?: Unit
+        backToRows()
+    }
+
+    /** Close whatever is open (editing, settings, All apps) and focus the first row. */
+    private fun backToRows() {
         if (editing) endEdit()
         if (settingsScrim.visibility == View.VISIBLE) closeLauncherSettings()
         if (allApps.visibility == View.VISIBLE) closeAllApps()
@@ -1255,6 +1267,7 @@ class MainActivity : Activity() {
                 renderSettings(BAR_DATES_ROW)
             },
             Triple(s(R.string.language), LANGUAGES[prefs.getString("lang", "")] ?: s(R.string.tv_language)) { pickLanguage() },
+            Triple(s(R.string.remote_buttons), "") { remoteButtons() },
         )
         val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
         showPage(s(name), picks.map { rows[it] }, picks.indexOf(focus), back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.first == name }) })
@@ -1275,7 +1288,7 @@ class MainActivity : Activity() {
 
     /** The first settings page: a few groups, each a short list. */
     private fun settingsHome(focus: Int = 0) = showPage(getString(R.string.settings_title), SETTINGS_GROUPS.map { (name, hint, picks) ->
-        page(getString(name), getString(hint)) { renderSettings(picks.first()) }
+        page(getString(name), getString(hint)) { if (picks.first() == REMOTE_ROW) remoteButtons() else renderSettings(picks.first()) }
     }, focus, back = null)
 
     // Pages inside the settings panel (wallpaper list, app toggles…) instead of system dialogs, so they
@@ -1936,6 +1949,7 @@ class MainActivity : Activity() {
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
         val confirm = e.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || e.keyCode == KeyEvent.KEYCODE_ENTER ||
             e.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+        remoteKey(e)?.let { return it }
         // The remote's Menu button opens the same menu as holding OK.
         if (e.keyCode == KeyEvent.KEYCODE_MENU && !editing && settingsScrim.visibility != View.VISIBLE && currentFocus != null) {
             if (e.action == KeyEvent.ACTION_UP) currentFocus?.let { onHold(it) }
@@ -2024,6 +2038,258 @@ class MainActivity : Activity() {
         v.cancelLongPress()
         v.isPressed = false
         onHold(v)
+    }
+
+    // ---------- remote buttons ----------
+    // Learned from what the remote sends (thousands of remotes, no lists); see RemoteKeys and Settings → This TV.
+
+    private fun keyMaps() = RemoteKeys.decode(prefs.getString("remote_keys", null))
+    private fun saveKeyMaps(m: List<KeyMap>) = prefs.edit().putString("remote_keys", RemoteKeys.encode(m)).apply()
+    /** Buttons added with Add a button, newest first. ("remote_seen", from a test build, listed every key pressed: dropped.) */
+    private fun seenKeys() = prefs.getString("remote_learned", "")!!.split(',').mapNotNull { it.toIntOrNull() }
+
+    private fun noteKey(id: Int) {
+        val seen = seenKeys()
+        prefs.edit().putString("remote_learned", (listOf(id) + (seen - id)).take(30).joinToString(",")).apply()
+    }
+
+    /** Set by the learn page: the next button goes here instead of doing anything. */
+    private var learning: ((Int) -> Unit)? = null
+
+    /** A non-core button: learn it, run its mapping, or null to carry on as before (no mapping, or "TV decides"). */
+    /** [fromService]: the Home button service asking while Koolest is on screen; null there means "pass it on". */
+    private fun remoteKey(e: KeyEvent, fromService: Boolean = false): Boolean? {
+        if (RemoteKeys.isCore(e.keyCode)) {
+            if (!fromService && learning != null && e.keyCode != KeyEvent.KEYCODE_BACK && e.action == KeyEvent.ACTION_UP) {
+                Toast.makeText(this, R.string.remote_core, Toast.LENGTH_SHORT).show()
+            }
+            return null
+        }
+        if (currentFocus === pinBox || currentFocus is EditText) return null
+        val id = RemoteKeys.id(e.keyCode, e.scanCode)
+        learning?.let { learn ->
+            if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) learn(id)
+            return true
+        }
+        val m = keyMaps().firstOrNull { it.id == id } ?: return null
+        if (m.action == RemoteKeys.TV) return if (fromService) null else super.dispatchKeyEvent(e) // chosen: skip Koolest's own use (Menu's item menu)
+        if (m.action == RemoteKeys.APP && apps.none { it.pkg == m.arg }) return null // app since uninstalled
+        if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) runKeyAction(m)
+        return true
+    }
+
+    private fun runKeyAction(m: KeyMap) {
+        when (m.action) {
+            RemoteKeys.APP -> apps.firstOrNull { it.pkg == m.arg }?.let { launch(it) }
+            RemoteKeys.MENU -> if (!editing && settingsScrim.visibility != View.VISIBLE) currentFocus?.let { onHold(it) }
+            RemoteKeys.ALL_APPS -> if (allApps.visibility != View.VISIBLE) { backToRows(); openAllApps() }
+            RemoteKeys.HOME -> backToRows()
+            RemoteKeys.SEARCH -> search()
+            RemoteKeys.SETTINGS -> if (settingsScrim.visibility != View.VISIBLE) unlock { openLauncherSettings() }
+            RemoteKeys.SCREENSAVER -> testScreensaver()
+            RemoteKeys.ANDROID_SETTINGS -> openSettings(Settings.ACTION_SETTINGS)
+        }
+    }
+
+    // Settings → This TV → Remote buttons: the buttons this remote has sent, newest first, and Add a button.
+
+    private fun keyName(id: Int, m: KeyMap? = keyMaps().firstOrNull { it.id == id }) = m?.name?.takeIf { it.isNotEmpty() }
+        ?: (if (id < RemoteKeys.UNKNOWN_BASE) RemoteKeys.readable(KeyEvent.keyCodeToString(id)) else null)
+        ?: getString(R.string.remote_button_n, id)
+
+    private fun actionLabel(a: String) = getString(when (a) {
+        RemoteKeys.APP -> R.string.remote_an_app
+        RemoteKeys.MENU -> R.string.remote_menu
+        RemoteKeys.ALL_APPS -> R.string.all_apps
+        RemoteKeys.HOME -> R.string.remote_home
+        RemoteKeys.SEARCH -> R.string.search
+        RemoteKeys.SETTINGS -> R.string.settings_title
+        RemoteKeys.SCREENSAVER -> R.string.screensaver
+        RemoteKeys.ANDROID_SETTINGS -> R.string.remote_android_settings
+        RemoteKeys.NONE -> R.string.remote_none
+        else -> R.string.remote_tv
+    })
+
+    /** Before anyone sets it: Android's Menu key opens the item menu (#13), anything else is the TV's. */
+    private fun defaultAction(id: Int) = if (id == KeyEvent.KEYCODE_MENU) RemoteKeys.MENU else RemoteKeys.TV
+
+    /** What a button does, as its row's value; an app by its name. */
+    private fun actionName(id: Int, m: KeyMap?) = when {
+        m == null -> actionLabel(defaultAction(id))
+        m.action == RemoteKeys.APP -> apps.firstOrNull { it.pkg == m.arg }?.label ?: getString(R.string.not_installed)
+        else -> actionLabel(m.action)
+    }
+
+    private fun setKey(id: Int, change: (KeyMap) -> KeyMap) {
+        val maps = keyMaps()
+        saveKeyMaps(maps.filter { it.id != id } + change(maps.firstOrNull { it.id == id } ?: KeyMap(id, defaultAction(id))))
+    }
+
+    private fun remoteIds() = (seenKeys() + keyMaps().map { it.id }).distinct()
+
+    private fun remoteButtons(focus: Int = 0) {
+        val maps = keyMaps()
+        showPage(getString(R.string.remote_buttons), listOf(page(getString(R.string.remote_add)) { learnKey() }) + remoteIds().map { id ->
+            val m = maps.firstOrNull { it.id == id }
+            val value = when {
+                m?.everywhere == true && !homeServiceOn() -> getString(R.string.remote_needs_service)
+                m?.everywhere == true -> actionName(id, m) + " · " + getString(R.string.remote_everywhere)
+                else -> actionName(id, m)
+            }
+            page(keyName(id, m), value) { remoteKeyPage(id) }
+        } + listOfNotNull(if (remoteIds().isEmpty()) null else page(getString(R.string.remote_reset)) { resetKeys() }), focus, top = if (remoteIds().isEmpty()) label(getString(R.string.remote_empty), 14f).apply {
+            alpha = 0.7f
+            maxLines = 4
+            textDirection = View.TEXT_DIRECTION_LOCALE
+            setPaddingRelative(dp(14), dp(4), dp(14), dp(8))
+        } else null) { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.third.first() == REMOTE_ROW }) }
+    }
+
+    /** Every button back to what it did before, and the added ones forgotten; asks first. */
+    private fun resetKeys() {
+        val back = { remoteButtons(remoteIds().size + 1) }
+        showPage(getString(R.string.remote_reset), listOf(
+            page(getString(R.string.remote_reset_do)) {
+                prefs.edit().remove("remote_keys").remove("remote_learned").apply()
+                remoteButtons()
+            },
+            page(getString(R.string.remote_reset_keep)) { back() },
+        ), 1, top = label(getString(R.string.remote_reset_why), 14f).apply {
+            alpha = 0.7f
+            maxLines = 4
+            textDirection = View.TEXT_DIRECTION_LOCALE
+            setPaddingRelative(dp(14), dp(4), dp(14), dp(8))
+        }) { back() }
+    }
+
+    private fun remoteKeyPage(id: Int, focus: Int = 0) {
+        val m = keyMaps().firstOrNull { it.id == id }
+        val where = m != null && m.action != RemoteKeys.TV && m.action != RemoteKeys.MENU // the item menu only exists in Koolest
+        val generic = id == RemoteKeys.UNKNOWN_BASE + RemoteKeys.GENERIC_SCAN
+        showPage(keyName(id, m), listOfNotNull(
+            page(getString(R.string.remote_does), actionName(id, m)) { pickKeyAction(id) },
+            if (!where) null else page(getString(R.string.remote_where), getString(when {
+                m!!.everywhere && !homeServiceOn() -> R.string.remote_needs_service
+                m.everywhere -> R.string.remote_everywhere
+                else -> R.string.remote_only_koolest
+            })) {
+                setKey(id) { it.copy(everywhere = !it.everywhere) }
+                remoteKeyPage(id, 1)
+            },
+            page(getString(R.string.remote_rename), m?.name.orEmpty()) { renameKey(id) },
+            page(getString(R.string.remote_forget)) {
+                saveKeyMaps(keyMaps().filter { it.id != id })
+                prefs.edit().putString("remote_learned", (seenKeys() - id).joinToString(",")).apply()
+                remoteButtons()
+            },
+        ), focus, top = if (generic) label(getString(R.string.remote_generic), 12f).apply {
+            alpha = 0.6f
+            maxLines = 3
+            textDirection = View.TEXT_DIRECTION_LOCALE
+            setPaddingRelative(dp(14), dp(4), dp(14), dp(8))
+        } else null) { remoteButtons(remoteIds().indexOf(id) + 1) }
+    }
+
+    private fun pickKeyAction(id: Int) {
+        val now = keyMaps().firstOrNull { it.id == id }?.action ?: defaultAction(id)
+        val choices = listOf(RemoteKeys.TV, RemoteKeys.APP, RemoteKeys.MENU, RemoteKeys.ALL_APPS, RemoteKeys.HOME, RemoteKeys.SEARCH,
+            RemoteKeys.SETTINGS, RemoteKeys.SCREENSAVER, RemoteKeys.ANDROID_SETTINGS, RemoteKeys.NONE)
+        showPage(getString(R.string.remote_does), choices.map { a ->
+            page(actionLabel(a), if (a == now) CHOSEN else "") {
+                if (a == RemoteKeys.APP) return@page pickKeyApp(id)
+                setKey(id) { it.copy(action = a, arg = "", everywhere = everywhereFor(it, a)) }
+                remoteKeyPage(id)
+            }
+        }, choices.indexOf(now)) { remoteKeyPage(id) }
+    }
+
+    /** A button's first job works everywhere; after that, the person's own choice stays. The item menu is Koolest-only. */
+    private fun everywhereFor(old: KeyMap, action: String) = when (action) {
+        RemoteKeys.MENU, RemoteKeys.TV -> false
+        else -> old.everywhere || old.action == RemoteKeys.TV || old.action == RemoteKeys.MENU
+    }
+
+    private fun pickKeyApp(id: Int) {
+        showPage(getString(R.string.remote_an_app), apps.sortedBy { it.label.lowercase() }.map { a ->
+            page(a.label) {
+                setKey(id) { it.copy(action = RemoteKeys.APP, arg = a.pkg, everywhere = everywhereFor(it, RemoteKeys.APP)) }
+                remoteKeyPage(id)
+            }
+        }) { pickKeyAction(id) }
+    }
+
+    /** Waits 10 s for a button, in Koolest or (with the Home button service on) wherever Android sends it first. */
+    private fun learnKey() {
+        val text = label(getString(R.string.remote_press), 16f).apply {
+            maxLines = 4
+            textDirection = View.TEXT_DIRECTION_LOCALE // Persian text that starts with "Koolest" is still right to left
+            setPaddingRelative(dp(14), dp(12), dp(14), dp(12))
+        }
+        showPage(getString(R.string.remote_add), emptyList(), top = text) { remoteButtons() }
+        val stop = {
+            learning = null
+            HomeOverride.learning = null
+        }
+        val timeout = Runnable {
+            stop()
+            text.text = getString(R.string.remote_not_received)
+        }
+        val got: (Int) -> Unit = { id ->
+            ui.post {
+                if (learning != null) {
+                    ui.removeCallbacks(timeout)
+                    stop()
+                    noteKey(id)
+                    val named = keyMaps().any { it.id == id && it.name.isNotEmpty() } ||
+                        id < RemoteKeys.UNKNOWN_BASE && RemoteKeys.readable(KeyEvent.keyCodeToString(id)) != null
+                    if (named) remoteKeyPage(id) else renameKey(id, first = true)
+                }
+            }
+        }
+        learning = got
+        HomeOverride.learning = got
+        ui.postDelayed(timeout, 10_000)
+        pageExit = {
+            ui.removeCallbacks(timeout)
+            stop()
+        }
+    }
+
+    /** [first]: just added and Android has no name for it, so ask for one ("Netflix") before anything else. */
+    private fun renameKey(id: Int, first: Boolean = false) {
+        val field = EditText(this).apply {
+            setText(keyMaps().firstOrNull { it.id == id }?.name.orEmpty())
+            setSelection(text.length)
+            hint = getString(R.string.remote_name_hint)
+            textSize = 14f
+            setTextColor(fg)
+            setHintTextColor(Color.argb(120, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            isSingleLine = true
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            imeOptions = EditorInfo.IME_ACTION_DONE
+            setPadding(dp(14), 0, dp(14), 0)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(8).toFloat()
+                setStroke(dp(1), Color.argb(80, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            }
+            setOnEditorActionListener { v, _, _ ->
+                setKey(id) { it.copy(name = v.text.toString().trim()) }
+                remoteKeyPage(id)
+                true
+            }
+        }
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            if (first) addView(label(getString(R.string.remote_name_why), 14f).apply {
+                alpha = 0.7f
+                maxLines = 4
+                textDirection = View.TEXT_DIRECTION_LOCALE
+                setPaddingRelative(dp(14), dp(4), dp(14), dp(10))
+            })
+            addView(field, LinearLayout.LayoutParams(MATCH_PARENT, dp(44)))
+        }
+        showPage(getString(if (first) R.string.remote_name_title else R.string.remote_rename), emptyList(), top = top) { remoteKeyPage(id) }
+        field.requestFocus()
     }
 
     /** What holding OK does depends on what's focused. */
@@ -3698,8 +3964,10 @@ class MainActivity : Activity() {
             Triple(R.string.screensaver, R.string.screensaver_hint, listOf(15, DATES_ROW, MUSIC_ROW, 16, START_ROW, SLEEP_ROW, 17)),
             Triple(R.string.this_tv, R.string.this_tv_hint,
                 if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
+            Triple(R.string.remote_buttons, R.string.remote_hint, listOf(REMOTE_ROW)), // opens its own page (settingsHome)
         )
         const val LANG_ROW = 32
+        const val REMOTE_ROW = 33
         /** Each language by its own name; "" (the TV's language) is added in front where they're listed. */
         val LANGUAGES = linkedMapOf("en" to "English", "fr" to "Français", "fa" to "فارسی")
         const val ADB_SETUP_ROW = 24
@@ -3731,7 +3999,7 @@ class MainActivity : Activity() {
             R.string.units to R.drawable.ic_s_thermo, R.string.location to R.drawable.ic_s_place, R.string.automatic to R.drawable.ic_s_place,
             R.string.preview to R.drawable.ic_s_play, R.string.dates to R.drawable.ic_s_text, R.string.music to R.drawable.ic_s_music, R.string.now_playing to R.drawable.ic_s_music, R.string.top_bar_date to R.drawable.ic_s_text,
             R.string.starts_after to R.drawable.ic_s_timer, R.string.tv_sleeps_after to R.drawable.ic_s_timer, R.string.move_up to R.drawable.ic_s_move, R.string.move_down to R.drawable.ic_s_move, R.string.when_it_starts to R.drawable.ic_s_timer, R.string.home_button to R.drawable.rail_home,
-            R.string.default_home to R.drawable.ic_s_tv, R.string.pin_lock to R.drawable.ic_s_lock, R.string.updates to R.drawable.ic_s_update,
+            R.string.default_home to R.drawable.ic_s_tv, R.string.pin_lock to R.drawable.ic_s_lock, R.string.remote_buttons to R.drawable.ic_s_remote, R.string.updates to R.drawable.ic_s_update,
             R.string.keep_home_working to R.drawable.rail_home, R.string.only_launcher to R.drawable.ic_s_tv,
             R.string.open_dev_options to R.drawable.ic_s_tv, R.string.try_again to R.drawable.ic_s_update,
         )
