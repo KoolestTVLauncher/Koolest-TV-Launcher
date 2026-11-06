@@ -165,6 +165,7 @@ class KeepHome : JobService() {
 class Booted : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
         val pending = goAsync()
+        keepAwakeForMusic(c, false) // in case the TV restarted while music kept it awake
         HomeOverride.keepAlive(c)
         HomeOverride.revive(c) { pending.finish() }
     }

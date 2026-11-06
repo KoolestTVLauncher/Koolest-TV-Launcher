@@ -161,6 +161,27 @@ internal fun quietVideo(c: Context) {
     audio.abandonAudioFocusRequest(focus)
 }
 
+/**
+ * The TV mustn't fall asleep in the middle of music: the screensaver's sleep timer ("sleep_timeout", Settings →
+ * Screensaver → TV sleeps after) would end it, and a screen-on flag doesn't stop that timer while dreaming. So
+ * while music plays it's set to never, the person's own value kept in "sleep_saved", and put back once the music
+ * stops, Koolest opens, or the TV restarts. Needs the adb-granted WRITE_SECURE_SETTINGS; without it, nothing changes.
+ */
+internal fun keepAwakeForMusic(c: Context, music: Boolean) {
+    if (c.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+    val prefs = c.getSharedPreferences("home", Context.MODE_PRIVATE)
+    val cr = c.contentResolver
+    if (music && !prefs.contains("sleep_saved")) {
+        val now = Settings.Secure.getInt(cr, "sleep_timeout", -1)
+        if (now < 0) return // already never
+        prefs.edit().putInt("sleep_saved", now).commit() // saved before changing it, so it can always be put back
+        Settings.Secure.putInt(cr, "sleep_timeout", -1)
+    } else if (!music && prefs.contains("sleep_saved")) {
+        Settings.Secure.putInt(cr, "sleep_timeout", prefs.getInt("sleep_saved", -1))
+        prefs.edit().remove("sleep_saved").apply()
+    }
+}
+
 internal class Track(val title: String, val artist: String, val art: Bitmap?, val progress: Float?)
 
 /** What's playing on the TV; null when nothing is, or Koolest hasn't been allowed to see it (see [musicAccess]). */
