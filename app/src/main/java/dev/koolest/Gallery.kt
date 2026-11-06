@@ -85,6 +85,7 @@ class GalleryDream : DreamService() {
         isFullscreen = true
         Locale.setDefault(resources.configuration.locales[0]) // Android puts the TV's back when it binds the dream
         show = GalleryShow(this).also { setContentView(it.view) }
+        ui.removeCallbacks(musicCheck) // attached again: one check loop, not two
         ui.post(musicCheck)
     }
 
