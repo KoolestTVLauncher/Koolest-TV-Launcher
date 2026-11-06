@@ -52,6 +52,11 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="https" />
         </intent>
+        <!-- The TV's built-in installer, for updates where Android's confirm screen is missing. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.android.package-archive" />
+        </intent>
         <!-- The TV listings (Continue watching, app rows). Most TVs make it visible to every app; some builds don't. -->
         <provider android:authorities="android.media.tv" />
     </queries>
@@ -90,6 +95,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The downloaded update, for the TV's own installer where Android's confirm screen is missing. -->
+        <provider
+            android:name=".UpdateFile"
+            android:authorities="${applicationId}.update"
+            android:exported="false"
+            android:grantUriPermissions="true" />
 
         <!-- Back to the home screen after an update (Android kills the old version, which uncovers the last app). -->
         <receiver android:name=".Updated" android:exported="false">
