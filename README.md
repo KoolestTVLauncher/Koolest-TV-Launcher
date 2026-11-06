@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://koolesttvlauncher.github.io"><b>Website</b></a>: a tour, a demo video and the setup guide.
+  <a href="https://koolest.parsakp.com"><b>Website</b></a>: a tour, a demo video and the setup guide.
 </p>
 
 <p align="center">
@@ -78,7 +78,7 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 
 1. Download the latest APK from the [Releases](https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/latest) page, or build it yourself (below).
 2. Install it on your TV:
-   - **Downloader app:** open it on the TV and type `koolesttvlauncher.github.io/get`.
+   - **Downloader app:** open it on the TV and type `koolest.parsakp.com/get`.
    - **USB drive:** copy the APK over and open it with a file manager.
    - **adb:** `adb install Koolest.apk`
 3. Open **Koolest TV Launcher** from your apps. Its settings open automatically on first launch.

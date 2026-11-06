@@ -4226,7 +4226,7 @@ class MainActivity : Activity() {
         /** Minutes between folder photos. */
         val PHOTO_EVERY = listOf(1, 5, 10, 15, 30, 60, 1440)
         const val CHOSEN = "✓"
-        const val SITE_URL = "https://koolesttvlauncher.github.io"
+        const val SITE_URL = "https://koolest.parsakp.com"
         const val SPONSORS_URL = "https://github.com/sponsors/benymaxparsa"
         const val COFFEE_URL = "https://buymeacoffee.com/parsakamalipour"
         const val REPO = "KoolestTVLauncher/Koolest-TV-Launcher" // this repo's releases, which the in-app updater installs
