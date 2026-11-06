@@ -116,6 +116,7 @@ class GalleryActivity : android.app.Activity() {
 
     override fun onCreate(state: android.os.Bundle?) {
         super.onCreate(state)
+        Locale.setDefault(resources.configuration.locales[0]) // dates and weather in Koolest's language, as in the dream
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
             android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         show = GalleryShow(this).also { setContentView(it.view) }
