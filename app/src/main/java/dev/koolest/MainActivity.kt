@@ -331,8 +331,8 @@ class MainActivity : Activity() {
         buildRail()
         // Top end: network, Android settings, Koolest settings. Round, lit on focus.
         for ((id, action) in listOf<Pair<Int, () -> Unit>>(
-            R.id.wifi to { openSettings(Settings.ACTION_WIFI_SETTINGS) },
-            R.id.systemSettings to { openSettings(Settings.ACTION_SETTINGS) },
+            R.id.wifi to { unlock { openSettings(Settings.ACTION_WIFI_SETTINGS) } },
+            R.id.systemSettings to { unlock { openSettings(Settings.ACTION_SETTINGS) } },
             R.id.launcherSettings to { unlock { openLauncherSettings() } },
         )) findViewById<ImageView>(id).apply {
             setColorFilter(fg)
@@ -1443,9 +1443,10 @@ class MainActivity : Activity() {
     }
 
     // ---------- layout lock ----------
-    // A PIN in front of Koolest settings and everything that changes the home screen; apps still open as usual.
-    // It keeps the layout safe from small hands, it doesn't keep apps from kids: voice search and Android
-    // settings get past it, so it's called a layout lock, not parental controls.
+    // A PIN in front of Koolest settings, the top bar's Wi-Fi and Android settings, and everything that changes
+    // the home screen; apps still open as usual. It keeps the layout safe from small hands, it doesn't keep apps
+    // from kids: voice search and the remote's own Settings button get past it, so it's called a layout lock,
+    // not parental controls.
 
     private fun lockOn() = prefs.contains("lock_pin")
 
@@ -2188,7 +2189,7 @@ class MainActivity : Activity() {
             RemoteKeys.SEARCH -> search()
             RemoteKeys.SETTINGS -> if (settingsScrim.visibility != View.VISIBLE) unlock { openLauncherSettings() }
             RemoteKeys.SCREENSAVER -> testScreensaver()
-            RemoteKeys.ANDROID_SETTINGS -> openSettings(Settings.ACTION_SETTINGS)
+            RemoteKeys.ANDROID_SETTINGS -> unlock { openSettings(Settings.ACTION_SETTINGS) }
         }
     }
 
