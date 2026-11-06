@@ -285,23 +285,32 @@
     <!-- Remote buttons (Settings → This TV) -->
     <string name="remote_buttons">Remote buttons</string>
     <string name="remote_add">Add a button</string>
-    <string name="remote_press">Press the button you want to set</string>
+    <string name="remote_press">Now press the button on your remote</string>
     <string name="remote_not_received">Koolest didn\'t get that button. Your TV probably keeps it for itself.</string>
     <string name="remote_core">This button can\'t be changed</string>
     <string name="remote_generic">This remote sends the same signal for several buttons, so Koolest can\'t tell them apart.</string>
-    <string name="remote_tv">TV decides</string>
+    <string name="remote_tv">As usual</string>
     <string name="remote_none">Nothing</string>
     <string name="remote_an_app">Open an app…</string>
     <string name="remote_menu">App menu</string>
     <string name="remote_home">Koolest home</string>
     <string name="remote_android_settings">Android settings</string>
     <string name="remote_does">What it does</string>
-    <string name="remote_where">Where</string>
+    <string name="remote_where">Where it works</string>
     <string name="remote_only_koolest">Only in Koolest</string>
-    <string name="remote_everywhere">Everywhere</string>
+    <string name="remote_everywhere">Everywhere, in every app</string>
     <string name="remote_needs_service">Turn on \"Koolest: Home button\" to use it everywhere</string>
     <string name="remote_rename">Rename</string>
     <string name="remote_forget">Forget this button</string>
     <string name="remote_button_n">Button %1$d</string>
     <string name="not_installed">Not installed</string>
+    <string name="remote_hint">Choose what your remote\'s buttons do</string>
+    <string name="remote_empty">Give a button on your remote a new job: choose Add a button, then press that button.</string>
+    <string name="remote_name_title">Name this button</string>
+    <string name="remote_name_why">Your TV doesn\'t say what this button is. Give it a name you\'ll recognise, like the word printed on it.</string>
+    <string name="remote_name_hint">For example: Netflix</string>
+    <string name="remote_reset">Reset all buttons</string>
+    <string name="remote_reset_why">Every button goes back to what it did before, and the buttons you added are removed from this list.</string>
+    <string name="remote_reset_do">Reset</string>
+    <string name="remote_reset_keep">Keep my buttons</string>
 </resources>

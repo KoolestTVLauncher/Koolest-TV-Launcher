@@ -48,10 +48,10 @@ object RemoteKeys {
     /** Runs on a clean release only; downs and repeats are swallowed, so holding a button fires it once. */
     fun fires(action: Int, repeatCount: Int, canceled: Boolean) = action == 1 && !canceled && repeatCount == 0
 
-    /** "KEYCODE_PROG_RED" -> "Prog red"; null for codes Android has no name for (keyCodeToString gives digits). */
+    /** "KEYCODE_PROG_RED" -> "Red"; null for codes Android has no name for (keyCodeToString gives digits). */
     fun readable(raw: String): String? {
         if (!raw.startsWith("KEYCODE_")) return null
-        return raw.removePrefix("KEYCODE_").lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+        return raw.removePrefix("KEYCODE_").removePrefix("PROG_").lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
 
     fun encode(maps: List<KeyMap>) = maps.joinToString("\n") {

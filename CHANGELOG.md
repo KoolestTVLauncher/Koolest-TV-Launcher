@@ -7,7 +7,7 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 - The remote's Menu button opens the app menu, the same one as holding OK.
 - All apps has an app menu too: put first in row, add to the menu, App info, Uninstall.
 - Uninstall in the home row's app menu.
-- Remote buttons (Settings → This TV): Koolest learns any remote's buttons when you press them and lets you choose what each one does (open an app, All apps, Search, Koolest settings, screensaver, Android settings, nothing), only in Koolest or everywhere.
+- Remote buttons (Settings → Remote buttons): Koolest learns any remote's buttons when you press them and lets you choose what each one does (open an app, All apps, Search, Koolest settings, screensaver, Android settings, nothing), only in Koolest or everywhere. Unnamed buttons are named when added; Reset all buttons undoes everything.
 
 ## [2.5.1] - 2026-10-27
 
