@@ -146,6 +146,7 @@ internal fun musicPlaying(c: Context): Boolean {
  * notification access music can't be told apart, so only sound a player calls a movie is stopped.
  */
 internal fun quietVideo(c: Context) {
+    if (!Store.SIDELOAD) return // pausing other apps and taking their sound: GitHub build only, Play might object
     val audio = c.getSystemService(android.media.AudioManager::class.java)
     if (!audio.isMusicActive || musicPlaying(c)) return
     if (!musicAccess(c) &&
