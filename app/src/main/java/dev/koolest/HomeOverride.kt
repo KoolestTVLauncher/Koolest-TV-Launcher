@@ -22,14 +22,20 @@ import android.view.accessibility.AccessibilityEvent
  */
 class HomeOverride : AccessibilityService() {
     private var stock = emptySet<String>()
-    private var googleHomes = emptySet<String>()
+    private var googleOthers = emptySet<String>()
 
     override fun onServiceConnected() {
         running = this
         val homes = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0).map { it.activityInfo }
         stock = homes.map { it.packageName }.toSet() - packageName - NOT_LAUNCHERS
-        // An alias answers Home, but its window reports the activity behind it: keep both names.
-        googleHomes = homes.filter { it.packageName == GOOGLE_TV }.flatMap { listOfNotNull(it.name, it.targetActivity) }.toSet()
+        // Google TV's screens that aren't its home: an alias answers Home, but its window reports the activity behind it.
+        val googleHomes = homes.filter { it.packageName == GOOGLE_TV }.flatMap { listOfNotNull(it.name, it.targetActivity) }.toSet()
+        googleOthers = if (googleHomes.isEmpty()) emptySet() else try {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageInfo(GOOGLE_TV, PackageManager.GET_ACTIVITIES).activities.orEmpty().map { it.name }.toSet() - googleHomes
+        } catch (e: PackageManager.NameNotFoundException) {
+            emptySet()
+        }
         serviceInfo = serviceInfo.apply { packageNames = stock.toTypedArray() } // events from those apps only
     }
 
@@ -84,7 +90,7 @@ class HomeOverride : AccessibilityService() {
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
         if (e.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
-            covers(e.packageName?.toString(), e.className?.toString(), stock, googleHomes)
+            covers(e.packageName?.toString(), e.className?.toString(), stock, googleOthers)
         ) goHome()
     }
 
@@ -106,14 +112,15 @@ class HomeOverride : AccessibilityService() {
         private const val GOOGLE_TV = "com.google.android.apps.tv.launcherx"
 
         /**
-         * Whether a window of the TV's own launcher should be covered by Koolest. Google TV's launcher also shows
-         * sign-in, account and other screens, which a notice can open: only its home screens are covered there.
-         * Other launchers' screens are unknown, so every one is covered but a dashboard (held Home).
+         * Whether a window of the TV's own launcher should be covered by Koolest: all of them but a dashboard (held
+         * Home). Google TV's launcher also shows sign-in, profile and other screens, which a notice can open; those
+         * ([googleOthers]: its activities that don't answer Home) are left alone. Anything unrecognised is still
+         * covered, so a home screen reported under another name keeps working.
          */
-        fun covers(pkg: String?, cls: String?, stock: Set<String>, googleHomes: Set<String>) = when {
+        fun covers(pkg: String?, cls: String?, stock: Set<String>, googleOthers: Set<String>) = when {
             pkg == null || pkg !in stock -> false
             cls?.contains("dashboard", ignoreCase = true) == true -> false
-            pkg == GOOGLE_TV && googleHomes.isNotEmpty() -> cls in googleHomes
+            pkg == GOOGLE_TV && cls in googleOthers -> false
             else -> true
         }
         private const val KEEP_JOB = 1
