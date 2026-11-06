@@ -866,12 +866,16 @@ class MainActivity : Activity() {
         // Same fade as the bundled ones: clear above 28% height, into the background colour by 50%.
         val h = bmp.height.toFloat()
         val base = ground and 0x00FFFFFF
+        // Dithered: near black these fades have only a few steps, which show as bands (twice as tall on a 4K panel).
+        // Painted once into the bitmap in software, so it costs nothing per frame.
         if (wallpaperFade()) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h, Paint().apply {
+            isDither = true
             shader = LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
         })
         // Photos rarely have the bundled ones' empty sky: a soft veil behind the clock and top-bar icons keeps them readable.
         // Strong over the clock and icons (top ~20%), gone by 30% so the photo still shows above the apps.
         Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h * 0.3f, Paint().apply {
+            isDither = true
             shader = LinearGradient(0f, 0f, 0f, h * 0.3f, intArrayOf(base or 0xC0000000.toInt(), base or 0xA0000000.toInt(), base),
                 floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
         })
