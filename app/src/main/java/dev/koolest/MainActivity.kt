@@ -1304,9 +1304,32 @@ class MainActivity : Activity() {
                 refreshWatchNext()
                 renderSettings(PER_APP_ROW)
             },
+            Triple(s(R.string.smooth_volume), toggle(prefs.getBoolean("smooth_volume", false))) { toggleSmoothVolume() },
         )
         val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
         showPage(s(name), picks.map { rows[it] }, picks.indexOf(focus), back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.first == name }) })
+    }
+
+    /**
+     * Off by default. On some TVs the Home service's key filter costs Volume its key repeats, so holding it moves one
+     * step. Turning the filter off fixes that, at a price the warning page spells out before it's turned on.
+     */
+    private fun toggleSmoothVolume() {
+        fun set(on: Boolean) {
+            prefs.edit().putBoolean("smooth_volume", on).apply()
+            HomeOverride.running?.applyKeyFilter()
+            renderSettings(SMOOTH_VOLUME_ROW)
+        }
+        if (prefs.getBoolean("smooth_volume", false)) return set(false)
+        val warn = label(getString(R.string.smooth_volume_warning), 15f).apply {
+            maxLines = 12
+            setLineSpacing(0f, 1.2f)
+            setPaddingRelative(dp(14), dp(8), dp(14), dp(12))
+        }
+        showPage(getString(R.string.smooth_volume), listOf(
+            page(getString(R.string.smooth_volume_keep_off)) { renderSettings(SMOOTH_VOLUME_ROW) },
+            page(getString(R.string.smooth_volume_turn_on)) { set(true) },
+        ), top = warn) { renderSettings(SMOOTH_VOLUME_ROW) }
     }
 
     /** "" follows the TV's language. Any change rebuilds the screen in the new one, like the theme. */
@@ -2177,7 +2200,7 @@ class MainActivity : Activity() {
             if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) learn(id)
             return true
         }
-        val m = keyMaps().firstOrNull { it.id == id } ?: return null
+        val m = RemoteKeys.find(keyMaps(), e.keyCode, e.scanCode) ?: return null
         if (m.action == RemoteKeys.TV) return if (fromService) null else super.dispatchKeyEvent(e) // chosen: skip Koolest's own use (Menu's item menu)
         if (m.action == RemoteKeys.APP && apps.none { it.pkg == m.arg }) return null // app since uninstalled
         if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) runKeyAction(m)
@@ -2200,8 +2223,13 @@ class MainActivity : Activity() {
     // Settings → This TV → Remote buttons: the buttons this remote has sent, newest first, and Add a button.
 
     private fun keyName(id: Int, m: KeyMap? = keyMaps().firstOrNull { it.id == id }) = m?.name?.takeIf { it.isNotEmpty() }
-        ?: (if (id < RemoteKeys.UNKNOWN_BASE) RemoteKeys.readable(KeyEvent.keyCodeToString(id)) else null)
-        ?: getString(R.string.remote_button_n, id)
+        ?: readableKey(id)?.let { name -> if (sharesKeyCode(id)) "$name · ${RemoteKeys.scanCode(id)}" else name }
+        ?: getString(R.string.remote_button_n, RemoteKeys.keyCode(id).takeIf { it != 0 } ?: id)
+
+    private fun readableKey(id: Int) = RemoteKeys.keyCode(id).takeIf { it != 0 }?.let { RemoteKeys.readable(KeyEvent.keyCodeToString(it)) }
+
+    /** Another listed button sends the same key code (told apart by scan code). */
+    private fun sharesKeyCode(id: Int) = remoteIds().any { it != id && RemoteKeys.keyCode(it) == RemoteKeys.keyCode(id) && RemoteKeys.keyCode(id) != 0 }
 
     private fun actionLabel(a: String) = getString(when (a) {
         RemoteKeys.APP -> R.string.remote_an_app
@@ -2217,7 +2245,7 @@ class MainActivity : Activity() {
     })
 
     /** Before anyone sets it: Android's Menu key opens the item menu (#13), anything else is the TV's. */
-    private fun defaultAction(id: Int) = if (id == KeyEvent.KEYCODE_MENU) RemoteKeys.MENU else RemoteKeys.TV
+    private fun defaultAction(id: Int) = if (RemoteKeys.keyCode(id) == KeyEvent.KEYCODE_MENU) RemoteKeys.MENU else RemoteKeys.TV
 
     /** What a button does, as its row's value; an app by its name. */
     private fun actionName(id: Int, m: KeyMap?) = when {
@@ -2339,9 +2367,13 @@ class MainActivity : Activity() {
                 if (learning != null) {
                     ui.removeCallbacks(timeout)
                     stop()
+                    // Set up by key code alone before: that setting becomes this button's.
+                    val k = RemoteKeys.keyCode(id)
+                    saveKeyMaps(RemoteKeys.adopt(keyMaps(), id))
+                    prefs.edit().putString("remote_learned", seenKeys().filter { it != k || it == id }.joinToString(",")).apply()
                     noteKey(id)
-                    val named = keyMaps().any { it.id == id && it.name.isNotEmpty() } ||
-                        id < RemoteKeys.UNKNOWN_BASE && RemoteKeys.readable(KeyEvent.keyCodeToString(id)) != null
+                    // A second button with the same key code gets asked for a name, so the two can be told apart.
+                    val named = keyMaps().any { it.id == id && it.name.isNotEmpty() } || readableKey(id) != null && !sharesKeyCode(id)
                     if (named) remoteKeyPage(id) else renameKey(id, first = true)
                 }
             }
@@ -4118,13 +4150,14 @@ class MainActivity : Activity() {
             Triple(R.string.weather, R.string.weather_hint, listOf(12, 13, 14)),
             Triple(R.string.screensaver, R.string.screensaver_hint, listOf(15, DATES_ROW, MUSIC_ROW, 16, START_ROW, SLEEP_ROW, 17)),
             Triple(R.string.this_tv, R.string.this_tv_hint,
-                if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
+                if (SelfAdb.AVAILABLE) listOf(18, SMOOTH_VOLUME_ROW, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, SMOOTH_VOLUME_ROW, 19, 21, 20)),
             Triple(R.string.remote_buttons, R.string.remote_hint, listOf(REMOTE_ROW)), // opens its own page (settingsHome)
             Triple(R.string.about, R.string.about_hint, listOf(ABOUT_ROW)), // its own page too, not in renderSettings' list
         )
         const val LANG_ROW = 32
         const val REMOTE_ROW = 33
         const val PER_APP_ROW = 34
+        const val SMOOTH_VOLUME_ROW = 35
         const val ABOUT_ROW = 100 // never an index into renderSettings' list: settingsHome opens about() instead
         /** Each language by its own name; "" (the TV's language) is added in front where they're listed. */
         val LANGUAGES = linkedMapOf("en" to "English", "fr" to "Français", "fa" to "فارسی")
@@ -4158,7 +4191,7 @@ class MainActivity : Activity() {
             R.string.preview to R.drawable.ic_s_play, R.string.dates to R.drawable.ic_s_text, R.string.music to R.drawable.ic_s_music, R.string.now_playing to R.drawable.ic_s_music, R.string.top_bar_date to R.drawable.ic_s_text,
             R.string.starts_after to R.drawable.ic_s_timer, R.string.tv_sleeps_after to R.drawable.ic_s_timer, R.string.move_up to R.drawable.ic_s_move, R.string.move_down to R.drawable.ic_s_move, R.string.when_it_starts to R.drawable.ic_s_timer, R.string.home_button to R.drawable.rail_home,
             R.string.default_home to R.drawable.ic_s_tv, R.string.pin_lock to R.drawable.ic_s_lock, R.string.remote_buttons to R.drawable.ic_s_remote, R.string.updates to R.drawable.ic_s_update,
-            R.string.keep_home_working to R.drawable.rail_home, R.string.only_launcher to R.drawable.ic_s_tv,
+            R.string.keep_home_working to R.drawable.rail_home, R.string.only_launcher to R.drawable.ic_s_tv, R.string.smooth_volume to R.drawable.ic_s_music,
             R.string.open_dev_options to R.drawable.ic_s_tv, R.string.about to R.drawable.ic_s_info, R.string.version to R.drawable.ic_s_info,
             R.string.made_by to R.drawable.ic_s_heart, R.string.whats_new to R.drawable.ic_s_update, R.string.support_koolest to R.drawable.ic_s_heart,
             R.string.website to R.drawable.ic_s_tv, R.string.source_code to R.drawable.ic_s_text, R.string.license to R.drawable.ic_s_text, R.string.try_again to R.drawable.ic_s_update,

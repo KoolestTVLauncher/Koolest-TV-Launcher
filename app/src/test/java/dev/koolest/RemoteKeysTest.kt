@@ -29,7 +29,8 @@ class RemoteKeysTest {
 
     @Test fun unknownKeysUseScanCode() {
         assertEquals(1_000_240, RemoteKeys.id(0, 240))
-        assertEquals(183, RemoteKeys.id(183, 999))
+        assertEquals(0, RemoteKeys.keyCode(1_000_240))
+        assertEquals(240, RemoteKeys.scanCode(1_000_240))
     }
 
     @Test fun coreKeysAreProtected() {
@@ -70,5 +71,38 @@ class RemoteKeysTest {
         assertFalse(RemoteKeys.everywhereFor(KeyMap(12, RemoteKeys.TV), RemoteKeys.APP)) // the 5 key
         assertFalse(RemoteKeys.canBeEverywhere(148, RemoteKeys.ALL_APPS)) // numpad 4
         assertTrue(RemoteKeys.canBeEverywhere(183, RemoteKeys.ALL_APPS))
+    }
+
+    @Test fun scanCodeTellsSameKeyCodesApart() {
+        val rakuten = RemoteKeys.id(249, 472)
+        val ambilight = RemoteKeys.id(249, 186)
+        assertTrue(rakuten != ambilight)
+        assertEquals(249, RemoteKeys.keyCode(rakuten))
+        assertEquals(472, RemoteKeys.scanCode(rakuten))
+        assertEquals(183, RemoteKeys.keyCode(RemoteKeys.id(183, 999)))
+        assertEquals(183, RemoteKeys.id(183, 0)) // no scan code: plain, as before
+        assertEquals(183, RemoteKeys.keyCode(183))
+        assertEquals(0, RemoteKeys.scanCode(183))
+    }
+
+    @Test fun findPrefersTheExactButtonThenTheKeyCode() {
+        val rakuten = KeyMap(RemoteKeys.id(249, 472), RemoteKeys.APP, "rakuten")
+        val ambilight = KeyMap(RemoteKeys.id(249, 186), RemoteKeys.NONE)
+        val maps = listOf(rakuten, ambilight)
+        assertEquals(ambilight, RemoteKeys.find(maps, 249, 186))
+        assertEquals(rakuten, RemoteKeys.find(maps, 249, 472))
+        assertNull(RemoteKeys.find(listOf(rakuten), 249, 186)) // Ambilight not set: doesn't fire Rakuten
+        assertEquals(rakuten, RemoteKeys.find(maps, 249, 0)) // no scan code (HDMI-CEC): the key code answers
+        assertEquals(KeyMap(183, RemoteKeys.APP, "x"), RemoteKeys.find(listOf(KeyMap(183, RemoteKeys.APP, "x")), 183, 77)) // set up before
+        assertNull(RemoteKeys.find(listOf(KeyMap(1_000_240, RemoteKeys.NONE)), 0, 241)) // unknown keys match exactly
+    }
+
+    @Test fun learningAgainUpgradesAnOldSetting() {
+        val full = RemoteKeys.id(183, 77)
+        assertEquals(listOf(KeyMap(full, RemoteKeys.APP, "x")), RemoteKeys.adopt(listOf(KeyMap(183, RemoteKeys.APP, "x")), full))
+        val other = KeyMap(RemoteKeys.id(183, 78), RemoteKeys.NONE)
+        val both = listOf(KeyMap(183, RemoteKeys.APP, "x"), other)
+        assertEquals(both, RemoteKeys.adopt(both, full)) // already split: leave the old one as the fallback
+        assertEquals(listOf(KeyMap(5, RemoteKeys.NONE)), RemoteKeys.adopt(listOf(KeyMap(5, RemoteKeys.NONE)), 183))
     }
 }

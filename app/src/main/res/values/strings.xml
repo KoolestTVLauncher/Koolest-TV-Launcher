@@ -328,4 +328,9 @@
     <string name="source_code">Source code</string>
     <string name="license">License</string>
     <string name="whats_new_notes">• The remote\'s Menu button opens the app menu. All apps has one too, with Uninstall.\n• Remote buttons (Koolest settings → Remote buttons): teach Koolest any button and choose what it does.\n• Continue Watching: choose how many shows each app gets.\n• Home stops a video still playing behind the home screen. Music keeps playing.\n• Music playing on the TV itself keeps the TV awake.\n• Preview starts the Gallery screensaver even on TVs that ignore the request.</string>
+    <!-- Smooth volume (#46) -->
+    <string name="smooth_volume">Smooth volume</string>
+    <string name="smooth_volume_warning">Holding Volume will change it smoothly. In return:\n\n• Home takes about a second: the TV\'s own home screen shows first, then Koolest.\n• Remote buttons set to work everywhere only work inside Koolest.\n\nTurn it off again to get instant Home back.</string>
+    <string name="smooth_volume_turn_on">Turn on</string>
+    <string name="smooth_volume_keep_off">Keep it off</string>
 </resources>
