@@ -135,7 +135,7 @@ Wait about 15 seconds before rebooting, or Android may not have saved the change
 | Change theme or wallpaper | **Settings → Look** |
 | Change the language | **Settings → Look → Language** (English, Français, فارسی, or the TV's) |
 | Lock the layout with a PIN | **Settings → This TV → PIN lock** |
-| Choose what remote buttons do | **Settings → This TV → Remote buttons**: press **Add a button**, then the button. Any remote works; each button can work only in Koolest or everywhere (needs the Home button service) |
+| Choose what remote buttons do | **Settings → Remote buttons**: choose **Add a button**, then press the button. Any remote works; each button can work only in Koolest or in every app (needs the Home button service). **Reset all buttons** undoes everything |
 | Back on the home screen | From deep in a row, back to its first item; again, to the menu; again, back to the rows |
 | Open the Google TV dashboard | Hold the **Home** button (not if Google TV is [turned off](#optional-make-koolest-the-only-launcher-adb)) |
 

@@ -1284,7 +1284,7 @@ class MainActivity : Activity() {
 
     /** The first settings page: a few groups, each a short list. */
     private fun settingsHome(focus: Int = 0) = showPage(getString(R.string.settings_title), SETTINGS_GROUPS.map { (name, hint, picks) ->
-        page(getString(name), getString(hint)) { renderSettings(picks.first()) }
+        page(getString(name), getString(hint)) { if (picks.first() == REMOTE_ROW) remoteButtons() else renderSettings(picks.first()) }
     }, focus, back = null)
 
     // Pages inside the settings panel (wallpaper list, app toggles…) instead of system dialogs, so they
@@ -2041,13 +2041,12 @@ class MainActivity : Activity() {
 
     private fun keyMaps() = RemoteKeys.decode(prefs.getString("remote_keys", null))
     private fun saveKeyMaps(m: List<KeyMap>) = prefs.edit().putString("remote_keys", RemoteKeys.encode(m)).apply()
-    private fun seenKeys() = prefs.getString("remote_seen", "")!!.split(',').mapNotNull { it.toIntOrNull() }
+    /** Buttons added with Add a button, newest first. ("remote_seen", from a test build, listed every key pressed: dropped.) */
+    private fun seenKeys() = prefs.getString("remote_learned", "")!!.split(',').mapNotNull { it.toIntOrNull() }
 
-    /** Remembers a button the remote has sent, newest first, so it's listed under Remote buttons. */
     private fun noteKey(id: Int) {
         val seen = seenKeys()
-        if (seen.firstOrNull() == id) return
-        prefs.edit().putString("remote_seen", (listOf(id) + (seen - id)).take(30).joinToString(",")).apply()
+        prefs.edit().putString("remote_learned", (listOf(id) + (seen - id)).take(30).joinToString(",")).apply()
     }
 
     /** Set by the learn page: the next button goes here instead of doing anything. */
@@ -2063,7 +2062,6 @@ class MainActivity : Activity() {
         }
         if (currentFocus === pinBox || currentFocus is EditText) return null
         val id = RemoteKeys.id(e.keyCode, e.scanCode)
-        if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) noteKey(id)
         learning?.let { learn ->
             if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) learn(id)
             return true
@@ -2134,7 +2132,29 @@ class MainActivity : Activity() {
                 else -> actionName(id, m)
             }
             page(keyName(id, m), value) { remoteKeyPage(id) }
-        }, focus) { renderSettings(REMOTE_ROW) }
+        } + listOfNotNull(if (remoteIds().isEmpty()) null else page(getString(R.string.remote_reset)) { resetKeys() }), focus, top = if (remoteIds().isEmpty()) label(getString(R.string.remote_empty), 14f).apply {
+            alpha = 0.7f
+            maxLines = 4
+            textDirection = View.TEXT_DIRECTION_LOCALE
+            setPaddingRelative(dp(14), dp(4), dp(14), dp(8))
+        } else null) { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.third.first() == REMOTE_ROW }) }
+    }
+
+    /** Every button back to what it did before, and the added ones forgotten; asks first. */
+    private fun resetKeys() {
+        val back = { remoteButtons(remoteIds().size + 1) }
+        showPage(getString(R.string.remote_reset), listOf(
+            page(getString(R.string.remote_reset_do)) {
+                prefs.edit().remove("remote_keys").remove("remote_learned").apply()
+                remoteButtons()
+            },
+            page(getString(R.string.remote_reset_keep)) { back() },
+        ), 1, top = label(getString(R.string.remote_reset_why), 14f).apply {
+            alpha = 0.7f
+            maxLines = 4
+            textDirection = View.TEXT_DIRECTION_LOCALE
+            setPaddingRelative(dp(14), dp(4), dp(14), dp(8))
+        }) { back() }
     }
 
     private fun remoteKeyPage(id: Int, focus: Int = 0) {
@@ -2154,7 +2174,7 @@ class MainActivity : Activity() {
             page(getString(R.string.remote_rename), m?.name.orEmpty()) { renameKey(id) },
             page(getString(R.string.remote_forget)) {
                 saveKeyMaps(keyMaps().filter { it.id != id })
-                prefs.edit().putString("remote_seen", (seenKeys() - id).joinToString(",")).apply()
+                prefs.edit().putString("remote_learned", (seenKeys() - id).joinToString(",")).apply()
                 remoteButtons()
             },
         ), focus, top = if (generic) label(getString(R.string.remote_generic), 12f).apply {
@@ -2209,7 +2229,9 @@ class MainActivity : Activity() {
                     ui.removeCallbacks(timeout)
                     stop()
                     noteKey(id)
-                    remoteKeyPage(id)
+                    val named = keyMaps().any { it.id == id && it.name.isNotEmpty() } ||
+                        id < RemoteKeys.UNKNOWN_BASE && RemoteKeys.readable(KeyEvent.keyCodeToString(id)) != null
+                    if (named) remoteKeyPage(id) else renameKey(id, first = true)
                 }
             }
         }
@@ -2222,11 +2244,12 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun renameKey(id: Int) {
+    /** [first]: just added and Android has no name for it, so ask for one ("Netflix") before anything else. */
+    private fun renameKey(id: Int, first: Boolean = false) {
         val field = EditText(this).apply {
             setText(keyMaps().firstOrNull { it.id == id }?.name.orEmpty())
             setSelection(text.length)
-            hint = keyName(id, null)
+            hint = getString(R.string.remote_name_hint)
             textSize = 14f
             setTextColor(fg)
             setHintTextColor(Color.argb(120, Color.red(fg), Color.green(fg), Color.blue(fg)))
@@ -2244,7 +2267,17 @@ class MainActivity : Activity() {
                 true
             }
         }
-        showPage(getString(R.string.remote_rename), emptyList(), top = field) { remoteKeyPage(id) }
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            if (first) addView(label(getString(R.string.remote_name_why), 14f).apply {
+                alpha = 0.7f
+                maxLines = 4
+                textDirection = View.TEXT_DIRECTION_LOCALE
+                setPaddingRelative(dp(14), dp(4), dp(14), dp(10))
+            })
+            addView(field, LinearLayout.LayoutParams(MATCH_PARENT, dp(44)))
+        }
+        showPage(getString(if (first) R.string.remote_name_title else R.string.remote_rename), emptyList(), top = top) { remoteKeyPage(id) }
         field.requestFocus()
     }
 
@@ -3919,7 +3952,8 @@ class MainActivity : Activity() {
             Triple(R.string.weather, R.string.weather_hint, listOf(12, 13, 14)),
             Triple(R.string.screensaver, R.string.screensaver_hint, listOf(15, DATES_ROW, MUSIC_ROW, 16, START_ROW, SLEEP_ROW, 17)),
             Triple(R.string.this_tv, R.string.this_tv_hint,
-                if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, REMOTE_ROW, 20) else listOf(18, 19, 21, REMOTE_ROW, 20)),
+                if (SelfAdb.AVAILABLE) listOf(18, ADB_SETUP_ROW, 19, ONLY_LAUNCHER_ROW, 21, 20) else listOf(18, 19, 21, 20)),
+            Triple(R.string.remote_buttons, R.string.remote_hint, listOf(REMOTE_ROW)), // opens its own page (settingsHome)
         )
         const val LANG_ROW = 32
         const val REMOTE_ROW = 33
@@ -3954,7 +3988,7 @@ class MainActivity : Activity() {
             R.string.units to R.drawable.ic_s_thermo, R.string.location to R.drawable.ic_s_place, R.string.automatic to R.drawable.ic_s_place,
             R.string.preview to R.drawable.ic_s_play, R.string.dates to R.drawable.ic_s_text, R.string.music to R.drawable.ic_s_music, R.string.now_playing to R.drawable.ic_s_music, R.string.top_bar_date to R.drawable.ic_s_text,
             R.string.starts_after to R.drawable.ic_s_timer, R.string.tv_sleeps_after to R.drawable.ic_s_timer, R.string.move_up to R.drawable.ic_s_move, R.string.move_down to R.drawable.ic_s_move, R.string.when_it_starts to R.drawable.ic_s_timer, R.string.home_button to R.drawable.rail_home,
-            R.string.default_home to R.drawable.ic_s_tv, R.string.pin_lock to R.drawable.ic_s_lock, R.string.remote_buttons to R.drawable.ic_s_tv, R.string.updates to R.drawable.ic_s_update,
+            R.string.default_home to R.drawable.ic_s_tv, R.string.pin_lock to R.drawable.ic_s_lock, R.string.remote_buttons to R.drawable.ic_s_remote, R.string.updates to R.drawable.ic_s_update,
             R.string.keep_home_working to R.drawable.rail_home, R.string.only_launcher to R.drawable.ic_s_tv,
             R.string.open_dev_options to R.drawable.ic_s_tv, R.string.try_again to R.drawable.ic_s_update,
         )

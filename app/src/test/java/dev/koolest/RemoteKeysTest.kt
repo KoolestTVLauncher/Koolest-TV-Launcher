@@ -38,7 +38,7 @@ class RemoteKeysTest {
     }
 
     @Test fun readableNames() {
-        assertEquals("Prog red", RemoteKeys.readable("KEYCODE_PROG_RED"))
+        assertEquals("Red", RemoteKeys.readable("KEYCODE_PROG_RED"))
         assertEquals("Channel up", RemoteKeys.readable("KEYCODE_CHANNEL_UP"))
         assertNull(RemoteKeys.readable("4056"))
     }
