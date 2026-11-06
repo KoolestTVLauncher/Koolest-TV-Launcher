@@ -2988,16 +2988,24 @@ class MainActivity : Activity() {
         val installer = packageManager.packageInstaller
         io.execute {
             val ok = try {
+                // Downloaded to a file first (no session left open if it fails), which TVs with no install
+                // confirm screen also get, through their own installer.
+                val apk = UpdateFile.file(this)
+                try {
+                    openStream("https://github.com/$REPO/releases/download/v$ver/Koolest.apk").use { input ->
+                        apk.outputStream().use { input.copyTo(it) }
+                    }
+                } catch (e: Exception) {
+                    apk.delete()
+                    throw e
+                }
                 val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
                 params.setAppPackageName(packageName)
                 // Android 12+ can skip the confirm box when we're the app's installer; otherwise Android asks.
                 if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                 val id = installer.createSession(params)
-                // Kept as a file too: TVs with no install confirm screen get it through their own installer.
-                val apk = UpdateFile.file(this)
-                openStream("https://github.com/$REPO/releases/download/v$ver/Koolest.apk").use { input ->
-                    apk.outputStream().use { input.copyTo(it) }
-                }
+                // Status messages arrive at this exported activity: only ones naming this session are acted on.
+                prefs.edit().putInt("update_session", id).apply()
                 installer.openSession(id).use { session ->
                     try {
                         apk.inputStream().use { input ->
@@ -3018,6 +3026,7 @@ class MainActivity : Activity() {
                 true
             } catch (e: Exception) {
                 android.util.Log.w("Koolest", "update download failed ($e)")
+                UpdateFile.file(this).delete()
                 false
             }
             ui.post {
@@ -3032,6 +3041,10 @@ class MainActivity : Activity() {
 
     /** The install session reports back here: show Android's confirm box, or say why it failed. */
     private fun installStatus(intent: Intent) {
+        // Any app can start this activity: only Android's report on the session we opened counts (kept in prefs,
+        // in case Koolest was restarted while the install ran).
+        val session = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
+        if (session == -1 || session != prefs.getInt("update_session", -1)) return
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
             @Suppress("DEPRECATION")
@@ -3039,19 +3052,28 @@ class MainActivity : Activity() {
             if (confirm != null && tryStart(confirm)) return
             // No confirm screen on this TV (e.g. Xiaomi HyperOS): drop the session, use the TV's own installer.
             try {
-                packageManager.packageInstaller.abandonSession(intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1))
+                packageManager.packageInstaller.abandonSession(session)
             } catch (e: Exception) {
                 // already gone
             }
+            prefs.edit().remove("update_session").apply()
+            // Only the TV's built-in installer gets the file, not any app that says it opens APKs.
             val view = Intent(Intent.ACTION_VIEW).setDataAndType(UpdateFile.uri(this), UpdateFile.APK_TYPE)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            val system = packageManager.queryIntentActivities(view, 0)
+                .firstOrNull { it.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 }
             updating = false
-            if (!tryStart(view)) Toast.makeText(this, R.string.update_install_failed, Toast.LENGTH_LONG).show()
+            if (system == null || !tryStart(view.setPackage(system.activityInfo.packageName))) {
+                UpdateFile.file(this).delete()
+                Toast.makeText(this, R.string.update_install_failed, Toast.LENGTH_LONG).show()
+            }
             if (settingsScrim.visibility == View.VISIBLE) renderSettings(UPDATE_ROW)
             return
         }
         updating = false
+        prefs.edit().remove("update_session").apply()
         if (status != PackageInstaller.STATUS_SUCCESS) {
+            UpdateFile.file(this).delete()
             val why = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
             android.util.Log.w("Koolest", "update install failed: $status $why")
             if (status != PackageInstaller.STATUS_FAILURE_ABORTED) {
