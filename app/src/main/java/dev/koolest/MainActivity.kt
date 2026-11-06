@@ -197,6 +197,7 @@ internal fun pinMatches(stored: String, pin: String) = hashPin(pin, stored.subst
 class Updated : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
         HomeOverride.revive(c) // the update unbound it
+        UpdateFile.file(c).delete() // installed: the downloaded copy isn't needed any more
         c.startActivity(Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
@@ -2992,10 +2993,15 @@ class MainActivity : Activity() {
                 // Android 12+ can skip the confirm box when we're the app's installer; otherwise Android asks.
                 if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                 val id = installer.createSession(params)
+                // Kept as a file too: TVs with no install confirm screen get it through their own installer.
+                val apk = UpdateFile.file(this)
+                openStream("https://github.com/$REPO/releases/download/v$ver/Koolest.apk").use { input ->
+                    apk.outputStream().use { input.copyTo(it) }
+                }
                 installer.openSession(id).use { session ->
                     try {
-                        openStream("https://github.com/$REPO/releases/download/v$ver/Koolest.apk").use { input ->
-                            session.openWrite("Koolest.apk", 0, -1).use { out ->
+                        apk.inputStream().use { input ->
+                            session.openWrite("Koolest.apk", 0, apk.length()).use { out ->
                                 input.copyTo(out)
                                 session.fsync(out)
                             }
@@ -3029,7 +3035,19 @@ class MainActivity : Activity() {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
             @Suppress("DEPRECATION")
-            intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)?.let { tryStart(it) }
+            val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+            if (confirm != null && tryStart(confirm)) return
+            // No confirm screen on this TV (e.g. Xiaomi HyperOS): drop the session, use the TV's own installer.
+            try {
+                packageManager.packageInstaller.abandonSession(intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1))
+            } catch (e: Exception) {
+                // already gone
+            }
+            val view = Intent(Intent.ACTION_VIEW).setDataAndType(UpdateFile.uri(this), UpdateFile.APK_TYPE)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            updating = false
+            if (!tryStart(view)) Toast.makeText(this, R.string.update_install_failed, Toast.LENGTH_LONG).show()
+            if (settingsScrim.visibility == View.VISIBLE) renderSettings(UPDATE_ROW)
             return
         }
         updating = false
