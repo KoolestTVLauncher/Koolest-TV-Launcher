@@ -1273,6 +1273,11 @@ class MainActivity : Activity() {
             },
             Triple(s(R.string.language), LANGUAGES[prefs.getString("lang", "")] ?: s(R.string.tv_language)) { pickLanguage() },
             Triple(s(R.string.remote_buttons), "") { remoteButtons() },
+            Triple(s(R.string.shows_per_app), getString(R.string.n_plain, perApp())) {
+                prefs.edit().putInt("cw_per_app", PER_APP_CHOICES.let { it[(it.indexOf(perApp()) + 1) % it.size] }).apply()
+                refreshWatchNext()
+                renderSettings(PER_APP_ROW)
+            },
         )
         val (name, _, picks) = SETTINGS_GROUPS.first { focus in it.third }
         showPage(s(name), picks.map { rows[it] }, picks.indexOf(focus), back = { settingsHome(SETTINGS_GROUPS.indexOfFirst { it.first == name }) })
@@ -3207,7 +3212,7 @@ class MainActivity : Activity() {
      * publishes to the home screen, most used first. Continue watching is the system Watch Next list plus any
      * app's own "Continue Watching" channel (Stremio publishes one instead of using Watch Next; its rows carry
      * no times, so they use the time the app was last opened from Koolest). It leaves out browsers, which
-     * list web pages there. The apps used most come first, each with its newest [PER_APP] shows.
+     * list web pages there. The apps used most come first, each with its newest [perApp] shows.
      */
     private fun queryContent(): Map<String, List<Prog>> {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
@@ -3234,13 +3239,16 @@ class MainActivity : Activity() {
             .filter { it in installed && it !in YOUTUBE && it !in NAMA && it !in SPOTIFY && it !in browsers }
             .sortedByDescending(uses)
         return linkedMapOf(
-            "watch" to byAppUse(watching, PER_APP, uses) { it.pkg }.take(20),
+            "watch" to byAppUse(watching, perApp(), uses) { it.pkg }.take(perApp() * 4), // 5 per app keeps the old 20
             "nama" to (watching.filter { it.second.pkg in NAMA }.sortedByDescending { it.first }.map { it.second } + shelfOf(NAMA))
                 .distinctBy { it.intent ?: it.title }.take(20),
             "youtube" to shelfOf(YOUTUBE),
             "spotify" to shelfOf(SPOTIFY),
         ) + others.associateWith { shelfOf(setOf(it)) }
     }
+
+    /** Continue Watching shows per app (#18); anything not on offer falls back to the default. */
+    private fun perApp() = prefs.getInt("cw_per_app", PER_APP_CHOICES[0]).takeIf { it in PER_APP_CHOICES } ?: PER_APP_CHOICES[0]
 
     /** Apps that open any web page: their Watch Next entries are tabs, not shows. */
     private fun browsers(): Set<String> =
@@ -3968,7 +3976,7 @@ class MainActivity : Activity() {
         val SETTINGS_GROUPS = listOf(
             Triple(R.string.look, R.string.look_hint, listOf(LANG_ROW, 1, 2, 3, 4, 5)),
             Triple(R.string.home_screen, R.string.home_screen_hint, listOf(ROWS_ROW, 0, 22, HOME_MUSIC_ROW, BAR_DATES_ROW, 6, 7, 8, 9)),
-            Triple(R.string.row_continue, R.string.continue_hint, listOf(11, 10)),
+            Triple(R.string.row_continue, R.string.continue_hint, listOf(PER_APP_ROW, 11, 10)),
             Triple(R.string.weather, R.string.weather_hint, listOf(12, 13, 14)),
             Triple(R.string.screensaver, R.string.screensaver_hint, listOf(15, DATES_ROW, MUSIC_ROW, 16, START_ROW, SLEEP_ROW, 17)),
             Triple(R.string.this_tv, R.string.this_tv_hint,
@@ -3977,6 +3985,7 @@ class MainActivity : Activity() {
         )
         const val LANG_ROW = 32
         const val REMOTE_ROW = 33
+        const val PER_APP_ROW = 34
         /** Each language by its own name; "" (the TV's language) is added in front where they're listed. */
         val LANGUAGES = linkedMapOf("en" to "English", "fr" to "Français", "fa" to "فارسی")
         const val ADB_SETUP_ROW = 24
@@ -4004,7 +4013,7 @@ class MainActivity : Activity() {
             R.string.soften_photos to R.drawable.ic_s_gradient, R.string.photo_changes to R.drawable.ic_s_timer, R.string.rows to R.drawable.ic_s_rows,
             R.string.rearrange_apps to R.drawable.ic_s_move, R.string.menu_apps to R.drawable.ic_s_menu, R.string.app_order to R.drawable.ic_s_sort,
             R.string.apps_shown to R.drawable.ic_s_eye, R.string.app_names to R.drawable.ic_s_text, R.string.logo_colours to R.drawable.ic_s_palette,
-            R.string.hidden_shows to R.drawable.ic_s_eye, R.string.row_apps to R.drawable.rail_apps, R.string.row_consoles to R.drawable.ic_s_gamepad,
+            R.string.hidden_shows to R.drawable.ic_s_eye, R.string.shows_per_app to R.drawable.ic_s_history, R.string.row_apps to R.drawable.rail_apps, R.string.row_consoles to R.drawable.ic_s_gamepad,
             R.string.units to R.drawable.ic_s_thermo, R.string.location to R.drawable.ic_s_place, R.string.automatic to R.drawable.ic_s_place,
             R.string.preview to R.drawable.ic_s_play, R.string.dates to R.drawable.ic_s_text, R.string.music to R.drawable.ic_s_music, R.string.now_playing to R.drawable.ic_s_music, R.string.top_bar_date to R.drawable.ic_s_text,
             R.string.starts_after to R.drawable.ic_s_timer, R.string.tv_sleeps_after to R.drawable.ic_s_timer, R.string.move_up to R.drawable.ic_s_move, R.string.move_down to R.drawable.ic_s_move, R.string.when_it_starts to R.drawable.ic_s_timer, R.string.home_button to R.drawable.rail_home,
@@ -4023,7 +4032,7 @@ class MainActivity : Activity() {
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
         const val UNLOCKED_MS = 5 * 60_000L
         const val MEDIA_REQUEST = 3
-        const val PER_APP = 5 // Continue Watching items per app
+        val PER_APP_CHOICES = listOf(5, 10, 15) // Continue Watching items per app; the first is the default
         // Channels that list what you're partway through, rather than recommendations (lower case).
         val RESUME_CHANNELS = setOf("continue watching", "keep watching", "resume watching", "continue listening")
         // Focus grows a 200 dp item by 6 dp a side, and its ring sits 5 dp past that: 11 dp, so a 20 dp gap keeps

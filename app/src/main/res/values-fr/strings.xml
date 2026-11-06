@@ -76,6 +76,7 @@
     <string name="logo_colours">Couleur des logos</string>
     <string name="colour">Couleur</string>
     <string name="plain">Uni</string>
+    <string name="shows_per_app">Contenus par appli</string>
     <string name="hidden_shows">Contenus masqués</string>
     <string name="none">Aucun</string>
     <string name="show_n">Afficher %d</string>
