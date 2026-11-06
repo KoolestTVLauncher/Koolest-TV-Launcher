@@ -187,6 +187,12 @@ internal fun <T> byAppUse(items: List<Pair<Long, T>>, perApp: Int, uses: (String
         .sortedByDescending { uses(it.key) } // stable: equal use keeps newest-show order
         .flatMap { (_, shows) -> shows.take(perApp).map { it.second } }
 
+/** A season or episode as an app wrote it, kept only if it reads as one ("5", "12", "1A"): some apps store their own data there. */
+internal fun displayNumber(s: String?) = s?.trim()?.takeIf { it.length in 1..6 && it.any(Char::isDigit) }
+
+/** Last-watched times should be milliseconds; some apps write seconds, which would sort them as watched in 1970. */
+internal fun engagementMillis(t: Long) = if (t in 1 until 100_000_000_000L) t * 1000 else t
+
 /** Layout lock PIN, stored as "salt:sha256". Keeps it out of plain sight in a prefs backup; not real security. */
 internal fun hashPin(pin: String, salt: String = ByteArray(8).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }) =
     salt + ":" + MessageDigest.getInstance("SHA-256").digest((salt + pin).toByteArray()).joinToString("") { "%02x".format(it) }
@@ -213,7 +219,13 @@ class MainActivity : Activity() {
     // Posters get their own threads: one slow image server must not hold up the rest (or the row data).
     private val posterIo = Executors.newFixedThreadPool(3)
     private val loading = HashMap<String, MutableList<ImageView>>() // posters on their way, and every card waiting for each (UI thread)
-    private val ui = Handler(Looper.getMainLooper())
+    // A theme or language change rebuilds the screen while work is still loading: its results are dropped here
+    // rather than run on the old screen, where they'd touch dead views or a pool that onDestroy shut down.
+    private val ui = object : Handler(Looper.getMainLooper()) {
+        override fun dispatchMessage(msg: android.os.Message) {
+            if (!isDestroyed) super.dispatchMessage(msg)
+        }
+    }
     private val posters = object : LruCache<String, Bitmap>(6 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
@@ -452,6 +464,7 @@ class MainActivity : Activity() {
         applicationContext.getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(net)
         getSystemService(TvInputManager::class.java)?.unregisterCallback(inputCallback)
         upload?.stop()
+        ui.removeCallbacksAndMessages(null) // the weather and wallpaper clocks, and anything still queued
         io.shutdownNow()
         posterIo.shutdownNow()
         super.onDestroy()
@@ -825,11 +838,18 @@ class MainActivity : Activity() {
         if (choice.startsWith("plain:")) return view.setImageDrawable(ColorDrawable(ground))
         val fallback = defaultWallpaper(dark)
         io.execute {
+            // OutOfMemoryError isn't an Exception: a photo too big for this TV falls back like a broken one.
             val bmp = try {
                 decodeWallpaper(choice)
             } catch (e: Exception) {
                 null
-            } ?: decodeWallpaper(fallback)
+            } catch (e: OutOfMemoryError) {
+                null
+            } ?: try {
+                decodeWallpaper(fallback)
+            } catch (e: OutOfMemoryError) {
+                null // a plain colour, below
+            }
             ui.post {
                 val old = view.drawable
                 wallpaperBmp = bmp
@@ -3330,7 +3350,9 @@ class MainActivity : Activity() {
             ?: channels.keys.flatMap { readPrograms(TvContract.buildPreviewProgramsUriForChannel(it), hidden) }
         val (resume, shelves) = previews.filter { it.channel in channels }.partition { channels[it.channel]!!.second.lowercase() in RESUME_CHANNELS }
         val watchNext = readPrograms(TvContract.WatchNextPrograms.CONTENT_URI, hidden).map { it.time to it.prog } +
-            resume.map { prefs.getLong("t_${it.prog.pkg}", 0) to it.prog }
+            // Their own last-watched time when the app sets it, else when it was last opened from Koolest. Weight
+            // first, so among equal times (the stable sort below keeps this order) the app's newest come first.
+            resume.sortedByDescending { it.weight }.map { (it.time.takeIf { t -> t > 0 } ?: prefs.getLong("t_${it.prog.pkg}", 0)) to it.prog }
         publishingPkgs = watchNext.mapNotNull { it.second.pkg }.toSet()
         val browsers = browsers()
         val off = prefs.getStringSet("cw_off", emptySet())!!
@@ -3392,8 +3414,8 @@ class MainActivity : Activity() {
         }
     }
 
-    /** A listing row: last engagement time (0 for channel rows, which don't have it), its channel (0 for Watch Next) and the item. */
-    private class Listed(val time: Long, val channel: Long, val prog: Prog)
+    /** A listing row: last engagement time (0 if the app doesn't set it), its channel (0 for Watch Next), the item, and its weight (channel rows; higher = newer). */
+    private class Listed(val time: Long, val channel: Long, val prog: Prog, val weight: Long = 0)
 
     private fun readPrograms(uri: Uri, hidden: Set<String>): List<Listed> {
         val out = ArrayList<Listed>()
@@ -3404,8 +3426,8 @@ class MainActivity : Activity() {
                 if (str("browsable") == "0") continue
                 val title = str("title") ?: continue
                 if (hideKey(str("package_name"), title) in hidden) continue
-                val season = str("season_display_number")
-                val episode = str("episode_display_number")
+                val season = displayNumber(str("season_display_number"))
+                val episode = displayNumber(str("episode_display_number"))
                 val duration = num("duration_millis")
                 val position = num("last_playback_position_millis")
                 val details = listOfNotNull(
@@ -3418,7 +3440,7 @@ class MainActivity : Activity() {
                 val plot = str("long_description") ?: short.takeIf { details.isNotEmpty() }.orEmpty()
                 val progress = if (duration > 0 && position >= 1000) (position * 100 / duration).toInt().coerceIn(0, 100) else 0
                 val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), str("package_name"), plot)
-                out += Listed(num("last_engagement_time_utc_millis"), num("channel_id"), prog)
+                out += Listed(engagementMillis(num("last_engagement_time_utc_millis")), num("channel_id"), prog, num("weight"))
             }
         }
         return out
@@ -3995,7 +4017,13 @@ class MainActivity : Activity() {
     }
 
     /** Downsample to card size in RGB_565 so a dozen posters stay around 1-2 MB. */
-    private fun decode(uri: String, minWidth: Int = dp(220), config: Bitmap.Config = Bitmap.Config.RGB_565): Bitmap? {
+    private fun decode(uri: String, minWidth: Int = dp(220), config: Bitmap.Config = Bitmap.Config.RGB_565): Bitmap? = try {
+        decodeSampled(uri, minWidth, config)
+    } catch (e: OutOfMemoryError) {
+        null // too big for this TV: shown like a picture that failed to load
+    }
+
+    private fun decodeSampled(uri: String, minWidth: Int, config: Bitmap.Config): Bitmap? {
         val bytes = openStream(uri).use { it.readBytes() }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)

@@ -239,6 +239,8 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
                 p.load()
             } catch (e: Exception) {
                 null
+            } catch (e: OutOfMemoryError) {
+                null // too big for this TV: skip it like a broken one
             } ?: return@execute
             val blur = frost(bmp)
             synchronized(lock) {

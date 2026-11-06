@@ -57,6 +57,8 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="application/vnd.android.package-archive" />
         </intent>
+        <!-- The TV listings (Continue watching, app rows). Most TVs make it visible to every app; some builds don't. -->
+        <provider android:authorities="android.media.tv" />
     </queries>
 
     <application
@@ -80,10 +82,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <!-- CVTE-made TVs send Home with this category, from HDMI and Live TV too. -->
+                <category android:name="android.intent.category.COMMON_HOME" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+            <!-- Launchers that list only regular apps (e.g. Xiaomi's) show Koolest too. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 

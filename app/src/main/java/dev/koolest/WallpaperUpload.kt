@@ -182,7 +182,11 @@ internal fun fitWallpaper(open: () -> InputStream): Bitmap? {
 
 /** Saves a phone photo as a wallpaper file (~300-500 KB JPEG). Returns the file, or null if it isn't an image. */
 internal fun importWallpaper(src: File, dir: File): File? {
-    val out = fitWallpaper { src.inputStream() } ?: return null
+    val out = try {
+        fitWallpaper { src.inputStream() }
+    } catch (e: OutOfMemoryError) {
+        null // too big for this TV: answered like a file that isn't an image
+    } ?: return null
     dir.mkdirs()
     val file = generateSequence(1) { it + 1 }.map { File(dir, "Photo $it.jpg") }.first { !it.exists() }
     file.outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 85, it) }
