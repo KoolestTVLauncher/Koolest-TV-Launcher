@@ -57,6 +57,7 @@ class HomeOverride : AccessibilityService() {
             if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) learn(id)
             return true
         }
+        inKoolest?.let { return it(e) } // Koolest on screen: it runs Only-in-Koolest and Everywhere buttons alike
         val prefs = getSharedPreferences("home", MODE_PRIVATE)
         val m = RemoteKeys.decode(prefs.getString("remote_keys", null)).firstOrNull { it.id == id && it.everywhere } ?: return false
         val start = when (m.action) {
@@ -92,6 +93,8 @@ class HomeOverride : AccessibilityService() {
         /** The bound service, so Koolest's switch can turn it off without any permission. */
         var running: HomeOverride? = null
             private set
+        /** Set while Koolest is on screen (onResume to onPause): it handles remote buttons itself; true = consumed. */
+        var inKoolest: ((KeyEvent) -> Boolean)? = null
         /** Set by Koolest's learn page: the next non-core button goes here, from any app. */
         var learning: ((Int) -> Unit)? = null
         /** Home apps that aren't launchers: Settings' stand-in while the TV starts up. */

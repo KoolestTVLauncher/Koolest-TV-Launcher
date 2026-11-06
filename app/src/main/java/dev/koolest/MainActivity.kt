@@ -370,6 +370,9 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // While Koolest is on screen, the Home button service hands every button to it first: past the service, the
+        // TV's own handling (TCL's app and menu keys) would run before Koolest saw an Only-in-Koolest button.
+        HomeOverride.inKoolest = { e -> remoteKey(e, fromService = true) ?: false }
         Locale.setDefault(resources.configuration.locales[0]) // Android may have put the TV's back meanwhile (see localized)
         ensureHomeService()
         if (wantDark() != dark) {
@@ -414,6 +417,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        HomeOverride.inKoolest = null
         ui.removeCallbacks(inputPoll)
         ui.removeCallbacks(weatherTick)
         ui.removeCallbacks(themeTick)
@@ -2053,9 +2057,10 @@ class MainActivity : Activity() {
     private var learning: ((Int) -> Unit)? = null
 
     /** A non-core button: learn it, run its mapping, or null to carry on as before (no mapping, or "TV decides"). */
-    private fun remoteKey(e: KeyEvent): Boolean? {
+    /** [fromService]: the Home button service asking while Koolest is on screen; null there means "pass it on". */
+    private fun remoteKey(e: KeyEvent, fromService: Boolean = false): Boolean? {
         if (RemoteKeys.isCore(e.keyCode)) {
-            if (learning != null && e.keyCode != KeyEvent.KEYCODE_BACK && e.action == KeyEvent.ACTION_UP) {
+            if (!fromService && learning != null && e.keyCode != KeyEvent.KEYCODE_BACK && e.action == KeyEvent.ACTION_UP) {
                 Toast.makeText(this, R.string.remote_core, Toast.LENGTH_SHORT).show()
             }
             return null
@@ -2067,7 +2072,7 @@ class MainActivity : Activity() {
             return true
         }
         val m = keyMaps().firstOrNull { it.id == id } ?: return null
-        if (m.action == RemoteKeys.TV) return super.dispatchKeyEvent(e) // chosen: skip Koolest's own use (Menu's item menu)
+        if (m.action == RemoteKeys.TV) return if (fromService) null else super.dispatchKeyEvent(e) // chosen: skip Koolest's own use (Menu's item menu)
         if (m.action == RemoteKeys.APP && apps.none { it.pkg == m.arg }) return null // app since uninstalled
         if (RemoteKeys.fires(e.action, e.repeatCount, e.isCanceled)) runKeyAction(m)
         return true
@@ -2192,16 +2197,22 @@ class MainActivity : Activity() {
         showPage(getString(R.string.remote_does), choices.map { a ->
             page(actionLabel(a), if (a == now) CHOSEN else "") {
                 if (a == RemoteKeys.APP) return@page pickKeyApp(id)
-                setKey(id) { it.copy(action = a, arg = "", everywhere = it.everywhere && a != RemoteKeys.MENU && a != RemoteKeys.TV) }
+                setKey(id) { it.copy(action = a, arg = "", everywhere = everywhereFor(it, a)) }
                 remoteKeyPage(id)
             }
         }, choices.indexOf(now)) { remoteKeyPage(id) }
     }
 
+    /** A button's first job works everywhere; after that, the person's own choice stays. The item menu is Koolest-only. */
+    private fun everywhereFor(old: KeyMap, action: String) = when (action) {
+        RemoteKeys.MENU, RemoteKeys.TV -> false
+        else -> old.everywhere || old.action == RemoteKeys.TV || old.action == RemoteKeys.MENU
+    }
+
     private fun pickKeyApp(id: Int) {
         showPage(getString(R.string.remote_an_app), apps.sortedBy { it.label.lowercase() }.map { a ->
             page(a.label) {
-                setKey(id) { it.copy(action = RemoteKeys.APP, arg = a.pkg) }
+                setKey(id) { it.copy(action = RemoteKeys.APP, arg = a.pkg, everywhere = everywhereFor(it, RemoteKeys.APP)) }
                 remoteKeyPage(id)
             }
         }) { pickKeyAction(id) }
