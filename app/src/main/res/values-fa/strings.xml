@@ -78,6 +78,7 @@
     <string name="logo_colours">رنگ لوگوها</string>
     <string name="colour">رنگی</string>
     <string name="plain">ساده</string>
+    <string name="shows_per_app">تعداد برای هر برنامه</string>
     <string name="hidden_shows">موارد پنهان</string>
     <string name="none">هیچ</string>
     <string name="show_n">نمایش %d</string>

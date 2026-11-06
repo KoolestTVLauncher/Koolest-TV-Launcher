@@ -76,6 +76,8 @@
     <string name="logo_colours">Logo colours</string>
     <string name="colour">Colour</string>
     <string name="plain">Plain</string>
+    <string name="shows_per_app">Shows per app</string>
+    <string name="n_plain" translatable="false">%d</string>
     <string name="hidden_shows">Hidden shows</string>
     <string name="none">None</string>
     <string name="show_n">Show %d</string>
