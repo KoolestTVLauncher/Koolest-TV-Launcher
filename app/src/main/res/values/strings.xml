@@ -298,13 +298,13 @@
     <string name="remote_does">What it does</string>
     <string name="remote_where">Where it works</string>
     <string name="remote_only_koolest">Only in Koolest</string>
-    <string name="remote_everywhere">Everywhere, in every app</string>
+    <string name="remote_everywhere">Everywhere</string>
     <string name="remote_needs_service">Turn on \"Koolest: Home button\" to use it everywhere</string>
     <string name="remote_rename">Rename</string>
     <string name="remote_forget">Forget this button</string>
     <string name="remote_button_n">Button %1$d</string>
     <string name="not_installed">Not installed</string>
-    <string name="remote_hint">Choose what your remote\'s buttons do</string>
+    <string name="remote_hint">What buttons do</string>
     <string name="remote_empty">Give a button on your remote a new job: choose Add a button, then press that button.</string>
     <string name="remote_name_title">Name this button</string>
     <string name="remote_name_why">Your TV doesn\'t say what this button is. Give it a name you\'ll recognise, like the word printed on it.</string>
