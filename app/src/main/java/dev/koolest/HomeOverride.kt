@@ -28,6 +28,19 @@ class HomeOverride : AccessibilityService() {
         stock = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
             .map { it.activityInfo.packageName }.toSet() - packageName - NOT_LAUNCHERS
         serviceInfo = serviceInfo.apply { packageNames = stock.toTypedArray() } // events from those apps only
+        applyKeyFilter()
+    }
+
+    /**
+     * Catching keys (instant Home, Everywhere buttons) makes some TVs drop Volume's key repeats, so holding it moves
+     * one step. Smooth volume (Koolest settings → This TV) turns catching off: Home then works by covering the TV's
+     * own home screen when it shows, and Everywhere buttons only work inside Koolest.
+     */
+    fun applyKeyFilter() {
+        val smooth = getSharedPreferences("home", MODE_PRIVATE).getBoolean("smooth_volume", false)
+        val filter = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        val info = serviceInfo ?: return // not connected yet: onServiceConnected applies it
+        serviceInfo = info.apply { flags = if (smooth) flags and filter.inv() else flags or filter }
     }
 
     // Not a sign the user turned it off: a force-stop (TCL's background manager) unbinds it too. Koolest's own

@@ -328,4 +328,9 @@
     <string name="source_code">Code source</string>
     <string name="license">Licence</string>
     <string name="whats_new_notes">• Le bouton Menu de la télécommande ouvre le menu de l’appli. Toutes les applis en ont un aussi, avec Désinstaller.\n• Boutons de la télécommande (Réglages Koolest → Boutons de la télécommande) : apprenez à Koolest n’importe quel bouton et choisissez ce qu’il fait.\n• Continuer à regarder : choisissez combien de contenus chaque appli affiche.\n• Home arrête une vidéo qui jouait encore derrière l’écran d’accueil. La musique continue.\n• La musique jouée sur le téléviseur lui-même le garde allumé.\n• Aperçu lance l’économiseur Galerie, même sur les téléviseurs qui ignorent la demande.</string>
+    <!-- Smooth volume (#46) -->
+    <string name="smooth_volume">Volume fluide</string>
+    <string name="smooth_volume_warning">Maintenir Volume le changera en continu. En échange :\n\n• Accueil prend environ une seconde : l’écran d’accueil de la télé s’affiche d’abord, puis Koolest.\n• Les boutons de la télécommande réglés pour fonctionner partout ne marchent que dans Koolest.\n\nDésactivez-le pour retrouver un Accueil instantané.</string>
+    <string name="smooth_volume_turn_on">Activer</string>
+    <string name="smooth_volume_keep_off">Laisser désactivé</string>
 </resources>
