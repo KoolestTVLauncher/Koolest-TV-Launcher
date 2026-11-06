@@ -118,12 +118,15 @@ internal fun playingSessions(c: Context): List<android.media.session.MediaContro
  * Music is playing (not video), from what players and apps report (no list of apps; false without notification
  * access): a playing track with an artist or album while no player calls its sound a movie. Spotify reports its
  * music that way; its home-screen previews play with no session playing. Anything a player calls a movie is video,
- * YouTube Music included (it plays through YouTube's video player).
+ * YouTube Music included (it plays through YouTube's video player). Only music the TV itself plays: Spotify
+ * playing on a laptop shows on the TV as a playing (remote) session, but no sound comes out here.
  */
 internal fun musicPlaying(c: Context): Boolean {
     val audio = c.getSystemService(android.media.AudioManager::class.java)
+    if (!audio.isMusicActive) return false // nothing sounds on the TV
     if (audio.activePlaybackConfigurations.any { it.audioAttributes.contentType == android.media.AudioAttributes.CONTENT_TYPE_MOVIE }) return false
     return playingSessions(c).any { s ->
+        if (s.playbackInfo?.playbackType == android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE) return@any false
         val m = s.metadata ?: return@any false
         listOf(MediaMetadata.METADATA_KEY_ARTIST, MediaMetadata.METADATA_KEY_ALBUM, MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
             .any { !m.getString(it).isNullOrEmpty() }
