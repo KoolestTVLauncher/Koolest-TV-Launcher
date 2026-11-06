@@ -212,7 +212,13 @@ class MainActivity : Activity() {
     // Posters get their own threads: one slow image server must not hold up the rest (or the row data).
     private val posterIo = Executors.newFixedThreadPool(3)
     private val loading = HashMap<String, MutableList<ImageView>>() // posters on their way, and every card waiting for each (UI thread)
-    private val ui = Handler(Looper.getMainLooper())
+    // A theme or language change rebuilds the screen while work is still loading: its results are dropped here
+    // rather than run on the old screen, where they'd touch dead views or a pool that onDestroy shut down.
+    private val ui = object : Handler(Looper.getMainLooper()) {
+        override fun dispatchMessage(msg: android.os.Message) {
+            if (!isDestroyed) super.dispatchMessage(msg)
+        }
+    }
     private val posters = object : LruCache<String, Bitmap>(6 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
@@ -451,6 +457,7 @@ class MainActivity : Activity() {
         applicationContext.getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(net)
         getSystemService(TvInputManager::class.java)?.unregisterCallback(inputCallback)
         upload?.stop()
+        ui.removeCallbacksAndMessages(null) // the weather and wallpaper clocks, and anything still queued
         io.shutdownNow()
         posterIo.shutdownNow()
         super.onDestroy()
@@ -824,11 +831,18 @@ class MainActivity : Activity() {
         if (choice.startsWith("plain:")) return view.setImageDrawable(ColorDrawable(ground))
         val fallback = defaultWallpaper(dark)
         io.execute {
+            // OutOfMemoryError isn't an Exception: a photo too big for this TV falls back like a broken one.
             val bmp = try {
                 decodeWallpaper(choice)
             } catch (e: Exception) {
                 null
-            } ?: decodeWallpaper(fallback)
+            } catch (e: OutOfMemoryError) {
+                null
+            } ?: try {
+                decodeWallpaper(fallback)
+            } catch (e: OutOfMemoryError) {
+                null // a plain colour, below
+            }
             ui.post {
                 val old = view.drawable
                 wallpaperBmp = bmp
@@ -3955,7 +3969,13 @@ class MainActivity : Activity() {
     }
 
     /** Downsample to card size in RGB_565 so a dozen posters stay around 1-2 MB. */
-    private fun decode(uri: String, minWidth: Int = dp(220), config: Bitmap.Config = Bitmap.Config.RGB_565): Bitmap? {
+    private fun decode(uri: String, minWidth: Int = dp(220), config: Bitmap.Config = Bitmap.Config.RGB_565): Bitmap? = try {
+        decodeSampled(uri, minWidth, config)
+    } catch (e: OutOfMemoryError) {
+        null // too big for this TV: shown like a picture that failed to load
+    }
+
+    private fun decodeSampled(uri: String, minWidth: Int, config: Bitmap.Config): Bitmap? {
         val bytes = openStream(uri).use { it.readBytes() }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
