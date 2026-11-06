@@ -187,6 +187,12 @@ internal fun <T> byAppUse(items: List<Pair<Long, T>>, perApp: Int, uses: (String
         .sortedByDescending { uses(it.key) } // stable: equal use keeps newest-show order
         .flatMap { (_, shows) -> shows.take(perApp).map { it.second } }
 
+/** A season or episode as an app wrote it, kept only if it reads as one ("5", "12", "1A"): some apps store their own data there. */
+internal fun displayNumber(s: String?) = s?.trim()?.takeIf { it.length in 1..6 && it.any(Char::isDigit) }
+
+/** Last-watched times should be milliseconds; some apps write seconds, which would sort them as watched in 1970. */
+internal fun engagementMillis(t: Long) = if (t in 1 until 100_000_000_000L) t * 1000 else t
+
 /** Layout lock PIN, stored as "salt:sha256". Keeps it out of plain sight in a prefs backup; not real security. */
 internal fun hashPin(pin: String, salt: String = ByteArray(8).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }) =
     salt + ":" + MessageDigest.getInstance("SHA-256").digest((salt + pin).toByteArray()).joinToString("") { "%02x".format(it) }
@@ -3290,7 +3296,9 @@ class MainActivity : Activity() {
             ?: channels.keys.flatMap { readPrograms(TvContract.buildPreviewProgramsUriForChannel(it), hidden) }
         val (resume, shelves) = previews.filter { it.channel in channels }.partition { channels[it.channel]!!.second.lowercase() in RESUME_CHANNELS }
         val watchNext = readPrograms(TvContract.WatchNextPrograms.CONTENT_URI, hidden).map { it.time to it.prog } +
-            resume.map { prefs.getLong("t_${it.prog.pkg}", 0) to it.prog }
+            // Their own last-watched time when the app sets it, else when it was last opened from Koolest. Weight
+            // first, so among equal times (the stable sort below keeps this order) the app's newest come first.
+            resume.sortedByDescending { it.weight }.map { (it.time.takeIf { t -> t > 0 } ?: prefs.getLong("t_${it.prog.pkg}", 0)) to it.prog }
         publishingPkgs = watchNext.mapNotNull { it.second.pkg }.toSet()
         val browsers = browsers()
         val off = prefs.getStringSet("cw_off", emptySet())!!
@@ -3352,8 +3360,8 @@ class MainActivity : Activity() {
         }
     }
 
-    /** A listing row: last engagement time (0 for channel rows, which don't have it), its channel (0 for Watch Next) and the item. */
-    private class Listed(val time: Long, val channel: Long, val prog: Prog)
+    /** A listing row: last engagement time (0 if the app doesn't set it), its channel (0 for Watch Next), the item, and its weight (channel rows; higher = newer). */
+    private class Listed(val time: Long, val channel: Long, val prog: Prog, val weight: Long = 0)
 
     private fun readPrograms(uri: Uri, hidden: Set<String>): List<Listed> {
         val out = ArrayList<Listed>()
@@ -3364,8 +3372,8 @@ class MainActivity : Activity() {
                 if (str("browsable") == "0") continue
                 val title = str("title") ?: continue
                 if (hideKey(str("package_name"), title) in hidden) continue
-                val season = str("season_display_number")
-                val episode = str("episode_display_number")
+                val season = displayNumber(str("season_display_number"))
+                val episode = displayNumber(str("episode_display_number"))
                 val duration = num("duration_millis")
                 val position = num("last_playback_position_millis")
                 val details = listOfNotNull(
@@ -3378,7 +3386,7 @@ class MainActivity : Activity() {
                 val plot = str("long_description") ?: short.takeIf { details.isNotEmpty() }.orEmpty()
                 val progress = if (duration > 0 && position >= 1000) (position * 100 / duration).toInt().coerceIn(0, 100) else 0
                 val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), str("package_name"), plot)
-                out += Listed(num("last_engagement_time_utc_millis"), num("channel_id"), prog)
+                out += Listed(engagementMillis(num("last_engagement_time_utc_millis")), num("channel_id"), prog, num("weight"))
             }
         }
         return out
