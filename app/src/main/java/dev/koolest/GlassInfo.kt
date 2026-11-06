@@ -106,6 +106,51 @@ internal fun musicAccess(c: Context): Boolean {
         .split(':').any { ComponentName.unflattenFromString(it) == me }
 }
 
+/** Media sessions now playing; empty without notification access (see [musicAccess]). */
+internal fun playingSessions(c: Context): List<android.media.session.MediaController> = try {
+    c.getSystemService(MediaSessionManager::class.java).getActiveSessions(ComponentName(c, MediaListener::class.java))
+        .filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+} catch (e: SecurityException) {
+    emptyList()
+}
+
+/**
+ * Music is playing (not video), from what players and apps report (no list of apps; false without notification
+ * access): a playing track with an artist or album while no player calls its sound a movie. Spotify reports its
+ * music that way; its home-screen previews play with no session playing. Anything a player calls a movie is video,
+ * YouTube Music included (it plays through YouTube's video player).
+ */
+internal fun musicPlaying(c: Context): Boolean {
+    val audio = c.getSystemService(android.media.AudioManager::class.java)
+    if (audio.activePlaybackConfigurations.any { it.audioAttributes.contentType == android.media.AudioAttributes.CONTENT_TYPE_MOVIE }) return false
+    return playingSessions(c).any { s ->
+        val m = s.metadata ?: return@any false
+        listOf(MediaMetadata.METADATA_KEY_ARTIST, MediaMetadata.METADATA_KEY_ALBUM, MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
+            .any { !m.getString(it).isNullOrEmpty() }
+    }
+}
+
+/**
+ * Back on the home screen, stop video and ads still playing behind it (some apps don't stop when hidden); music
+ * keeps playing, and then nothing is touched. Players with a session are paused; ones without (Spotify's home
+ * previews) stop when Koolest takes the sound for a moment, as any app starting a video would. Without
+ * notification access music can't be told apart, so only sound a player calls a movie is stopped.
+ */
+internal fun quietVideo(c: Context) {
+    val audio = c.getSystemService(android.media.AudioManager::class.java)
+    if (!audio.isMusicActive || musicPlaying(c)) return
+    if (!musicAccess(c) &&
+        audio.activePlaybackConfigurations.none { it.audioAttributes.contentType == android.media.AudioAttributes.CONTENT_TYPE_MOVIE }
+    ) return
+    playingSessions(c).forEach { it.transportControls.pause() }
+    val focus = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN)
+        .setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MOVIE).build())
+        .build()
+    audio.requestAudioFocus(focus)
+    audio.abandonAudioFocusRequest(focus)
+}
+
 internal class Track(val title: String, val artist: String, val art: Bitmap?, val progress: Float?)
 
 /** What's playing on the TV; null when nothing is, or Koolest hasn't been allowed to see it (see [musicAccess]). */

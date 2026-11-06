@@ -374,6 +374,7 @@ class MainActivity : Activity() {
         // TV's own handling (TCL's app and menu keys) would run before Koolest saw an Only-in-Koolest button.
         HomeOverride.inKoolest = { e -> remoteKey(e, fromService = true) ?: false }
         Locale.setDefault(resources.configuration.locales[0]) // Android may have put the TV's back meanwhile (see localized)
+        quietVideo(this) // back from an app: its video shouldn't keep playing behind the home screen
         ensureHomeService()
         if (wantDark() != dark) {
             recreate()
