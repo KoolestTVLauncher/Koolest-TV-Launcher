@@ -4,6 +4,8 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-06
+
 - The remote's Menu button opens the app menu, the same one as holding OK.
 - All apps has an app menu too: put first in row, add to the menu, App info, Uninstall.
 - Uninstall in the home row's app menu.
@@ -58,7 +60,8 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 
 - New glass design, All apps with a segmented sort control, and Unsplash wallpapers.
 
-[Unreleased]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/tag/v2.6.0
 [2.5.1]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/tag/v2.5.1
 [2.5.0]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/tag/v2.5.0
 [2.4.0]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/tag/v2.4.0
