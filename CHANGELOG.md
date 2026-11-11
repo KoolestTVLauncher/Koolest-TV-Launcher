@@ -4,6 +4,8 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 
 ## [Unreleased]
 
+- Apps with several home-screen channels (SmartTube's Subscriptions, Recommendations, History) get a row per channel, named "App · Channel". Settings → Rows → the app → Channels turns each one on or off; channels the TV hides start off. The rows move together with the app, or on their own with Move channels separately (#19).
+
 ## [2.6.0] - 2026-11-06
 
 - The remote's Menu button opens the app menu, the same one as holding OK.

@@ -186,6 +186,22 @@ internal fun <T> byAppUse(items: List<Pair<Long, T>>, perApp: Int, uses: (String
         .sortedByDescending { uses(it.key) } // stable: equal use keeps newest-show order
         .flatMap { (_, shows) -> shows.take(perApp).map { it.second } }
 
+/**
+ * An app's home rows (#19). With two or more [channels] (names, in the app's order) each channel that's [on] gets
+ * its own row, keyed "<row>/<channel>", and [row] itself stays empty; otherwise everything goes in [row].
+ * [items] are (channel name, item).
+ */
+internal fun <T> channelRows(row: String, channels: List<String>, items: List<Pair<String, T>>, on: (String) -> Boolean): Map<String, List<T>> =
+    if (channels.size < 2) mapOf(row to items.map { it.second })
+    else mapOf(row to emptyList<T>()) + channels.filter(on).associate { ch -> "$row/$ch" to items.filter { it.first == ch }.map { it.second } }
+
+/**
+ * Whether a channel row shows: your choice in Koolest when you made one, else the TV's. A TV that shows none of an
+ * app's channels isn't choosing (Google TV doesn't use channels), so then they all show.
+ */
+internal fun channelOn(key: String, tvShows: Boolean, tvShowsAny: Boolean, chosenOn: Set<String>, chosenOff: Set<String>) =
+    key in chosenOn || key !in chosenOff && (tvShows || !tvShowsAny)
+
 /** A season or episode as an app wrote it, kept only if it reads as one ("5", "12", "1A"): some apps store their own data there. */
 internal fun displayNumber(s: String?) = s?.trim()?.takeIf { it.length in 1..6 && it.any(Char::isDigit) }
 
@@ -1297,7 +1313,7 @@ class MainActivity : Activity() {
                 renderSettings(LOCK_ROW)
             },
             Triple(s(R.string.menu_apps), railApps().count { pkg -> apps.any { it.pkg == pkg } }.let { resources.getQuantityString(R.plurals.n_apps, it, it) }) { pickRailApps() },
-            Triple(s(R.string.rows), rowChoices().count { it.second in rowsOff() }.let { if (it == 0) s(R.string.all_on) else resources.getQuantityString(R.plurals.n_off, it, it) }) { pickRows() },
+            Triple(s(R.string.rows), rowChoices().count { rowOff(it.second) }.let { if (it == 0) s(R.string.all_on) else resources.getQuantityString(R.plurals.n_off, it, it) }) { pickRows() },
             Triple(s(R.string.keep_home_working), s(if (checkSelfPermission(WRITE_SECURE) == PackageManager.PERMISSION_GRANTED) R.string.done else R.string.set_up)) { adbSetup() },
             Triple(s(R.string.only_launcher), toggle(onlyLauncher())) { toggleOnlyLauncher() },
             // The screensaver's dates: "g" Gregorian, "both" (a tile each), "one" (both in one tile), or "fa" Persian (Shamsi) only.
@@ -2625,13 +2641,25 @@ class MainActivity : Activity() {
 
     /** Apps left out of the home row; they stay in All apps. New installs show until hidden. */
     /** Every home row that can be turned off: the fixed ones, then the app rows found so far. */
-    private fun rowChoices() = listOf(
-        getString(R.string.row_continue) to "watch", getString(R.string.row_apps) to "apps", getString(R.string.row_consoles) to "consoles",
-        "30nama" to "nama", "YouTube" to "youtube", "Spotify" to "spotify",
-    ) + cardRows.keys.mapNotNull { key -> apps.firstOrNull { it.pkg == key }?.let { it.label to key } }
+    /** Channel rows are listed on their own only when their app's are set to move separately. */
+    private fun rowChoices() = (listOf("watch", "apps", "consoles", "nama", "youtube", "spotify") + cardRows.keys.filter { '/' !in it })
+        .distinct()
+        .flatMap { key -> listOf(key) + if (key in splitRows()) channelKeys(key) else emptyList() }
+        .mapNotNull { key -> rowLabel(key)?.let { it to key } }
+
+    /** A row's name: "SmartTube", or for a channel row "SmartTube · Subscriptions". Null for an app no longer installed. */
+    private fun rowLabel(key: String): String? {
+        val row = key.substringBefore('/')
+        val name = mapOf("watch" to getString(R.string.row_continue), "apps" to getString(R.string.row_apps), "consoles" to getString(R.string.row_consoles),
+            "nama" to "30nama", "youtube" to "YouTube", "spotify" to "Spotify")[row] ?: apps.firstOrNull { it.pkg == row }?.label ?: return null
+        return if (key == row) name else name + getString(R.string.sep) + key.substringAfter('/')
+    }
 
     /** Rows top to bottom as they show: by the saved order ("row_order"), new ones where they were made. */
     private fun orderedRows() = rowChoices().sortedBy { (_, key) -> rowOrder().indexOf(key).let { if (it < 0) Int.MAX_VALUE else it } }
+
+    /** Every row key top to bottom on the home screen: channel rows that move together follow their app's row. */
+    private fun screenOrder() = orderedRows().flatMap { (_, key) -> listOf(key) + if ('/' in key || key in splitRows()) emptyList() else channelKeys(key) }
 
     private fun rowOrder() = prefs.getString("row_order", "")!!.split(',').filter { it.isNotEmpty() }
 
@@ -2641,9 +2669,8 @@ class MainActivity : Activity() {
 
     /** Puts the rows on the home screen in the saved order; does nothing when they already are. */
     private fun applyRowOrder() {
-        if (rowOrder().isEmpty()) return
         val views = rowViews()
-        val want = orderedRows().mapNotNull { views[it.second] }
+        val want = screenOrder().mapNotNull { views[it] } // even with no saved order: channel rows go under their app
         val now = kids(rows).filter { it in want }
         if (now == want) return
         val focus = currentFocus
@@ -2653,10 +2680,9 @@ class MainActivity : Activity() {
     }
 
     private fun pickRows(focus: Int = 0) {
-        val off = rowsOff()
         val list = orderedRows()
         showPage(getString(R.string.rows), list.mapIndexed { i, (name, key) ->
-            page(name, getString(if (key in off) R.string.off else R.string.on)) { rowPage(list, i) }
+            page(name, getString(if (rowOff(key)) R.string.off else R.string.on)) { rowPage(list, i) }
         }, focus, back = {
             rowKeys.clear()
             refreshWatchNext()
@@ -2665,22 +2691,45 @@ class MainActivity : Activity() {
         })
     }
 
-    private fun rowPage(list: List<Pair<String, String>>, i: Int) {
+    private fun rowPage(list: List<Pair<String, String>>, i: Int, focus: Int = 0) {
         val (name, key) = list[i]
         fun move(to: Int) {
             prefs.edit().putString("row_order", list.map { it.second }.toMutableList().apply { add(to, removeAt(i)) }.joinToString(",")).apply()
             applyRowOrder()
             pickRows(to)
         }
-        val on = key !in rowsOff()
+        val channel = '/' in key
+        val on = if (channel) channelShows(key) else key !in rowsOff()
+        val split = key in splitRows()
+        fun reopen() = orderedRows().let { now -> rowPage(now, now.indexOfFirst { it.second == key }, 2) } // the list changed; focus stays on the switch
         showPage(name, listOfNotNull(
             page(getString(R.string.show), toggle(on)) {
-                prefs.edit().putStringSet("rows_off", if (on) rowsOff() + key else rowsOff() - key).apply()
+                if (channel) setChannel(key, !on) else prefs.edit().putStringSet("rows_off", if (on) rowsOff() + key else rowsOff() - key).apply()
                 rowPage(list, i)
             },
-            if (i == 0) null else page(getString(R.string.move_up)) { move(i - 1) },
-            if (i == list.lastIndex) null else page(getString(R.string.move_down)) { move(i + 1) },
-        ), back = { pickRows(i) })
+            if (channel || appChannels[key] == null) null else page(getString(R.string.channels)) { pickChannels(key) { rowPage(list, i, 1) } },
+            if (channel || appChannels[key] == null) null else page(getString(R.string.move_channels_apart), toggle(split)) {
+                // Moving them apart starts them where they were: right under the app's row.
+                if (!split) prefs.edit().putString("row_order", list.flatMap { (_, k) -> if (k == key) listOf(k) + channelKeys(k) else listOf(k) }.joinToString(",")).apply()
+                prefs.edit().putStringSet("ch_split", if (split) splitRows() - key else splitRows() + key).apply()
+                applyRowOrder()
+                reopen()
+            },
+            // An app whose channel rows move on their own has no row of its own to move.
+            if (i == 0 || split) null else page(getString(R.string.move_up)) { move(i - 1) },
+            if (i == list.lastIndex || split) null else page(getString(R.string.move_down)) { move(i + 1) },
+        ), focus, back = { pickRows(i) })
+    }
+
+    /** Settings → Rows → an app → Channels: each channel's row on or off (#19). */
+    private fun pickChannels(row: String, focus: Int = 0, back: () -> Unit) {
+        val keys = channelKeys(row)
+        showPage(getString(R.string.channels), keys.mapIndexed { i, key ->
+            page(key.substringAfter('/'), getString(if (channelShows(key)) R.string.on else R.string.off)) {
+                setChannel(key, !channelShows(key))
+                pickChannels(row, i, back)
+            }
+        }, focus, back = back)
     }
 
     private fun rowHiddenSet() = prefs.getStringSet("row_hidden", emptySet())!!
@@ -3383,10 +3432,9 @@ class MainActivity : Activity() {
                 return@execute
             }
             ui.post {
-                val off = rowsOff()
                 for ((key, list) in lists) {
-                    val row = cardRows.getOrPut(key) { makeRow(apps.firstOrNull { it.pkg == key }?.label ?: key) }
-                    showCards(row, if (key in off) emptyList() else list)
+                    val row = cardRows.getOrPut(key) { makeRow(rowLabel(key) ?: key) }
+                    showCards(row, if (rowOff(key)) emptyList() else list)
                 }
                 for ((key, row) in cardRows) if (key !in lists) showCards(row, emptyList()) // stopped publishing
                 applyRowOrder() // rows for newly found apps were just added at the end
@@ -3403,9 +3451,9 @@ class MainActivity : Activity() {
      */
     private fun queryContent(): Map<String, List<Prog>> {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
-        val channels = HashMap<Long, Pair<String, String>>() // id → package, name
-        contentResolver.query(TvContract.Channels.CONTENT_URI, arrayOf("_id", "package_name", "display_name"), null, null, null)?.use { c ->
-            while (c.moveToNext()) c.getString(1)?.takeIf { it != packageName }?.let { channels[c.getLong(0)] = it to c.getString(2).orEmpty() }
+        val channels = HashMap<Long, Triple<String, String, Boolean>>() // id → package, name, the TV shows it
+        contentResolver.query(TvContract.Channels.CONTENT_URI, arrayOf("_id", "package_name", "display_name", "browsable"), null, null, null)?.use { c ->
+            while (c.moveToNext()) c.getString(1)?.takeIf { it != packageName }?.let { channels[c.getLong(0)] = Triple(it, c.getString(2).orEmpty(), c.getInt(3) != 0) }
         }
         // One read for every app's programs. Where the TV only allows reading them channel by channel, do that.
         val previews = readPrograms(TvContract.PreviewPrograms.CONTENT_URI, hidden).takeIf { it.isNotEmpty() || channels.isEmpty() }
@@ -3421,20 +3469,66 @@ class MainActivity : Activity() {
         val watching = watchNext.filter { it.second.pkg !in off && it.second.pkg !in browsers }.distinctBy { it.second.intent ?: it.second.title }
         val uses = { pkg: String? -> prefs.getInt("n_$pkg", 0) }
         // Each app's own shelves, in the order the app made its channels.
-        val shelf = shelves.sortedBy { it.channel }.groupBy({ it.prog.pkg }, { it.prog })
-        fun shelfOf(pkgs: Set<String>) = pkgs.flatMap { shelf[it].orEmpty() }.distinctBy { it.intent ?: it.title }.take(20)
+        val shelf = shelves.sortedBy { it.channel }.groupBy({ it.prog.pkg }, { channels[it.channel]!!.second to it.prog })
+        // Each row's channels (#19), in the app's order: name → the TV shows it.
+        val ownChannels = channels.entries.sortedBy { it.key }.filter { it.value.second.lowercase() !in RESUME_CHANNELS }
+            .groupBy({ rowFor(it.value.first) }, { it.value.second to it.value.third })
+            .mapValues { (_, l) -> l.distinctBy { it.first } }
+        appChannels = ownChannels.filterValues { it.size > 1 }
+        val chosenOn = prefs.getStringSet("ch_on", emptySet())!!
+        val chosenOff = prefs.getStringSet("ch_off", emptySet())!!
+        /** [row]'s rows: one, or one per channel; [lead] (what you're partway through) goes first. */
+        fun shelfOf(row: String, pkgs: Set<String>, lead: List<Prog> = emptyList()): Map<String, List<Prog>> {
+            val chans = ownChannels[row].orEmpty()
+            val anyShown = chans.any { it.second }
+            val split = channelRows(row, chans.map { it.first }, pkgs.flatMap { shelf[it].orEmpty() }) { ch ->
+                channelOn("$row/$ch", chans.first { it.first == ch }.second, anyShown, chosenOn, chosenOff)
+            }
+            val first = split.keys.firstOrNull { it != row } ?: row
+            return split.mapValues { (k, l) -> ((if (k == first) lead else emptyList()) + l).distinctBy { it.intent ?: it.title }.take(20) }
+        }
         val installed = apps.map { it.pkg }.toSet()
         val others = shelf.keys.filterNotNull()
             .filter { it in installed && it !in YOUTUBE && it !in NAMA && it !in SPOTIFY && it !in browsers }
             .sortedByDescending(uses)
         return linkedMapOf(
             "watch" to byAppUse(watching, perApp(), uses) { it.pkg }.take(perApp() * 4), // 5 per app keeps the old 20
-            "nama" to (watching.filter { it.second.pkg in NAMA }.sortedByDescending { it.first }.map { it.second } + shelfOf(NAMA))
-                .distinctBy { it.intent ?: it.title }.take(20),
-            "youtube" to shelfOf(YOUTUBE),
-            "spotify" to shelfOf(SPOTIFY),
-        ) + others.associateWith { shelfOf(setOf(it)) }
+        ) + shelfOf("nama", NAMA, watching.filter { it.second.pkg in NAMA }.sortedByDescending { it.first }.map { it.second }) +
+            shelfOf("youtube", YOUTUBE) + shelfOf("spotify", SPOTIFY) + others.flatMap { shelfOf(it, setOf(it)).toList() }
     }
+
+    /** The home row an app's listings go in: 30nama, YouTube and Spotify have their own, other apps' rows are their package. */
+    private fun rowFor(pkg: String) = when (pkg) {
+        in NAMA -> "nama"
+        in YOUTUBE -> "youtube"
+        in SPOTIFY -> "spotify"
+        else -> pkg
+    }
+
+    /** Rows whose app has two or more channels, so each channel gets a row (#19): channel name → the TV shows it. */
+    @Volatile private var appChannels = emptyMap<String, List<Pair<String, Boolean>>>()
+
+    /** [row]'s channel rows, "<row>/<channel>", in the app's order (none for an app with one channel). */
+    private fun channelKeys(row: String) = appChannels[row].orEmpty().map { "$row/${it.first}" }
+
+    /** Rows whose channel rows are moved on their own in Settings → Rows, instead of together. */
+    private fun splitRows() = prefs.getStringSet("ch_split", emptySet())!!
+
+    /** Whether channel row [key] shows (see [channelOn]). */
+    private fun channelShows(key: String): Boolean {
+        val chans = appChannels[key.substringBefore('/')].orEmpty()
+        return channelOn(key, chans.firstOrNull { it.first == key.substringAfter('/') }?.second ?: true, chans.any { it.second },
+            prefs.getStringSet("ch_on", emptySet())!!, prefs.getStringSet("ch_off", emptySet())!!)
+    }
+
+    private fun setChannel(key: String, on: Boolean) {
+        val chosenOn = prefs.getStringSet("ch_on", emptySet())!! - key
+        val chosenOff = prefs.getStringSet("ch_off", emptySet())!! - key
+        prefs.edit().putStringSet("ch_on", if (on) chosenOn + key else chosenOn).putStringSet("ch_off", if (on) chosenOff else chosenOff + key).apply()
+    }
+
+    /** Off in Settings → Rows: the row itself, its app, or (a channel row) its channel. */
+    private fun rowOff(key: String) = key in rowsOff() || key.substringBefore('/') in rowsOff() || '/' in key && !channelShows(key)
 
     /** Continue Watching shows per app (#18); anything not on offer falls back to the default. */
     private fun perApp() = prefs.getInt("cw_per_app", PER_APP_CHOICES[0]).takeIf { it in PER_APP_CHOICES } ?: PER_APP_CHOICES[0]
@@ -4011,7 +4105,7 @@ class MainActivity : Activity() {
             shelf.animate().alpha(0f).setDuration(160).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start()
         } else {
             val header = ((rowOf(v) as ViewGroup).getChildAt(0) as TextView).text.toString()
-            val source = p?.pkg?.let { pkg -> apps.firstOrNull { it.pkg == pkg }?.label }?.takeIf { it != header }
+            val source = p?.pkg?.let { pkg -> apps.firstOrNull { it.pkg == pkg }?.label }?.takeIf { it != header.substringBefore(getString(R.string.sep)) } // "YouTube · Trending" names it
             findViewById<TextView>(R.id.shelfEyebrow).text = listOfNotNull(header, source).joinToString(getString(R.string.sep))
             findViewById<TextView>(R.id.shelfTitle).text = title
             findViewById<TextView>(R.id.shelfMeta).text = p?.sub.orEmpty()
