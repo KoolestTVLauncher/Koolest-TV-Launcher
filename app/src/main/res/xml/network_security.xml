@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 7.0 lacks the Let's Encrypt root (added in 7.1.1), so the paintings, weather and update downloads
-     failed there. Same as Android's default otherwise. 7.1 and newer use xml-v25/network_security.xml. -->
+<!-- Android 7.0 and 7.1.0 lack the Let's Encrypt root (added in 7.1.1), so the paintings, weather and update
+     downloads failed there. Same as Android's default otherwise. Android 8+ uses xml-v26/network_security.xml. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

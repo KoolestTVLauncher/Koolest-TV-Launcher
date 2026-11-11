@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Koolest" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <!-- Font resources are Android 8+; Android 7 ignores this and uses the TV's own font. -->
         <item name="android:fontFamily">@font/vazirmatn</item>
     </style>
 </resources>
