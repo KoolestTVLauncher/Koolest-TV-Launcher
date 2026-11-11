@@ -2700,7 +2700,7 @@ class MainActivity : Activity() {
         }
         val channel = '/' in key
         val on = if (channel) channelShows(key) else key !in rowsOff()
-        val split = key in splitRows()
+        val split = key in splitRows() && appChannels[key] != null // the app may be down to one channel since
         fun reopen() = orderedRows().let { now -> rowPage(now, now.indexOfFirst { it.second == key }, 2) } // the list changed; focus stays on the switch
         showPage(name, listOfNotNull(
             page(getString(R.string.show), toggle(on)) {
@@ -3453,7 +3453,10 @@ class MainActivity : Activity() {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
         val channels = HashMap<Long, Triple<String, String, Boolean>>() // id → package, name, the TV shows it
         contentResolver.query(TvContract.Channels.CONTENT_URI, arrayOf("_id", "package_name", "display_name", "browsable"), null, null, null)?.use { c ->
-            while (c.moveToNext()) c.getString(1)?.takeIf { it != packageName }?.let { channels[c.getLong(0)] = Triple(it, c.getString(2).orEmpty(), c.getInt(3) != 0) }
+            // A channel name is part of its row's key, and saved row orders are comma-separated: a look-alike comma (U+201A) keeps them apart.
+            while (c.moveToNext()) c.getString(1)?.takeIf { it != packageName }?.let {
+                channels[c.getLong(0)] = Triple(it, c.getString(2).orEmpty().replace(',', '\u201A').ifEmpty { "#${c.getLong(0)}" }, c.getInt(3) != 0)
+            }
         }
         // One read for every app's programs. Where the TV only allows reading them channel by channel, do that.
         val previews = readPrograms(TvContract.PreviewPrograms.CONTENT_URI, hidden).takeIf { it.isNotEmpty() || channels.isEmpty() }
@@ -3484,7 +3487,7 @@ class MainActivity : Activity() {
             val split = channelRows(row, chans.map { it.first }, pkgs.flatMap { shelf[it].orEmpty() }) { ch ->
                 channelOn("$row/$ch", chans.first { it.first == ch }.second, anyShown, chosenOn, chosenOff)
             }
-            val first = split.keys.firstOrNull { it != row } ?: row
+            val first = split.keys.firstOrNull { it != row } ?: row.takeIf { chans.size < 2 } // every channel off: none
             return split.mapValues { (k, l) -> ((if (k == first) lead else emptyList()) + l).distinctBy { it.intent ?: it.title }.take(20) }
         }
         val installed = apps.map { it.pkg }.toSet()
