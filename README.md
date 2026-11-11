@@ -24,6 +24,18 @@
 
 Koolest replaces the stock home screen with what you actually use: your apps, your consoles and what's on in them. There are no ads, no sponsored rows, no account and no tracking. It's a single small APK with no third-party libraries.
 
+
+> [!WARNING]
+> **This is the `legacy/android-7` branch: an unsupported build for Android 7.0/7.1 TVs.** It is frozen at 2.6.0 plus later fixes and won't get updates, new features or bug fixes. For Android 8 and newer, use the [`main` branch and its releases](https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/latest).
+>
+> What doesn't work on Android 7, because Android 7 itself can't do it:
+> - **No app rows and no Continue Watching.** Android TV home channels arrived in Android 8, so apps can't share their rows or what you were watching. Only the Apps row shows.
+> - **No in-app updates.** Later releases need Android 8.
+> - **Home stops video** only works with notification access, and music/video detection on the screensaver is rougher.
+> - The TV's own font is used instead of Vazirmatn; app icons keep their own look (no mono icons).
+>
+> Tested only on an Android 7.0 emulator, not on a real TV.
+
 ## Highlights
 
 - **A TV-first layout.** A menu on the left edge, a large billboard for whatever is focused, and rows of landscape cards below it, set in Vazirmatn with a white focus ring.

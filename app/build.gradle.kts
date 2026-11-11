@@ -14,7 +14,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 16
-        versionName = "2.6.0"
+        versionName = "2.6.0-android7"
     }
 
     // Release key lives outside the repo; keystore.properties (git-ignored) points at it. Without that file

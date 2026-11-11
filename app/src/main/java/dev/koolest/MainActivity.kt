@@ -3006,6 +3006,11 @@ class MainActivity : Activity() {
     private fun availableUpdate() = prefs.getString("upd_ver", null)?.takeIf { newerVersion(it, myVersion()) }
 
     private fun checkUpdate(force: Boolean) {
+        // legacy/android-7: this is the last Android 7 build, and later releases need Android 8, so don't offer them.
+        if (Build.VERSION.SDK_INT < 26) {
+            if (force) Toast.makeText(this, R.string.up_to_date, Toast.LENGTH_SHORT).show()
+            return
+        }
         if (force && checking) asked = true // the daily check is already out: report it here
         if (force) renderSettings(UPDATE_ROW)
         if (checking || !force && System.currentTimeMillis() - prefs.getLong("upd_time", 0) < 24 * 3600_000L) return
