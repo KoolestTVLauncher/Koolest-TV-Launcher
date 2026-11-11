@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.koolest"
-        minSdk = 26
+        minSdk = 24
         targetSdk = 36
         versionCode = 16
         versionName = "2.6.0"

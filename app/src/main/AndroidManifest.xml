@@ -68,6 +68,7 @@
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="false"
         android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security"
         android:theme="@style/Koolest">
 
         <activity

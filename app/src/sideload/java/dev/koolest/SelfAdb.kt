@@ -92,7 +92,10 @@ object SelfAdb {
             .put(le(n))
             .put(le(BigInteger.ONE.shiftLeft(4096).mod(n))) // R^2 mod n, R = 2^2048
             .putInt(65537) // F4, fixed when the key is made: Android's key class doesn't expose it
-        return (Base64.getEncoder().encodeToString(b.array()) + " Koolest TV Launcher\u0000").toByteArray()
+        // java.util.Base64 is Android 8+; unit tests run on the JVM, where SDK_INT is 0, and use it too.
+        val key = if (android.os.Build.VERSION.SDK_INT in 1..25) android.util.Base64.encodeToString(b.array(), android.util.Base64.NO_WRAP)
+        else Base64.getEncoder().encodeToString(b.array())
+        return (key + " Koolest TV Launcher\u0000").toByteArray()
     }
 
     private class Message(val cmd: Int, val arg0: Int, val arg1: Int, val data: ByteArray)

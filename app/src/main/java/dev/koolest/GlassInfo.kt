@@ -125,14 +125,16 @@ internal fun playingSessions(c: Context): List<android.media.session.MediaContro
 internal fun musicPlaying(c: Context): Boolean {
     val audio = c.getSystemService(android.media.AudioManager::class.java)
     if (!audio.isMusicActive) return false // nothing sounds on the TV
-    val kinds = audio.activePlaybackConfigurations.map { it.audioAttributes.contentType }
-    if (android.media.AudioAttributes.CONTENT_TYPE_MOVIE in kinds) return false
-    // A player that labels its sound music or speech (radio, podcasts, audiobooks).
-    if (android.media.AudioAttributes.CONTENT_TYPE_MUSIC in kinds || android.media.AudioAttributes.CONTENT_TYPE_SPEECH in kinds) return true
+    if (android.os.Build.VERSION.SDK_INT >= 26) { // Android 7 can't see what kind of sound each player makes; it goes by the sessions below
+        val kinds = audio.activePlaybackConfigurations.map { it.audioAttributes.contentType }
+        if (android.media.AudioAttributes.CONTENT_TYPE_MOVIE in kinds) return false
+        // A player that labels its sound music or speech (radio, podcasts, audiobooks).
+        if (android.media.AudioAttributes.CONTENT_TYPE_MUSIC in kinds || android.media.AudioAttributes.CONTENT_TYPE_SPEECH in kinds) return true
+    }
     return playingSessions(c).any { s ->
         if (s.playbackInfo?.playbackType == android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE) return@any false
         // An app that declares itself an audio app.
-        if (runCatching { c.packageManager.getApplicationInfo(s.packageName, 0).category }.getOrNull() == android.content.pm.ApplicationInfo.CATEGORY_AUDIO) return@any true
+        if (android.os.Build.VERSION.SDK_INT >= 26 && runCatching { c.packageManager.getApplicationInfo(s.packageName, 0).category }.getOrNull() == android.content.pm.ApplicationInfo.CATEGORY_AUDIO) return@any true
         val m = s.metadata ?: return@any false
         listOf(MediaMetadata.METADATA_KEY_ARTIST, MediaMetadata.METADATA_KEY_ALBUM, MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
             .any { !m.getString(it).isNullOrEmpty() }
@@ -149,10 +151,15 @@ internal fun quietVideo(c: Context) {
     if (!Store.SIDELOAD) return // pausing other apps and taking their sound: GitHub build only, Play might object
     val audio = c.getSystemService(android.media.AudioManager::class.java)
     if (!audio.isMusicActive || musicPlaying(c)) return
-    if (!musicAccess(c) &&
-        audio.activePlaybackConfigurations.none { it.audioAttributes.contentType == android.media.AudioAttributes.CONTENT_TYPE_MOVIE }
+    if (!musicAccess(c) && (android.os.Build.VERSION.SDK_INT < 26 ||
+        audio.activePlaybackConfigurations.none { it.audioAttributes.contentType == android.media.AudioAttributes.CONTENT_TYPE_MOVIE })
     ) return
     playingSessions(c).forEach { it.transportControls.pause() }
+    if (android.os.Build.VERSION.SDK_INT < 26) {
+        @Suppress("DEPRECATION") audio.requestAudioFocus(null, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN)
+        @Suppress("DEPRECATION") audio.abandonAudioFocus(null)
+        return
+    }
     val focus = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA)
             .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MOVIE).build())
@@ -212,9 +219,9 @@ internal fun nowPlaying(context: Context): Track? = try {
  */
 internal class GlassInfo(private val context: Context) {
     private val prefs = context.getSharedPreferences("home", Context.MODE_PRIVATE)
-    private val regular = context.resources.getFont(R.font.vazirmatn_regular)
-    private val medium = context.resources.getFont(R.font.vazirmatn_medium)
-    private val bold = context.resources.getFont(R.font.vazirmatn_bold)
+    private val regular = if (android.os.Build.VERSION.SDK_INT >= 26) context.resources.getFont(R.font.vazirmatn_regular) else android.graphics.Typeface.DEFAULT
+    private val medium = if (android.os.Build.VERSION.SDK_INT >= 26) context.resources.getFont(R.font.vazirmatn_medium) else android.graphics.Typeface.DEFAULT
+    private val bold = if (android.os.Build.VERSION.SDK_INT >= 26) context.resources.getFont(R.font.vazirmatn_bold) else android.graphics.Typeface.DEFAULT_BOLD
     private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val blurPaint = Paint(Paint.FILTER_BITMAP_FLAG)

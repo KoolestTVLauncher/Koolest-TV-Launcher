@@ -1981,7 +1981,7 @@ class MainActivity : Activity() {
             ring.alpha = if (focused) 255 else 0
             sweep.cancel()
             sheen.progress = 0f
-            if (focused && android.animation.ValueAnimator.areAnimatorsEnabled()) sweep.start() // not with animations off (reduced motion)
+            if (focused && (android.os.Build.VERSION.SDK_INT < 26 || android.animation.ValueAnimator.areAnimatorsEnabled())) sweep.start() // not with animations off (reduced motion)
             frame.animate().scaleX(if (focused) lift else 1f).scaleY(if (focused) lift else 1f)
                 .translationZ(if (focused) dp(18).toFloat() else 0f).setDuration(220).setInterpolator(EASE_OUT).start()
         }
@@ -1994,6 +1994,7 @@ class MainActivity : Activity() {
      * single-layer icons and for photo-like layers that fill the square, which keep the greyscale look.
      */
     private fun glyph(icon: Drawable): Bitmap? {
+        if (android.os.Build.VERSION.SDK_INT < 26) return null
         val fg = (icon as? AdaptiveIconDrawable)?.foreground ?: return null
         val size = dp(96) // large, so a small symbol is still sharp after trimming and scaling up
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
@@ -3036,7 +3037,7 @@ class MainActivity : Activity() {
 
     private fun installUpdate(ver: String) {
         if (updating) return
-        if (!packageManager.canRequestPackageInstalls()) {
+        if (android.os.Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
             Toast.makeText(this, R.string.allow_installs, Toast.LENGTH_LONG).show()
             return openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
         }
@@ -3377,6 +3378,7 @@ class MainActivity : Activity() {
      * list web pages there. The apps used most come first, each with its newest [perApp] shows.
      */
     private fun queryContent(): Map<String, List<Prog>> {
+        if (android.os.Build.VERSION.SDK_INT < 26) return emptyMap() // no Android TV home channels before 8.0
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
         val channels = HashMap<Long, Pair<String, String>>() // id → package, name
         contentResolver.query(TvContract.Channels.CONTENT_URI, arrayOf("_id", "package_name", "display_name"), null, null, null)?.use { c ->
