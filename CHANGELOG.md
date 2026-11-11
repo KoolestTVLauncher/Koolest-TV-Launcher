@@ -4,6 +4,8 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 
 ## [Unreleased]
 
+- Runs on Android 7 (#14). Continue Watching stays empty there, since Android 7 apps can't share what you were watching, and Koolest uses the TV's own font. Paintings, weather and updates now download on Android 7.0, which doesn't trust Let's Encrypt on its own.
+
 ## [2.6.0] - 2026-11-06
 
 - The remote's Menu button opens the app menu, the same one as holding OK.

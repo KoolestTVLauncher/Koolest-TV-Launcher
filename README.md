@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/KoolestTVLauncher/Koolest-TV-Launcher?label=release"></a>
-  <img alt="Android 8 to 16" src="https://img.shields.io/badge/Android-8%20to%2016-3ddc84">
+  <img alt="Android 7 to 16" src="https://img.shields.io/badge/Android-7%20to%2016-3ddc84">
   <img alt="APK size" src="https://img.shields.io/badge/APK-0.8%20MB-blue">
   <a href="https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/KoolestTVLauncher/Koolest-TV-Launcher/ci.yml?branch=main&label=CI"></a>
   <a href="LICENSE"><img alt="GPL-3.0 License" src="https://img.shields.io/badge/license-GPL--3.0-blue"></a>
@@ -34,7 +34,7 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 - **A taskbar menu.** Search, Home, your pinned apps and consoles, then All apps, in three groups. Add, remove and reorder the pins in settings.
 - **All apps, sorted your way.** Home order, A–Z, most used, recently used or recently installed, picked from an iOS-style segmented control.
 - **English, French and Persian.** Persian lays the whole home screen out right to left. Follow the TV's language or pick one in **Settings → Look → Language**; app names and inputs follow it too, using each app's own translation and the names you gave your inputs in the TV's settings.
-- **Any Android TV brand.** Google TV and Android TV from any maker, Android 8 to Android 16. Koolest works around whichever launcher the TV ships, not only Google TV's.
+- **Any Android TV brand.** Google TV and Android TV from any maker, Android 7 to Android 16. Koolest works around whichever launcher the TV ships, not only Google TV's.
 - **Motion.** Focused cards grow and lift, rows glide into place and the background crossfades to the focused item's art. A row starts over from its first item each time you come back to it.
 - **Simple settings.** Short groups: Look, Home screen, Continue watching, Weather, Screensaver, This TV, Remote buttons and About.
 - **Remote buttons.** Press any button on any remote and Koolest learns it; then choose what it does: open an app, All apps, Search, Koolest settings, the screensaver, Android settings or nothing, only in Koolest or in every app. The **Menu** button opens an app's menu, like holding OK.
@@ -71,7 +71,7 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 
 ## Requirements
 
-- Android TV or Google TV running **Android 8.0 (Oreo) to Android 16**, from any brand
+- Android TV or Google TV running **Android 7.0 (Nougat) to Android 16**, from any brand. On Android 7, Continue Watching stays empty: apps there can't share what you were watching.
 - A way to sideload an APK: the *Downloader* app, a USB drive with a file manager, or `adb`
 
 ## Installation
@@ -92,7 +92,7 @@ In **Koolest settings → This TV**:
 | Setting | What to do |
 |---|---|
 | **Home button** | Press OK. In the Accessibility screen that opens, select **Koolest: Home button** and turn it on. |
-| **Default home** | Press OK and choose **Koolest TV Launcher** in the dialog (on Android 8 and 9, press Home and pick Koolest with **Always**). The row says whether Home really lands on Koolest. On Google TV and many Android TVs, the TV's own launcher always gets Home first whatever the default; Koolest tells you so, and the Home button setting works around it. |
+| **Default home** | Press OK and choose **Koolest TV Launcher** in the dialog (on Android 7 to 9, press Home and pick Koolest with **Always**). The row says whether Home really lands on Koolest. On Google TV and many Android TVs, the TV's own launcher always gets Home first whatever the default; Koolest tells you so, and the Home button setting works around it. |
 
 Allow the **TV listings** permission when asked; the content rows and Continue watching need it.
 
