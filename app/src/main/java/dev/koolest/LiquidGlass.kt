@@ -111,7 +111,7 @@ internal class LiquidGlass(private val radius: Float, private val fill: Int, pri
 
     override fun draw(c: Canvas) {
         val r = minOf(radius, box.height() / 2, box.width() / 2)
-        val live = backdrop?.live?.takeIf { c.isHardwareAccelerated && it.hasDisplayList() }
+        val live = if (android.os.Build.VERSION.SDK_INT >= 29) backdrop?.live?.takeIf { c.isHardwareAccelerated && it.hasDisplayList() } else null
         val frost = (if (inMenu) backdrop?.snapshot else null) ?: backdrop?.frost
         val view = callback as? android.view.View
         if ((live != null || frost != null) && view != null) {
@@ -122,11 +122,11 @@ internal class LiquidGlass(private val radius: Float, private val fill: Int, pri
             val saved = c.save()
             c.clipPath(clip)
             if (live != null && android.os.Build.VERSION.SDK_INT >= 29) {
-                val node = if (alpha < 255) c.saveLayerAlpha(box, alpha) else c.save()
+                val layer = if (alpha < 255) c.saveLayerAlpha(box, alpha) else c.save()
                 c.translate(-at[0].toFloat(), -at[1].toFloat())
                 c.scale(m.widthPixels / live.width.toFloat(), m.heightPixels / live.height.toFloat())
                 c.drawRenderNode(live)
-                c.restoreToCount(node)
+                c.restoreToCount(layer)
             } else {
                 frostPaint.alpha = alpha
                 c.drawBitmap(frost!!, null, RectF(-at[0].toFloat(), -at[1].toFloat(), m.widthPixels - at[0].toFloat(), m.heightPixels - at[1].toFloat()), frostPaint)
