@@ -749,6 +749,17 @@ class MainActivity : Activity() {
             R.id.shelfTitle, R.id.shelfMeta, R.id.shelfPlot, R.id.npTitle, R.id.npArtist, R.id.faDate)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
+        if (!dark) {
+            // Secondary text: the layout's 60-72 % suits light ink on dark; dark ink that faint reads as grey. In the
+            // colour, not view alpha, which with a glow would draw each line offscreen.
+            for (id in intArrayOf(R.id.npArtist, R.id.wxDesc, R.id.date, R.id.faDate, R.id.shelfMeta, R.id.shelfPlot)) findViewById<TextView>(id).apply {
+                alpha = 1f
+                setTextColor((fg and 0xFFFFFF) or 0xD1000000.toInt())
+            }
+            // Over the picture, a soft glow of the ground colour keeps the text readable where the light scrims no longer do.
+            for (id in intArrayOf(R.id.shelfEyebrow, R.id.shelfTitle, R.id.shelfMeta, R.id.shelfPlot)) findViewById<TextView>(id)
+                .setShadowLayer(dp(10).toFloat(), 0f, 0f, (ground and 0xFFFFFF) or 0xE6000000.toInt())
+        }
         // The scrims as live gradients were most of the TCL GPU's time per frame (25 ms of it; 8 ms without them).
         // Painted once into a screen-sized picture instead, dithered like the wallpaper fades, which then takes over.
         val scrim = findViewById<View>(R.id.stageScrim).apply { background = stageScrims(ground) }
@@ -809,8 +820,11 @@ class MainActivity : Activity() {
 
     /**
      * 30nama's stage scrims, of the ground colour: from the start edge 96 % → 78 % (30 %) → 0 (68 %), up from the
-     * bottom 100 % → 85 % (32 %) → 0 (62 %), and 70 % → 0 over the top 22 % for the clock and weather. Exact stops need
-     * Android 10; before it they're spread evenly.
+     * bottom 100 % → 85 % (32 %) → 0 (62 %), and 50 % → 0 over the top 22 % for the clock and weather. Exact stops need
+     * Android 10; before it they're spread evenly. Light has its own, eased (no visible edge where a fade starts):
+     * near-white at dark's strength turned the picture into fog. The start edge only softens (60 % → 0 by 55 %), the
+     * bottom fades the picture into the ground under the rows, and the top has none (the bar is glass). The text over
+     * the picture gets a soft glow instead (see applyTheme).
      */
     private fun stageScrims(ground: Int): Drawable {
         fun a(alpha: Float) = (ground and 0xFFFFFF) or ((alpha * 255).toInt() shl 24)
@@ -823,9 +837,19 @@ class MainActivity : Activity() {
         val h = resources.displayMetrics.heightPixels
         // Physical sides for the start edge: this is also drawn into the glass backdrop, which has no layout direction.
         val rtl = rtl
+        val start = if (rtl) GradientDrawable.Orientation.RIGHT_LEFT else GradientDrawable.Orientation.LEFT_RIGHT
+        if (!dark) return LayerDrawable(arrayOf(
+            scrim(start, floatArrayOf(0f, .25f, .5f, .75f, 1f), floatArrayOf(.60f, .42f, .20f, .06f, 0f)),
+            scrim(GradientDrawable.Orientation.BOTTOM_TOP, floatArrayOf(0f, .3f, .5f, .7f, .85f, 1f), floatArrayOf(1f, .94f, .72f, .36f, .12f, 0f)),
+        )).apply {
+            setLayerGravity(0, Gravity.START or Gravity.FILL_VERTICAL)
+            setLayoutDirection(window.decorView.layoutDirection)
+            setLayerWidth(0, (w * .55f).toInt())
+            setLayerGravity(1, Gravity.BOTTOM or Gravity.FILL_HORIZONTAL)
+            setLayerHeight(1, (h * .62f).toInt())
+        }
         return LayerDrawable(arrayOf(
-            scrim(if (rtl) GradientDrawable.Orientation.RIGHT_LEFT else GradientDrawable.Orientation.LEFT_RIGHT,
-                floatArrayOf(0f, .30f / .68f, 1f), floatArrayOf(.96f, .78f, 0f)),
+            scrim(start, floatArrayOf(0f, .30f / .68f, 1f), floatArrayOf(.96f, .78f, 0f)),
             scrim(GradientDrawable.Orientation.BOTTOM_TOP, floatArrayOf(0f, .32f / .62f, 1f), floatArrayOf(1f, .85f, 0f)),
             scrim(GradientDrawable.Orientation.TOP_BOTTOM, floatArrayOf(0f, 1f), floatArrayOf(.5f, 0f)),
         )).apply {
@@ -930,13 +954,18 @@ class MainActivity : Activity() {
         val base = ground and 0x00FFFFFF
         // Dithered: near black these fades have only a few steps, which show as bands (twice as tall on a 4K panel).
         // Painted once into the bitmap in software, so it costs nothing per frame.
+        // Light: an eased, later, lighter fade and no top veil (the top bar is glass now). White at dark's strength
+        // turned photos into fog; the stage scrims still fade the bottom into the ground under the rows.
+        val shade = if (dark) LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
+        else LinearGradient(0f, h * 0.35f, 0f, h * 0.75f, intArrayOf(base, base or 0x24000000, base or 0x80000000.toInt(), base or 0xB3000000.toInt()),
+            floatArrayOf(0f, .3f, .7f, 1f), Shader.TileMode.CLAMP)
         if (wallpaperFade()) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h, Paint().apply {
             isDither = true
-            shader = LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
+            shader = shade
         })
         // Photos rarely have the bundled ones' empty sky: a soft veil behind the clock and top-bar icons keeps them readable.
         // Strong over the clock and icons (top ~20%), gone by 30% so the photo still shows above the apps.
-        Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h * 0.3f, Paint().apply {
+        if (dark) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h * 0.3f, Paint().apply {
             isDither = true
             shader = LinearGradient(0f, 0f, 0f, h * 0.3f, intArrayOf(base or 0xC0000000.toInt(), base or 0xA0000000.toInt(), base),
                 floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
@@ -3884,11 +3913,13 @@ class MainActivity : Activity() {
      * the edge) and its label, shown once the menu opens. Focused, it's a white 300 × 64 pill.
      */
     private fun railItem(id: Int, icon: Drawable, name: String, current: Boolean = false, app: Boolean = false, gap: Boolean = false, action: () -> Unit) {
-        val rest = if (current) fg else fg and 0xFFFFFF or 0x75000000
+        val rest = if (current) fg else fg and 0xFFFFFF or (if (dark) 0x75000000 else 0xA6000000.toInt())
+        // Apps softened at rest in dark; in light, fading toward the white glass only washed their colours out.
+        val appRest = if (dark) 179 else 255
         val img = ImageView(this).apply {
             setImageDrawable(icon)
             if (app) {
-                alpha = 0.7f // apps keep their own colours, softened at rest, in a soft rounded square
+                imageAlpha = appRest // apps keep their own colours in a soft rounded square (imageAlpha: no offscreen layer)
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(view: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, view.width, view.height, view.width * 0.28f)
                 }
@@ -3921,7 +3952,7 @@ class MainActivity : Activity() {
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
                 pill.setColor(if (focused) focusFill else 0)
-                if (app) img.alpha = if (focused) 1f else 0.7f else img.setColorFilter(if (focused) focusInk else rest)
+                if (app) img.imageAlpha = if (focused) 255 else appRest else img.setColorFilter(if (focused) focusInk else rest)
                 text.setTextColor(if (focused) focusInk else fg)
             }
         }
