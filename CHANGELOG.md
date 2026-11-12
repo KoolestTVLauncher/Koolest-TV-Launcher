@@ -4,9 +4,18 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 
 ## [Unreleased]
 
-- Apps with several home-screen channels (SmartTube's Subscriptions, Recommendations, History) get a row per channel, named "App · Channel". Settings → Rows → the app → Channels turns each one on or off; channels the TV hides start off. The rows move together with the app, or on their own with Move channels separately (#19).
-- The top bar and the menu are real glass: they show what's behind them as it moves, with no delay. The home screen runs smoothly on slower TVs: on a TCL Google TV, janky frames fell from 25 % to 2 % (#50).
+## [2.7.0] - 2026-11-11
+
+- Apps with several home-screen channels (SmartTube's Subscriptions, Recommendations, History) get a row per channel, named "App · Channel". Settings → Home screen → Rows → the app → Channels turns each one on or off; channels the TV hides start off. The rows move together with the app, or on their own with Move channels separately (#19).
+- The top bar and the menu are real glass: they show what's behind them as it moves, with no delay. The home screen and settings run smoothly on slower TVs: on a TCL Google TV, janky frames on the home screen fell from 25 % to 2 % (#50, #54).
 - Light theme: pictures keep their colours under softer, eased fades, text over them gets a soft glow, and the menu's icons keep full colour (#52).
+- Remote buttons that send the same key code are told apart. Settings → This TV → Smooth volume, off by default, changes the volume smoothly while Volume is held, with a warning about what it costs before it turns on (#46).
+- The PIN lock also covers the Wi-Fi and Android settings icons, and a remote button set to Android settings (#42).
+- In-app updates use the TV's own installer when the confirm screen is missing (#40).
+- Continue watching ignores junk episode numbers, reads times given in seconds, and keeps channel cards in the app's order (#38).
+- Home and Continue watching work on more TVs (#34).
+- No crash after a theme change or from pictures too big for memory (#36).
+- The dark fades painted over photo wallpapers are dithered, so they don't show bands (#44).
 
 ## [2.6.0] - 2026-11-06
 
@@ -64,7 +73,8 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 
 - New glass design, All apps with a segmented sort control, and Unsplash wallpapers.
 
-[Unreleased]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/tag/v2.7.0
 [2.6.0]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/tag/v2.6.0
 [2.5.1]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/tag/v2.5.1
 [2.5.0]: https://github.com/KoolestTVLauncher/Koolest-TV-Launcher/releases/tag/v2.5.0
