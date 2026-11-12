@@ -27,10 +27,10 @@ Koolest replaces the stock home screen with what you actually use: your apps, yo
 ## Highlights
 
 - **A TV-first layout.** A menu on the left edge, a large billboard for whatever is focused, and rows of landscape cards below it, set in Vazirmatn with a white focus ring.
-- **Rows, top to bottom:** Continue watching, Apps, Consoles & inputs, YouTube and Spotify, then a row for every other app that publishes to the TV's home screen (Netflix, Prime Video, Tubi, Apple TV, Twitch…). Rows with nothing in them don't show, and any row can be turned off.
+- **Rows, top to bottom:** Continue watching, Apps, Consoles & inputs, YouTube and Spotify, then a row for every other app that publishes to the TV's home screen (Netflix, Prime Video, Tubi, Apple TV, Twitch…). An app with several channels (SmartTube's Subscriptions, Recommendations, History) gets a row per channel, named "App · Channel". Rows with nothing in them don't show, and any row or channel can be turned off.
 - **Continue watching that works.** Everything apps report as partway watched, from Android TV's Watch Next list and apps' own "Continue watching" channels. The apps you use most come first, each with 5, 10 or 15 shows (Settings → Continue watching → Shows per app), and browsers' open tabs stay out.
 - **Consoles and inputs.** Devices that name themselves over HDMI-CEC get a tile with their own mark: PlayStation 3/4/5, Xbox, Switch, Steam Deck, Apple TV, Shield, Chromecast and more. Selecting one switches the TV to that input.
-- **Liquid Glass design, iOS 26 style.** The menu, the top bar and settings are glass edged with light; settings opens as a floating card from its button while the home screen blurs behind it, and a focused poster catches a sweep of light as on Apple TV. Light mode is a soft white that doesn't glare in a dark room, with glass panes lifted on soft shadows.
+- **Liquid Glass design, iOS 26 style.** The menu, the top bar and settings are glass edged with light, and the menu and top bar show what passes behind them as it moves; settings opens as a floating card from its button while the home screen blurs behind it, and a focused poster catches a sweep of light as on Apple TV. Light mode is a soft white that doesn't glare in a dark room, with glass panes lifted on soft shadows.
 - **A taskbar menu.** Search, Home, your pinned apps and consoles, then All apps, in three groups. Add, remove and reorder the pins in settings.
 - **All apps, sorted your way.** Home order, A–Z, most used, recently used or recently installed, picked from an iOS-style segmented control.
 - **English, French and Persian.** Persian lays the whole home screen out right to left. Follow the TV's language or pick one in **Settings → Look → Language**; app names and inputs follow it too, using each app's own translation and the names you gave your inputs in the TV's settings.
@@ -129,6 +129,7 @@ Wait about 15 seconds before rebooting, or Android may not have saved the change
 | Action | How |
 |---|---|
 | Turn home rows on or off | **Settings → Home screen → Rows** |
+| Turn an app's channels on or off | **Settings → Home screen → Rows →** the app **→ Channels** |
 | Pin, remove or reorder apps in the menu | **Settings → Home screen → Menu apps** |
 | Rearrange the Apps row | Hold **OK** (or press **Menu**) on an app, or **Settings → Home screen → Rearrange apps** |
 | App info, uninstall, add to the row or the menu | Hold **OK** or press **Menu** on an app, on the home screen or in All apps |
@@ -141,6 +142,7 @@ Wait about 15 seconds before rebooting, or Android may not have saved the change
 | Lock the layout with a PIN | **Settings → This TV → PIN lock** |
 | See what's new, or support Koolest | **Settings → About** |
 | Choose what remote buttons do | **Settings → Remote buttons**: choose **Add a button**, then press the button. Any remote works; each button can work only in Koolest or in every app (needs the Home button service). **Reset all buttons** undoes everything |
+| Change the volume smoothly while holding Volume | **Settings → This TV → Smooth volume** (off by default; it says first what it costs) |
 | Back on the home screen | From deep in a row, back to its first item; again, to the menu; again, back to the rows |
 | Open the Google TV dashboard | Hold the **Home** button (not if Google TV is [turned off](#optional-make-koolest-the-only-launcher-adb)) |
 
