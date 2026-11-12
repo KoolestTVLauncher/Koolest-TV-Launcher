@@ -2706,7 +2706,7 @@ class MainActivity : Activity() {
         val c = findViewById<View>(R.id.content)
         c.alpha = 0f
         c.translationY = dp(18).toFloat()
-        c.animate().alpha(1f).translationY(0f).setDuration(520).setInterpolator(EMPH).start()
+        c.animate().alpha(1f).translationY(0f).setDuration(520).setInterpolator(EMPH).setUpdateListener(onUiThread).start()
     }
 
     // ---------- all apps ----------
@@ -3852,6 +3852,13 @@ class MainActivity : Activity() {
     private val glassLayers by lazy { listOf(R.id.topBar, R.id.rail, R.id.railDim).map { findViewById<View>(it) } }
 
     /** The home screen as it's drawn now, in screen pixels, without [glassLayers]: what's behind the glass. */
+    /**
+     * For animators on the layers [drawHome] draws: a listener keeps the animation on the UI thread, so a frame and
+     * a new backdrop recording follow every step. Without one, Android may run it on the render thread alone, and
+     * the glass would show the end state while the screen behind is still fading.
+     */
+    private val onUiThread = android.animation.ValueAnimator.AnimatorUpdateListener {}
+
     private fun drawHome(c: Canvas) {
         fun layer(v: View) {
             if (v.visibility != View.VISIBLE || v.alpha <= 0f || v in glassLayers) return
@@ -3970,7 +3977,7 @@ class MainActivity : Activity() {
         val p = v?.getTag(R.id.watchRow) as? Prog
         val title = p?.title ?: v?.contentDescription?.toString()?.takeIf { rowNames() != "never" }
         if (title == null || editing) {
-            shelf.animate().alpha(0f).setDuration(160).setInterpolator(EASE_OUT).start()
+            shelf.animate().alpha(0f).setDuration(160).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start()
         } else {
             val header = ((rowOf(v) as ViewGroup).getChildAt(0) as TextView).text.toString()
             val source = p?.pkg?.let { pkg -> apps.firstOrNull { it.pkg == pkg }?.label }?.takeIf { it != header }
@@ -3983,7 +3990,7 @@ class MainActivity : Activity() {
             }
             shelf.alpha = 0f
             shelf.translationY = dp(10).toFloat()
-            shelf.animate().alpha(1f).translationY(0f).setDuration(320).setInterpolator(EMPH).start()
+            shelf.animate().alpha(1f).translationY(0f).setDuration(320).setInterpolator(EMPH).setUpdateListener(onUiThread).start()
         }
         // The art waits for focus to settle, so moving along a row doesn't flash every poster. A card whose picture
         // is still on its way keeps the current art up until it arrives; only items without art (apps) clear it.
@@ -3996,7 +4003,7 @@ class MainActivity : Activity() {
         updateBackdrop(art ?: wallpaperBmp)
         if (art == null) {
             wallpaper.visibility = View.VISIBLE
-            return run { hero.animate().alpha(0f).setDuration(420).setInterpolator(EASE_OUT).start() }
+            return run { hero.animate().alpha(0f).setDuration(420).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start() }
         }
         val now = (hero.drawable as? android.graphics.drawable.TransitionDrawable)?.getDrawable(1) ?: hero.drawable
         // Same picture already set (e.g. back on the first card after an app tile faded the art out): keep it, but
@@ -4014,7 +4021,7 @@ class MainActivity : Activity() {
         }
         hero.animate().cancel()
         // Once the art is fully up it hides the wallpaper completely: stop drawing the wallpaper under it.
-        if (hero.alpha < 1f) hero.animate().alpha(1f).setDuration(480).setInterpolator(EASE_OUT)
+        if (hero.alpha < 1f) hero.animate().alpha(1f).setDuration(480).setInterpolator(EASE_OUT).setUpdateListener(onUiThread)
             .withEndAction { if (hero.alpha == 1f) wallpaper.visibility = View.INVISIBLE }.start()
         else wallpaper.visibility = View.INVISIBLE
     }
