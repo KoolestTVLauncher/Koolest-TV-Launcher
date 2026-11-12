@@ -25,7 +25,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -307,12 +306,20 @@ class MainActivity : Activity() {
         // Some TVs (the TCL) don't take the direction from a language set in-app: give it to the window outright.
         window.decorView.layoutDirection = resources.configuration.layoutDirection
         setContentView(R.layout.activity_main)
+        if (Build.VERSION.SDK_INT >= 29) {
+            // Drawn into its own quarter-size layer, scaled back up smoothly by the glass: the softening. One GPU pass;
+            // a blur effect took four or five on the TCL, each a render-target switch its tiled GPU pays dearly for.
+            backdrop.live?.setUseCompositingLayer(true, null)
+            window.decorView.viewTreeObserver.addOnPreDrawListener { recordBackdrop(); true }
+        }
         allApps = findViewById(R.id.allApps)
         allAppsGrid = findViewById(R.id.allAppsGrid)
         applyTheme()
         loadWallpaper()
         rows = findViewById(R.id.rows)
         rowStack = findViewById(R.id.rowStack)
+        // Its lines never overlap, so a fade can go straight to each line instead of through an offscreen copy.
+        findViewById<View>(R.id.shelf).forceHasOverlappingRendering(false)
         // Top to bottom; rows for other apps that publish to the home screen follow Spotify as they're found.
         watchRow = makeRow(getString(R.string.row_continue))
         appRow = makeRow(getString(R.string.row_apps)).apply { id = R.id.appRow }
@@ -720,12 +727,29 @@ class MainActivity : Activity() {
         // The top bar's capsule: smoky grey glass with a light hairline edge in dark, frosted white in light.
         backdrop.panes.clear() // the panes are made again below, in this theme
         findViewById<View>(R.id.topBar).background = glass(dp(22), if (dark) 0x404A4D57 else 0x52FAFAFB, frosted = true)
-        for (id in intArrayOf(R.id.infoDivider, R.id.iconDivider, R.id.npDivider)) findViewById<View>(id).setBackgroundColor(fg)
+        // The hairlines' 20 % is in their colour, not view alpha: alpha on a filled view draws it offscreen every frame.
+        for (id in intArrayOf(R.id.infoDivider, R.id.iconDivider, R.id.npDivider)) findViewById<View>(id).setBackgroundColor((fg and 0xFFFFFF) or 0x33000000)
         for (id in intArrayOf(R.id.clock, R.id.date, R.id.wxTemp, R.id.wxDesc, R.id.appsTitle, R.id.allAppsTitle,
             R.id.shelfTitle, R.id.shelfMeta, R.id.shelfPlot, R.id.npTitle, R.id.npArtist, R.id.faDate)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
-        findViewById<View>(R.id.stageScrim).background = stageScrims(ground)
+        // The scrims as live gradients were most of the TCL GPU's time per frame (25 ms of it; 8 ms without them).
+        // Painted once into a screen-sized picture instead, dithered like the wallpaper fades, which then takes over.
+        val scrim = findViewById<View>(R.id.stageScrim).apply { background = stageScrims(ground) }
+        val scrimGround = ground
+        @Suppress("DEPRECATION")
+        val painted = stageScrims(ground).apply { setDither(true) }
+        io.execute {
+            val m = resources.displayMetrics
+            val bmp = try {
+                Bitmap.createBitmap(m.widthPixels, m.heightPixels, Bitmap.Config.ARGB_8888)
+            } catch (e: OutOfMemoryError) {
+                return@execute // the gradients stay
+            }
+            painted.setBounds(0, 0, bmp.width, bmp.height)
+            painted.draw(Canvas(bmp))
+            ui.post { if (ground == scrimGround) scrim.background = BitmapDrawable(resources, bmp) else bmp.recycle() }
+        }
         // The menu: clear frosted glass (a faint white veil) round the icons at rest; open, a card of the same height,
         // a little denser so the labels read, over the dimmed screen.
         findViewById<View>(R.id.railRest).background = glass(dp(26), if (dark) 0x1FFFFFFF else 0x3DFAFAFB, frosted = true, inMenu = true)
@@ -754,6 +778,7 @@ class MainActivity : Activity() {
 
     /** Rebuilds what the floating glass shows through it: [picture] (the art or the wallpaper) under the scrims. */
     private fun updateBackdrop(picture: Bitmap?) {
+        if (backdrop.live != null) return // Android 10+ records the real screen every frame instead
         val m = resources.displayMetrics
         val scrims = stageScrims(ground)
         io.execute {
@@ -2701,7 +2726,7 @@ class MainActivity : Activity() {
         val c = findViewById<View>(R.id.content)
         c.alpha = 0f
         c.translationY = dp(18).toFloat()
-        c.animate().alpha(1f).translationY(0f).setDuration(520).setInterpolator(EMPH).start()
+        c.animate().alpha(1f).translationY(0f).setDuration(520).setInterpolator(EMPH).setUpdateListener(onUiThread).start()
     }
 
     // ---------- all apps ----------
@@ -3819,13 +3844,13 @@ class MainActivity : Activity() {
     private fun setRail(open: Boolean) {
         railOpen = open
         val t = if (open) 1f else 0f
-        // The screen behind keeps moving while the menu is open (rows glide back on Home, art cross-fades), so the
-        // glass retakes its view 5 times a second until the menu closes.
+        // Before Android 10 (no live backdrop): the screen behind keeps moving while the menu is open (rows glide back
+        // on Home, art cross-fades), so the glass retakes its view 5 times a second until the menu closes.
         ui.removeCallbacks(snapTick)
-        backdrop.snapshot = if (open) homeSnapshot() else null
-        if (open) ui.postDelayed(snapTick, 200)
-        findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).start()
-        findViewById<View>(R.id.railRest).animate().alpha(1 - t).setDuration(240).setInterpolator(EASE_OUT).start() // else it shows through the card
+        backdrop.snapshot = if (open && backdrop.live == null) homeSnapshot() else null
+        if (open && backdrop.live == null) ui.postDelayed(snapTick, 200)
+        findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start() // its glass is recorded only while it shows
+        findViewById<View>(R.id.railRest).animate().alpha(1 - t).setDuration(240).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start() // else it shows through the card
         val dim = findViewById<View>(R.id.railDim)
         val dimColor = if (dark) ground else Color.BLACK
         dim.animate().alpha(t * if (dark) 0.7f else 0.25f).setDuration(240).setInterpolator(EASE_OUT)
@@ -3843,6 +3868,63 @@ class MainActivity : Activity() {
         }
     }
 
+    /** The glass panes and the menu's dimming: never drawn into what the glass shows (glass on glass, and a loop). */
+    private val glassLayers by lazy { listOf(R.id.topBar, R.id.rail, R.id.railDim).map { findViewById<View>(it) } }
+
+    /**
+     * For animators on the layers [drawHome] draws and on the glass panes: a listener keeps the animation on the UI thread, so a frame and
+     * a new backdrop recording follow every step. Without one, Android may run it on the render thread alone, and
+     * the glass would show the end state while the screen behind is still fading.
+     */
+    private val onUiThread = android.animation.ValueAnimator.AnimatorUpdateListener {}
+
+    /** The home screen as it's drawn now, in screen pixels, without [glassLayers]: what's behind the glass. */
+    private fun drawHome(c: Canvas) {
+        fun layer(v: View) {
+            if (v.visibility != View.VISIBLE || v.alpha <= 0f || v in glassLayers) return
+            val saved = c.save()
+            c.translate(v.left.toFloat(), v.top.toFloat())
+            c.concat(v.matrix) // translation and scale (rows gliding, cards lifting)
+            if (v.alpha < 1f) c.saveLayerAlpha(0f, 0f, v.width.toFloat(), v.height.toFloat(), (v.alpha * 255).toInt())
+            val group = v as? ViewGroup
+            // content holds the glass itself: its children one by one, so the bar and the menu can be left out.
+            if (v.id == R.id.content && group != null) for (i in 0 until group.childCount) layer(group.getChildAt(i)) else v.draw(c)
+            c.restoreToCount(saved)
+        }
+        homeLayers.forEach(::layer)
+    }
+
+    /** The glass that shows [Backdrop.live]: the top bar and the menu's resting capsule and open card. */
+    private val glassPanes by lazy { listOf(R.id.topBar, R.id.railRest, R.id.railPanel).map { findViewById<View>(it) } }
+    private val paneAt = IntArray(2)
+
+    /**
+     * Records what's behind the glass into [Backdrop.live], before every frame the window draws. Only references to
+     * the views' own GPU drawings go in, at a quarter size, so the glass shows the screen as it is in that same frame.
+     * Each pane's area is recorded on its own, clipped: the GPU skips everything the glass doesn't cover.
+     */
+    @android.annotation.TargetApi(29)
+    private fun recordBackdrop() {
+        val node = backdrop.live ?: return
+        val m = resources.displayMetrics
+        node.setPosition(0, 0, m.widthPixels / 4, m.heightPixels / 4)
+        val edge = dp(4).toFloat() // a little more round each pane, for the smoothing where it's scaled back up
+        val c = node.beginRecording()
+        try {
+            c.scale(.25f, .25f)
+            for (pane in glassPanes) if (pane.isShown && pane.alpha > 0f) { // the menu's card is there only while open
+                pane.getLocationOnScreen(paneAt)
+                val saved = c.save()
+                c.clipRect(paneAt[0] - edge, paneAt[1] - edge, paneAt[0] + pane.width + edge, paneAt[1] + pane.height + edge)
+                c.drawColor(ground)
+                drawHome(c)
+                c.restoreToCount(saved)
+            }
+        } finally {
+            node.endRecording()
+        }
+    }
+
     /**
      * The home screen as it's drawn now, without the menu and its dimming, at a quarter size: what the open menu's
      * glass shows. Drawn in software, so it's taken between frames and nothing flickers.
@@ -3850,25 +3932,13 @@ class MainActivity : Activity() {
     private fun homeSnapshot(): Bitmap? = try {
         val m = resources.displayMetrics
         val bmp = Bitmap.createBitmap(m.widthPixels / 4, m.heightPixels / 4, Bitmap.Config.ARGB_8888)
-        // Left out by opacity, not visibility: a hidden menu would lose focus, and losing it closes the menu.
-        val hidden = listOf(R.id.rail, R.id.railDim).map { findViewById<View>(it) }.map { it to it.alpha }
-        hidden.forEach { it.first.alpha = 0f }
         Canvas(bmp).apply {
             drawColor(ground)
             scale(.25f, .25f)
-            for (v in homeLayers) if (v.visibility == View.VISIBLE && v.alpha > 0f) {
-                save()
-                translate(v.left.toFloat(), v.top.toFloat())
-                if (v.alpha < 1f) saveLayerAlpha(0f, 0f, v.width.toFloat(), v.height.toFloat(), (v.alpha * 255).toInt())
-                v.draw(this)
-                restore()
-                if (v.alpha < 1f) restore()
-            }
+            drawHome(this)
         }
-        hidden.forEach { (v, alpha) -> v.alpha = alpha }
         bmp
     } catch (e: Exception) { // a hardware bitmap a software canvas can't draw: the glass falls back to the picture
-        findViewById<View>(R.id.rail).alpha = 1f
         null
     }
 
@@ -3938,7 +4008,7 @@ class MainActivity : Activity() {
         val p = v?.getTag(R.id.watchRow) as? Prog
         val title = p?.title ?: v?.contentDescription?.toString()?.takeIf { rowNames() != "never" }
         if (title == null || editing) {
-            shelf.animate().alpha(0f).setDuration(160).setInterpolator(EASE_OUT).start()
+            shelf.animate().alpha(0f).setDuration(160).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start()
         } else {
             val header = ((rowOf(v) as ViewGroup).getChildAt(0) as TextView).text.toString()
             val source = p?.pkg?.let { pkg -> apps.firstOrNull { it.pkg == pkg }?.label }?.takeIf { it != header }
@@ -3951,7 +4021,7 @@ class MainActivity : Activity() {
             }
             shelf.alpha = 0f
             shelf.translationY = dp(10).toFloat()
-            shelf.animate().alpha(1f).translationY(0f).setDuration(320).setInterpolator(EMPH).start()
+            shelf.animate().alpha(1f).translationY(0f).setDuration(320).setInterpolator(EMPH).setUpdateListener(onUiThread).start()
         }
         // The art waits for focus to settle, so moving along a row doesn't flash every poster. A card whose picture
         // is still on its way keeps the current art up until it arrives; only items without art (apps) clear it.
@@ -3964,7 +4034,7 @@ class MainActivity : Activity() {
         updateBackdrop(art ?: wallpaperBmp)
         if (art == null) {
             wallpaper.visibility = View.VISIBLE
-            return run { hero.animate().alpha(0f).setDuration(420).setInterpolator(EASE_OUT).start() }
+            return run { hero.animate().alpha(0f).setDuration(420).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start() }
         }
         val now = (hero.drawable as? android.graphics.drawable.TransitionDrawable)?.getDrawable(1) ?: hero.drawable
         // Same picture already set (e.g. back on the first card after an app tile faded the art out): keep it, but
@@ -3982,7 +4052,7 @@ class MainActivity : Activity() {
         }
         hero.animate().cancel()
         // Once the art is fully up it hides the wallpaper completely: stop drawing the wallpaper under it.
-        if (hero.alpha < 1f) hero.animate().alpha(1f).setDuration(480).setInterpolator(EASE_OUT)
+        if (hero.alpha < 1f) hero.animate().alpha(1f).setDuration(480).setInterpolator(EASE_OUT).setUpdateListener(onUiThread)
             .withEndAction { if (hero.alpha == 1f) wallpaper.visibility = View.INVISIBLE }.start()
         else wallpaper.visibility = View.INVISIBLE
     }

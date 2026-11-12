@@ -14,11 +14,14 @@ import android.graphics.Shader
 import android.graphics.drawable.Drawable
 
 /**
- * What's behind the floating glass: the home screen's picture with its scrims, small and blurred, mapped to the
- * whole screen. Android can't blur the pixels behind a view, so the glass draws this instead, lined up with
- * where it sits on screen. Rebuilt when the picture changes (see MainActivity.updateBackdrop).
+ * What's behind the floating glass, mapped to the whole screen; the glass draws it lined up with where it sits.
+ * Android 10+: [live], the home screen recorded on the GPU every frame (see MainActivity.recordBackdrop), so the
+ * glass shows what's really behind it as it moves. Before that: the picture with its scrims, small, rebuilt when the
+ * picture changes (see MainActivity.updateBackdrop).
  */
 internal class Backdrop {
+    /** The home screen without the glass panes, at a quarter size, re-recorded before every frame. Android 10+. */
+    val live: android.graphics.RenderNode? = if (android.os.Build.VERSION.SDK_INT >= 29) android.graphics.RenderNode("backdrop") else null
     var frost: Bitmap? = null
         set(v) {
             field = v
@@ -108,19 +111,28 @@ internal class LiquidGlass(private val radius: Float, private val fill: Int, pri
 
     override fun draw(c: Canvas) {
         val r = minOf(radius, box.height() / 2, box.width() / 2)
+        val live = if (android.os.Build.VERSION.SDK_INT >= 29) backdrop?.live?.takeIf { c.isHardwareAccelerated && it.hasDisplayList() } else null
         val frost = (if (inMenu) backdrop?.snapshot else null) ?: backdrop?.frost
         val view = callback as? android.view.View
-        if (frost != null && view != null) {
+        if ((live != null || frost != null) && view != null) {
             // The screen behind, exactly where this pane is (its place on screen), so the glass lines up with
             // what's around it; the menu's panes also take the dimming that sits between them and the screen.
             view.getLocationOnScreen(at)
             val m = view.resources.displayMetrics
-            c.save()
+            val saved = c.save()
             c.clipPath(clip)
-            frostPaint.alpha = alpha
-            c.drawBitmap(frost, null, RectF(-at[0].toFloat(), -at[1].toFloat(), m.widthPixels - at[0].toFloat(), m.heightPixels - at[1].toFloat()), frostPaint)
+            if (live != null && android.os.Build.VERSION.SDK_INT >= 29) {
+                val layer = if (alpha < 255) c.saveLayerAlpha(box, alpha) else c.save()
+                c.translate(-at[0].toFloat(), -at[1].toFloat())
+                c.scale(m.widthPixels / live.width.toFloat(), m.heightPixels / live.height.toFloat())
+                c.drawRenderNode(live)
+                c.restoreToCount(layer)
+            } else {
+                frostPaint.alpha = alpha
+                c.drawBitmap(frost!!, null, RectF(-at[0].toFloat(), -at[1].toFloat(), m.widthPixels - at[0].toFloat(), m.heightPixels - at[1].toFloat()), frostPaint)
+            }
             backdrop?.dim?.takeIf { inMenu && it != 0 }?.let { c.drawColor(it) }
-            c.restore()
+            c.restoreToCount(saved)
         }
         body.color = fill
         body.alpha = Math.round(android.graphics.Color.alpha(fill) * alpha / 255f)
