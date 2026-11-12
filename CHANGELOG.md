@@ -5,6 +5,8 @@ All notable changes to Koolest TV Launcher. The full notes for each version are 
 ## [Unreleased]
 
 - Apps with several home-screen channels (SmartTube's Subscriptions, Recommendations, History) get a row per channel, named "App · Channel". Settings → Rows → the app → Channels turns each one on or off; channels the TV hides start off. The rows move together with the app, or on their own with Move channels separately (#19).
+- The top bar and the menu are real glass: they show what's behind them as it moves, with no delay. The home screen runs smoothly on slower TVs: on a TCL Google TV, janky frames fell from 25 % to 2 % (#50).
+- Light theme: pictures keep their colours under softer, eased fades, text over them gets a soft glow, and the menu's icons keep full colour (#52).
 
 ## [2.6.0] - 2026-11-06
 

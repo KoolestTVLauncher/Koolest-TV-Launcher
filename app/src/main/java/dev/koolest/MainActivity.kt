@@ -956,12 +956,11 @@ class MainActivity : Activity() {
         // Painted once into the bitmap in software, so it costs nothing per frame.
         // Light: an eased, later, lighter fade and no top veil (the top bar is glass now). White at dark's strength
         // turned photos into fog; the stage scrims still fade the bottom into the ground under the rows.
-        val shade = if (dark) LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
-        else LinearGradient(0f, h * 0.35f, 0f, h * 0.75f, intArrayOf(base, base or 0x24000000, base or 0x80000000.toInt(), base or 0xB3000000.toInt()),
-            floatArrayOf(0f, .3f, .7f, 1f), Shader.TileMode.CLAMP)
         if (wallpaperFade()) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h, Paint().apply {
             isDither = true
-            shader = shade
+            shader = if (dark) LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
+            else LinearGradient(0f, h * 0.35f, 0f, h * 0.75f, intArrayOf(base, base or 0x24000000, base or 0x80000000.toInt(), base or 0xB3000000.toInt()),
+                floatArrayOf(0f, .3f, .7f, 1f), Shader.TileMode.CLAMP)
         })
         // Photos rarely have the bundled ones' empty sky: a soft veil behind the clock and top-bar icons keeps them readable.
         // Strong over the clock and icons (top ~20%), gone by 30% so the photo still shows above the apps.
@@ -3914,12 +3913,12 @@ class MainActivity : Activity() {
      */
     private fun railItem(id: Int, icon: Drawable, name: String, current: Boolean = false, app: Boolean = false, gap: Boolean = false, action: () -> Unit) {
         val rest = if (current) fg else fg and 0xFFFFFF or (if (dark) 0x75000000 else 0xA6000000.toInt())
-        // Apps softened at rest in dark; in light, fading toward the white glass only washed their colours out.
-        val appRest = if (dark) 179 else 255
         val img = ImageView(this).apply {
             setImageDrawable(icon)
             if (app) {
-                imageAlpha = appRest // apps keep their own colours in a soft rounded square (imageAlpha: no offscreen layer)
+                // Apps keep their own colours in a soft rounded square, softened at rest in dark; in light, fading toward
+                // the white glass only washed them out.
+                if (dark) alpha = 0.7f
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(view: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, view.width, view.height, view.width * 0.28f)
                 }
@@ -3952,7 +3951,7 @@ class MainActivity : Activity() {
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
                 pill.setColor(if (focused) focusFill else 0)
-                if (app) img.imageAlpha = if (focused) 255 else appRest else img.setColorFilter(if (focused) focusInk else rest)
+                if (app) { if (dark) img.alpha = if (focused) 1f else 0.7f } else img.setColorFilter(if (focused) focusInk else rest)
                 text.setTextColor(if (focused) focusInk else fg)
             }
         }
