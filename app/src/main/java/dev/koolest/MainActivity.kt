@@ -326,7 +326,9 @@ class MainActivity : Activity() {
             // Drawn into its own quarter-size layer, scaled back up smoothly by the glass: the softening. One GPU pass;
             // a blur effect took four or five on the TCL, each a render-target switch its tiled GPU pays dearly for.
             backdrop.live?.setUseCompositingLayer(true, null)
-            window.decorView.viewTreeObserver.addOnPreDrawListener { recordBackdrop(); true }
+            // Not under the settings panel: the glass is blurred there anyway, and a new recording each frame made
+            // Android blur the whole home screen again every frame.
+            window.decorView.viewTreeObserver.addOnPreDrawListener { if (settingsScrim.visibility != View.VISIBLE) recordBackdrop(); true }
         }
         allApps = findViewById(R.id.allApps)
         allAppsGrid = findViewById(R.id.allAppsGrid)
@@ -1224,7 +1226,9 @@ class MainActivity : Activity() {
         val panel = findViewById<View>(R.id.settingsPanel)
         panel.background = glass(dp(PANEL_RADIUS), if (dark) (if (frost) 0xA61C1E25 else 0xF21C1E25).toInt() else (if (frost) 0xB8F7F7F8 else 0xF5F7F7F8).toInt())
         findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
-        if (frost) (homeLayers + allApps).forEach { it.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(dp(24).toFloat(), dp(24).toFloat(), android.graphics.Shader.TileMode.CLAMP)) }
+        // One blur on the frame that holds the home screen's layers (and one on All apps): each blurred view is a
+        // full-screen offscreen layer composited every frame, and four of them made the TCL drop most frames.
+        if (frost) listOf(findViewById<View>(R.id.home), allApps).forEach { it.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(dp(24).toFloat(), dp(24).toFloat(), android.graphics.Shader.TileMode.CLAMP)) }
         // Grows out of the settings button (top end), as iOS menus open from what you pressed; closing stays
         // instant, see closeLauncherSettings.
         if (settingsScrim.visibility != View.VISIBLE) {
@@ -1246,7 +1250,7 @@ class MainActivity : Activity() {
         pageExit = null
         pageBack = null
         settingsScrim.visibility = View.GONE // instant: a dozen key paths read "visible" as "open"
-        if (Build.VERSION.SDK_INT >= 31) (homeLayers + allApps).forEach { it.setRenderEffect(null) }
+        if (Build.VERSION.SDK_INT >= 31) listOf(findViewById<View>(R.id.home), allApps).forEach { it.setRenderEffect(null) }
         homeFocusable(allApps.visibility != View.VISIBLE) // the PIN can open over All apps
         (panelFrom?.takeIf { it.isAttachedToWindow } ?: findViewById(R.id.launcherSettings)).requestFocus()
         panelFrom = null
