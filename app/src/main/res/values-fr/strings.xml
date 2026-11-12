@@ -135,6 +135,8 @@
     <string name="add_an_app">Ajouter une appli…</string>
     <string name="move_up">Monter</string>
     <string name="move_down">Descendre</string>
+    <string name="channels">Chaînes</string>
+    <string name="move_channels_apart">Déplacer les chaînes séparément</string>
     <string name="remove_from_menu">Retirer du menu</string>
     <string name="add_to_menu">Ajouter au menu</string>
 
