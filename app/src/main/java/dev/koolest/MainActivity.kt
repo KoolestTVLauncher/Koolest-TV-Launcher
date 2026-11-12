@@ -25,7 +25,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -3850,8 +3849,8 @@ class MainActivity : Activity() {
         ui.removeCallbacks(snapTick)
         backdrop.snapshot = if (open && backdrop.live == null) homeSnapshot() else null
         if (open && backdrop.live == null) ui.postDelayed(snapTick, 200)
-        findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).start()
-        findViewById<View>(R.id.railRest).animate().alpha(1 - t).setDuration(240).setInterpolator(EASE_OUT).start() // else it shows through the card
+        findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start() // its glass is recorded only while it shows
+        findViewById<View>(R.id.railRest).animate().alpha(1 - t).setDuration(240).setInterpolator(EASE_OUT).setUpdateListener(onUiThread).start() // else it shows through the card
         val dim = findViewById<View>(R.id.railDim)
         val dimColor = if (dark) ground else Color.BLACK
         dim.animate().alpha(t * if (dark) 0.7f else 0.25f).setDuration(240).setInterpolator(EASE_OUT)
@@ -3873,7 +3872,7 @@ class MainActivity : Activity() {
     private val glassLayers by lazy { listOf(R.id.topBar, R.id.rail, R.id.railDim).map { findViewById<View>(it) } }
 
     /**
-     * For animators on the layers [drawHome] draws: a listener keeps the animation on the UI thread, so a frame and
+     * For animators on the layers [drawHome] draws and on the glass panes: a listener keeps the animation on the UI thread, so a frame and
      * a new backdrop recording follow every step. Without one, Android may run it on the render thread alone, and
      * the glass would show the end state while the screen behind is still fading.
      */
