@@ -5,6 +5,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- The home screen's layers in one frame, so the blur under the settings panel is one layer, not four. -->
+    <FrameLayout
+        android:id="@+id/home"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
     <!-- No background here: the window's is the ground colour (see applyTheme), one full-screen layer instead of two. -->
     <ImageView
         android:id="@+id/wallpaper"
@@ -353,6 +359,8 @@
                 android:gravity="center_vertical"
                 android:orientation="vertical" />
         </FrameLayout>
+    </FrameLayout>
+
     </FrameLayout>
 
     <!-- All apps: hidden until the Apps tile is pressed; Back closes it. -->
