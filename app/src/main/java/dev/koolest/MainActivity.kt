@@ -307,6 +307,10 @@ class MainActivity : Activity() {
         // Some TVs (the TCL) don't take the direction from a language set in-app: give it to the window outright.
         window.decorView.layoutDirection = resources.configuration.layoutDirection
         setContentView(R.layout.activity_main)
+        if (Build.VERSION.SDK_INT >= 29) {
+            if (Build.VERSION.SDK_INT >= 31) backdrop.live?.setRenderEffect(RenderEffect.createBlurEffect(2f, 2f, Shader.TileMode.CLAMP))
+            window.decorView.viewTreeObserver.addOnPreDrawListener { recordBackdrop(); true }
+        }
         allApps = findViewById(R.id.allApps)
         allAppsGrid = findViewById(R.id.allAppsGrid)
         applyTheme()
@@ -754,6 +758,7 @@ class MainActivity : Activity() {
 
     /** Rebuilds what the floating glass shows through it: [picture] (the art or the wallpaper) under the scrims. */
     private fun updateBackdrop(picture: Bitmap?) {
+        if (backdrop.live != null) return // Android 10+ records the real screen every frame instead
         val m = resources.displayMetrics
         val scrims = stageScrims(ground)
         io.execute {
@@ -3819,11 +3824,11 @@ class MainActivity : Activity() {
     private fun setRail(open: Boolean) {
         railOpen = open
         val t = if (open) 1f else 0f
-        // The screen behind keeps moving while the menu is open (rows glide back on Home, art cross-fades), so the
-        // glass retakes its view 5 times a second until the menu closes.
+        // Before Android 10 (no live backdrop): the screen behind keeps moving while the menu is open (rows glide back
+        // on Home, art cross-fades), so the glass retakes its view 5 times a second until the menu closes.
         ui.removeCallbacks(snapTick)
-        backdrop.snapshot = if (open) homeSnapshot() else null
-        if (open) ui.postDelayed(snapTick, 200)
+        backdrop.snapshot = if (open && backdrop.live == null) homeSnapshot() else null
+        if (open && backdrop.live == null) ui.postDelayed(snapTick, 200)
         findViewById<View>(R.id.railPanel).animate().alpha(t).setDuration(240).setInterpolator(EASE_OUT).start()
         findViewById<View>(R.id.railRest).animate().alpha(1 - t).setDuration(240).setInterpolator(EASE_OUT).start() // else it shows through the card
         val dim = findViewById<View>(R.id.railDim)
@@ -3843,6 +3848,45 @@ class MainActivity : Activity() {
         }
     }
 
+    /** The glass panes and the menu's dimming: never drawn into what the glass shows (glass on glass, and a loop). */
+    private val glassLayers by lazy { listOf(R.id.topBar, R.id.rail, R.id.railDim).map { findViewById<View>(it) } }
+
+    /** The home screen as it's drawn now, in screen pixels, without [glassLayers]: what's behind the glass. */
+    private fun drawHome(c: Canvas) {
+        fun layer(v: View) {
+            if (v.visibility != View.VISIBLE || v.alpha <= 0f || v in glassLayers) return
+            val saved = c.save()
+            c.translate(v.left.toFloat(), v.top.toFloat())
+            c.concat(v.matrix) // translation and scale (rows gliding, cards lifting)
+            if (v.alpha < 1f) c.saveLayerAlpha(0f, 0f, v.width.toFloat(), v.height.toFloat(), (v.alpha * 255).toInt())
+            val group = v as? ViewGroup
+            // content holds the glass itself: its children one by one, so the bar and the menu can be left out.
+            if (v.id == R.id.content && group != null) for (i in 0 until group.childCount) layer(group.getChildAt(i)) else v.draw(c)
+            c.restoreToCount(saved)
+        }
+        homeLayers.forEach(::layer)
+    }
+
+    /**
+     * Records what's behind the glass into [Backdrop.live], before every frame the window draws. Only references to
+     * the views' own GPU drawings go in, at a quarter size, lightly blurred on Android 12+: cheap enough per frame,
+     * and the glass shows the screen as it is in that same frame.
+     */
+    @android.annotation.TargetApi(29)
+    private fun recordBackdrop() {
+        val node = backdrop.live ?: return
+        val m = resources.displayMetrics
+        node.setPosition(0, 0, m.widthPixels / 4, m.heightPixels / 4)
+        val c = node.beginRecording()
+        try {
+            c.drawColor(ground)
+            c.scale(.25f, .25f)
+            drawHome(c)
+        } finally {
+            node.endRecording()
+        }
+    }
+
     /**
      * The home screen as it's drawn now, without the menu and its dimming, at a quarter size: what the open menu's
      * glass shows. Drawn in software, so it's taken between frames and nothing flickers.
@@ -3850,25 +3894,13 @@ class MainActivity : Activity() {
     private fun homeSnapshot(): Bitmap? = try {
         val m = resources.displayMetrics
         val bmp = Bitmap.createBitmap(m.widthPixels / 4, m.heightPixels / 4, Bitmap.Config.ARGB_8888)
-        // Left out by opacity, not visibility: a hidden menu would lose focus, and losing it closes the menu.
-        val hidden = listOf(R.id.rail, R.id.railDim).map { findViewById<View>(it) }.map { it to it.alpha }
-        hidden.forEach { it.first.alpha = 0f }
         Canvas(bmp).apply {
             drawColor(ground)
             scale(.25f, .25f)
-            for (v in homeLayers) if (v.visibility == View.VISIBLE && v.alpha > 0f) {
-                save()
-                translate(v.left.toFloat(), v.top.toFloat())
-                if (v.alpha < 1f) saveLayerAlpha(0f, 0f, v.width.toFloat(), v.height.toFloat(), (v.alpha * 255).toInt())
-                v.draw(this)
-                restore()
-                if (v.alpha < 1f) restore()
-            }
+            drawHome(this)
         }
-        hidden.forEach { (v, alpha) -> v.alpha = alpha }
         bmp
     } catch (e: Exception) { // a hardware bitmap a software canvas can't draw: the glass falls back to the picture
-        findViewById<View>(R.id.rail).alpha = 1f
         null
     }
 
